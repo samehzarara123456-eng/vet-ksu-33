@@ -1,0 +1,2791 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+  <title>Seniors 2027 VET-KSU 33 Old List | مكتبة المحاضرات والسكاشن</title>
+  
+  <!-- Google Fonts: Cairo & Tajawal -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            cairo: ['Cairo', 'sans-serif'],
+            tajawal: ['Tajawal', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Three.js for 3D Background Scene -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+
+  <style>
+    :root {
+      --bg-primary: #050914;
+      --bg-glass: rgba(15, 23, 42, 0.78);
+      --border-glass: rgba(56, 189, 248, 0.22);
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: 'Cairo', 'Tajawal', sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-primary);
+      color: #f8fafc;
+      overflow-x: hidden;
+      scroll-behavior: smooth;
+      min-height: 100vh;
+    }
+
+    body.light-mode {
+      --bg-primary: #f1f5f9;
+      --bg-glass: rgba(255, 255, 255, 0.9);
+      --border-glass: rgba(14, 165, 233, 0.3);
+      background-color: #f1f5f9;
+      color: #0f172a;
+    }
+
+    body.light-mode .text-white {
+      color: #0f172a !important;
+    }
+    body.light-mode .text-slate-300,
+    body.light-mode .text-slate-400 {
+      color: #475569 !important;
+    }
+    body.light-mode .bg-slate-900\/90,
+    body.light-mode .bg-slate-900\/95,
+    body.light-mode .bg-slate-900\/85,
+    body.light-mode .bg-slate-900\/80,
+    body.light-mode .bg-slate-800\/90,
+    body.light-mode .bg-slate-800\/80 {
+      background-color: rgba(241, 245, 249, 0.94) !important;
+      border-color: rgba(148, 163, 184, 0.45) !important;
+    }
+
+    /* 3D Background Canvas */
+    #bg-canvas-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    /* Glassmorphism Panels */
+    .glass-panel {
+      background: var(--bg-glass);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border: 1px solid var(--border-glass);
+      box-shadow: 0 18px 45px rgba(0, 0, 0, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.12);
+    }
+
+    /* 3D Perspective & Interactive Tilt Cards */
+    .perspective-container {
+      perspective: 1200px;
+    }
+
+    .card-3d {
+      transform-style: preserve-3d;
+      transition: transform 0.25s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.25s ease, border-color 0.25s ease;
+      will-change: transform;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card-3d::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(500px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(245, 158, 11, 0.15), transparent 40%);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .card-3d:hover::before {
+      opacity: 1;
+    }
+
+    .card-3d:hover {
+      border-color: rgba(245, 158, 11, 0.6);
+      box-shadow: 0 24px 48px -12px rgba(245, 158, 11, 0.22), 0 0 25px rgba(6, 182, 212, 0.16);
+    }
+
+    .card-3d-inner {
+      transform: translateZ(22px);
+      position: relative;
+      z-index: 2;
+    }
+
+    /* 3D Golden Folder Icon Graphic */
+    .folder-3d-icon {
+      position: relative;
+      width: 60px;
+      height: 46px;
+      border-radius: 12px;
+      background: linear-gradient(145deg, #fbbf24 0%, #f59e0b 55%, #d97706 100%);
+      box-shadow: 0 10px 20px -4px rgba(245, 158, 11, 0.45), inset 0 2px 3px rgba(255, 255, 255, 0.6), inset 0 -3px 6px rgba(146, 64, 14, 0.5);
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      flex-shrink: 0;
+    }
+
+    .folder-3d-icon::before {
+      content: '';
+      position: absolute;
+      top: -6px;
+      right: 6px;
+      width: 24px;
+      height: 9px;
+      border-radius: 6px 6px 0 0;
+      background: linear-gradient(90deg, #f59e0b, #fbbf24);
+      box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.5);
+    }
+
+    .folder-3d-icon::after {
+      content: '';
+      position: absolute;
+      inset: 6px 6px 8px 6px;
+      border-radius: 8px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.32) 0%, rgba(255, 255, 255, 0.04) 100%);
+      pointer-events: none;
+    }
+
+    .card-3d:hover .folder-3d-icon {
+      transform: scale(1.07) rotate(-3deg);
+    }
+
+    /* Animated Gradient Title */
+    .text-gradient-3d {
+      background: linear-gradient(135deg, #fbbf24 0%, #34d399 50%, #22d3ee 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-size: 200% auto;
+      animation: shineText 5s linear infinite;
+    }
+
+    @keyframes shineText {
+      to { background-position: 200% center; }
+    }
+
+    /* 3D Tactile Buttons - Compact & No Line Wrapping on Mobile */
+    .btn-3d {
+      transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: 0 4px 0 rgba(4, 120, 87, 0.85), 0 8px 16px rgba(16, 185, 129, 0.25);
+      white-space: nowrap;
+    }
+    .btn-3d:hover {
+      transform: translateY(-1.5px);
+      box-shadow: 0 6px 0 rgba(4, 120, 87, 0.9), 0 12px 20px rgba(16, 185, 129, 0.35);
+    }
+    .btn-3d:active {
+      transform: translateY(2px);
+      box-shadow: 0 2px 0 rgba(4, 120, 87, 0.85), 0 4px 8px rgba(16, 185, 129, 0.2);
+    }
+
+    .btn-3d-amber {
+      transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: 0 4px 0 rgba(180, 83, 9, 0.85), 0 8px 16px rgba(245, 158, 11, 0.25);
+      white-space: nowrap;
+    }
+    .btn-3d-amber:hover {
+      transform: translateY(-1.5px);
+      box-shadow: 0 6px 0 rgba(180, 83, 9, 0.9), 0 12px 20px rgba(245, 158, 11, 0.35);
+    }
+    .btn-3d-amber:active {
+      transform: translateY(2px);
+      box-shadow: 0 2px 0 rgba(180, 83, 9, 0.85), 0 4px 8px rgba(245, 158, 11, 0.2);
+    }
+
+    /* Mobile-Safe Modal Container: Fixed Backdrop + Internal Flex Scroll so Top & Bottom Never Clip */
+    .modal-backdrop {
+      background: rgba(3, 7, 18, 0.86);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .modal-card-scroll {
+      max-height: 90vh;
+      max-height: 90dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .modal-body-scroll {
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      flex: 1 1 auto;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #060b19;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: linear-gradient(180deg, #f59e0b, #10b981);
+      border-radius: 9999px;
+    }
+  </style>
+</head>
+<body class="selection:bg-amber-500 selection:text-slate-950">
+
+  <!-- 3D Interactive Background Canvas (Three.js) -->
+  <div id="bg-canvas-container"></div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:right-auto z-50 flex flex-col gap-2.5 sm:max-w-sm pointer-events-none"></div>
+
+  <!-- Main Content Wrapper -->
+  <div class="relative z-10 flex flex-col min-h-screen">
+
+    <!-- Top Navigation Header (Mobile-Optimized Single/Clean Two-Row Layout) -->
+    <header class="sticky top-0 z-40 glass-panel border-b border-amber-500/25 px-3 sm:px-6 lg:px-10 py-2.5 sm:py-3.5 transition-all duration-300">
+      <div class="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
+        
+        <!-- Row 1 on Mobile: Brand Identity + Quick Icon Toggles -->
+        <div class="flex items-center justify-between gap-2">
+          <!-- Brand Logo & Platform Name -->
+          <div class="flex items-center gap-2.5 cursor-pointer group min-w-0" id="brand-logo-btn" title="العودة للمجلد الرئيسي (1Data)">
+            <div class="relative shrink-0">
+              <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-amber-400 via-emerald-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-amber-500/25 border border-white/25 transform transition-transform group-hover:scale-105">
+                <i data-lucide="folder-kanban" class="w-5 h-5 sm:w-6 sm:h-6 text-slate-950 stroke-[2.4]"></i>
+              </div>
+              <span class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-slate-900"></span>
+            </div>
+            <div class="min-w-0">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <h1 class="text-sm sm:text-lg lg:text-xl font-black tracking-wide text-gradient-3d truncate" dir="ltr">Seniors 2027 VET-KSU 33 Old List</h1>
+                <span class="px-2 py-0.5 text-[10px] font-extrabold rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 whitespace-nowrap">الفرقة الخامسة</span>
+              </div>
+              <p class="text-[10px] sm:text-xs text-slate-400 font-semibold truncate">المكتبة الرقمية للمحاضرات والسكاشن • طب بيطري كفر الشيخ</p>
+            </div>
+          </div>
+
+          <!-- Compact Icon Toggles on Mobile Right -->
+          <div class="flex sm:hidden items-center gap-1.5 shrink-0">
+            <button type="button" id="toggle-3d-btn-mobile" class="p-2 rounded-xl bg-slate-800/90 text-emerald-400 border border-emerald-500/30" title="تفعيل/إيقاف 3D">
+              <i data-lucide="box" class="w-4 h-4"></i>
+            </button>
+            <button type="button" id="toggle-theme-btn-mobile" class="p-2 rounded-xl bg-slate-800/90 text-amber-400 border border-amber-500/30" title="تبديل المظهر">
+              <i data-lucide="sun" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Row 2 on Mobile / Right Side on Desktop: Action Buttons (Never Wrap Vertically!) -->
+        <div class="flex items-center justify-between sm:justify-end gap-1.5 sm:gap-2 overflow-x-auto py-0.5">
+          
+          <!-- Sticky Top Back Button (Visible whenever inside a subfolder so it stays fixed at top when scrolling down) -->
+          <button type="button" id="header-back-btn" class="hidden px-2.5 sm:px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-extrabold items-center gap-1.5 transition whitespace-nowrap shrink-0 shadow-md" title="رجوع للمجلد السابق">
+            <i data-lucide="arrow-right" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
+            <span>رجوع</span>
+          </button>
+
+          <!-- Home Root Folder Button -->
+          <button type="button" id="header-root-btn" class="px-2.5 sm:px-3.5 py-2 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-amber-300 border border-amber-500/30 text-xs font-extrabold flex items-center gap-1.5 transition whitespace-nowrap shrink-0" title="المقررات الرئيسية (1Data)">
+            <i data-lucide="home" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
+            <span>المقررات</span>
+          </button>
+
+          <!-- Notifications Center Button -->
+          <button type="button" id="notifications-btn" class="relative px-2.5 sm:px-3.5 py-2 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-amber-300 border border-amber-500/30 text-xs font-extrabold flex items-center gap-1.5 transition whitespace-nowrap shrink-0" title="مركز الإشعارات وأحدث المنشورات">
+            <i data-lucide="bell" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
+            <span>الإشعارات</span>
+            <span id="notif-unread-badge" class="hidden px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[10px] font-black animate-pulse">0</span>
+          </button>
+
+          <!-- Google Drive Cloud Sync Status & Refresh Button -->
+          <button type="button" id="cloud-sync-btn" class="px-2.5 sm:px-3.5 py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-xs font-extrabold flex items-center gap-1.5 transition whitespace-nowrap shrink-0" title="تحديث ومزامنة قاعدة البيانات مع Google Drive">
+            <span id="cloud-sync-dot" class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <i data-lucide="refresh-cw" id="cloud-sync-icon" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
+            <span id="cloud-sync-text">مزامنة Drive</span>
+          </button>
+
+          <!-- Saved Files Filter Toggle -->
+          <button type="button" id="header-saved-btn" class="px-2.5 sm:px-3.5 py-2 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 text-xs font-extrabold flex items-center gap-1.5 transition whitespace-nowrap shrink-0" title="ملفاتي المحفوظة">
+            <i data-lucide="bookmark" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
+            <span>محفوظاتي</span>
+            <span id="saved-count-badge" class="px-1.5 py-0.2 rounded-full bg-cyan-500/20 text-cyan-300 text-[10px]">0</span>
+          </button>
+
+          <!-- Desktop 3D & Theme Toggles -->
+          <button type="button" id="toggle-3d-btn" class="hidden sm:flex p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-emerald-400 border border-emerald-500/30 transition-all items-center gap-1.5 text-xs font-bold whitespace-nowrap shrink-0" title="تفعيل/إيقاف المؤثرات ثلاثية الأبعاد">
+            <i data-lucide="box" class="w-4 h-4"></i>
+            <span class="hidden lg:inline" id="toggle-3d-label">3D نشط</span>
+          </button>
+
+          <button type="button" id="toggle-theme-btn" class="hidden sm:flex p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-amber-400 border border-amber-500/30 transition-all shrink-0" title="تبديل المظهر الليلي/النهاري">
+            <i data-lucide="sun" class="w-4 h-4"></i>
+          </button>
+
+          <!-- Admin Portal Button -->
+          <button type="button" id="admin-access-btn" class="btn-3d px-3 sm:px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-extrabold flex items-center gap-1.5 shrink-0">
+            <i data-lucide="shield-check" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
+            <span id="admin-btn-text">بوابة المسؤولين</span>
+          </button>
+
+          <!-- Publish Button (Visible ONLY when Admin is Logged In - Clean Single-Line Text) -->
+          <button type="button" id="open-publish-modal-btn" class="hidden btn-3d-amber px-3 sm:px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 text-xs font-extrabold items-center gap-1.5 shrink-0">
+            <i data-lucide="plus-circle" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
+            <span>+ نشر ملف</span>
+          </button>
+        </div>
+
+      </div>
+    </header>
+
+    <!-- Admin Active Banner (Sleek, Non-Cramped Mobile & Desktop Layout) -->
+    <div id="admin-status-bar" class="hidden bg-slate-900/95 border-b border-amber-500/40 px-3 sm:px-6 py-2.5 backdrop-blur-md">
+      <div class="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs">
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="px-2.5 py-1 rounded-lg bg-amber-500 text-slate-950 font-black flex items-center gap-1 whitespace-nowrap shrink-0 text-[11px]">
+            <i data-lucide="crown" class="w-3.5 h-3.5"></i>
+            <span>وضع المسؤول</span>
+          </span>
+          <span class="text-amber-200 font-bold truncate" id="admin-welcome-name">صلاحيات النشر والتعديل مفعلة</span>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <button type="button" id="banner-publish-btn" class="flex-1 sm:flex-initial justify-center px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold transition flex items-center gap-1 whitespace-nowrap">
+            <i data-lucide="upload-cloud" class="w-3.5 h-3.5"></i>
+            <span>+ رفع ملف في المجلد الحالي</span>
+          </button>
+          <button type="button" id="admin-logout-btn" class="px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/35 text-rose-300 border border-rose-500/40 font-bold transition whitespace-nowrap">
+            خروج المسؤول
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Compact 3D Library Hero Banner -->
+    <section class="relative px-3 sm:px-6 lg:px-10 pt-4 sm:pt-6 pb-3">
+      <div class="max-w-7xl mx-auto">
+        <div class="glass-panel rounded-3xl p-4 sm:p-6 lg:p-7 relative overflow-hidden border border-amber-500/30">
+          <div class="absolute -top-24 -right-24 w-72 h-72 bg-amber-500/15 rounded-full blur-3xl pointer-events-none"></div>
+          <div class="absolute -bottom-24 -left-24 w-72 h-72 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none"></div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center relative z-10">
+            
+            <div class="lg:col-span-7 space-y-2.5 text-right">
+              <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[11px] font-extrabold">
+                <i data-lucide="folder-tree" class="w-3.5 h-3.5 shrink-0"></i>
+                <span>مكتبة المقررات الدراسية المقسمة بنظام المجلدات (1Data)</span>
+              </div>
+
+              <h2 class="text-xl sm:text-3xl lg:text-4xl font-black leading-snug">
+                مكتبة <span class="text-gradient-3d inline-block" dir="ltr">Seniors 2027 VET-KSU 33 Old List</span>
+              </h2>
+
+              <p class="text-slate-300 text-xs sm:text-sm leading-relaxed max-w-2xl">
+                تصفح مقررات الفرقة الخامسة الثمانية بالترتيب القياسي (<strong class="text-amber-300">باطنه • توليد • جراحه • دواجن • صحه • لحمه • مشتركه • معديه</strong>)، وادخل إلى مجلدات <strong class="text-emerald-300">السكاشن</strong> أو <strong class="text-cyan-300">المحاضرات</strong> المرقمة (<strong class="text-white">1، 2، 3...</strong>) لمعاينة وتحميل الملفات (<strong class="text-amber-200">المصدر • شرح • تلخيص • خريطه ذهنية</strong>).
+              </p>
+            </div>
+
+            <!-- Live Library Counters -->
+            <div class="lg:col-span-5 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 gap-2.5">
+              <div class="p-3 rounded-2xl bg-slate-900/85 border border-amber-500/30 flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+                  <i data-lucide="folder" class="w-4 h-4"></i>
+                </div>
+                <div>
+                  <div class="text-base sm:text-lg font-black text-white" id="stat-subjects-count">8</div>
+                  <div class="text-[10px] sm:text-[11px] text-slate-400 font-bold">مجلدات المقررات</div>
+                </div>
+              </div>
+
+              <div class="p-3 rounded-2xl bg-slate-900/85 border border-emerald-500/30 flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                  <i data-lucide="book-open" class="w-4 h-4"></i>
+                </div>
+                <div>
+                  <div class="text-base sm:text-lg font-black text-white" id="stat-lectures-count">0</div>
+                  <div class="text-[10px] sm:text-[11px] text-slate-400 font-bold">عدد المحاضرات</div>
+                </div>
+              </div>
+
+              <div class="p-3 rounded-2xl bg-slate-900/85 border border-cyan-500/30 flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0">
+                  <i data-lucide="microscope" class="w-4 h-4"></i>
+                </div>
+                <div>
+                  <div class="text-base sm:text-lg font-black text-white" id="stat-sections-count">0</div>
+                  <div class="text-[10px] sm:text-[11px] text-slate-400 font-bold">عدد السكاشن</div>
+                </div>
+              </div>
+
+              <div class="p-3 rounded-2xl bg-slate-900/85 border border-purple-500/30 flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center shrink-0">
+                  <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+                </div>
+                <div>
+                  <div class="text-base sm:text-lg font-black text-white" id="study-progress-text">0%</div>
+                  <div class="text-[10px] sm:text-[11px] text-slate-400 font-bold">نسبة المذاكرة</div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </section>
+    <!-- Main Library File Manager Workspace -->
+    <main id="main-workspace" class="flex-1 px-3 sm:px-6 lg:px-10 pb-16 pt-2">
+      <div class="max-w-7xl mx-auto space-y-4 sm:space-y-5">
+
+        <!-- Sticky Navigation & Back Bar (Stays fixed at top while scrolling down) -->
+        <div class="sticky top-[88px] sm:top-[68px] z-30 glass-panel rounded-2xl px-3 sm:px-4 py-2.5 border border-amber-500/35 shadow-xl flex flex-wrap items-center justify-between gap-2.5">
+          <!-- Breadcrumb Trail -->
+          <div class="flex flex-wrap items-center gap-1 text-xs sm:text-sm min-w-0" id="breadcrumb-bar">
+            <!-- Populated dynamically by JS -->
+          </div>
+
+          <!-- Right Controls: Quick Step Up + View Layout Toggle -->
+          <div class="flex items-center gap-2 shrink-0 mr-auto sm:mr-0">
+            <button type="button" id="step-back-btn" class="hidden px-3 sm:px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-extrabold items-center gap-1.5 transition whitespace-nowrap shadow-md" title="رجوع للمجلد السابق">
+              <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+              <span>رجوع للخلف</span>
+            </button>
+
+            <div class="flex items-center bg-slate-950/90 p-1 rounded-xl border border-slate-800">
+              <button type="button" id="layout-grid-btn" class="px-2.5 py-1 rounded-lg bg-amber-500 text-slate-950 text-xs font-extrabold flex items-center gap-1 transition whitespace-nowrap" title="عرض شبكي ثلاثي الأبعاد">
+                <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i>
+                <span>شبكة</span>
+              </button>
+              <button type="button" id="layout-list-btn" class="px-2.5 py-1 rounded-lg text-slate-400 hover:text-white text-xs font-bold flex items-center gap-1 transition whitespace-nowrap" title="عرض قائمة مثل مدير ملفات الهاتف">
+                <i data-lucide="list" class="w-3.5 h-3.5"></i>
+                <span>قائمة</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- File Explorer Search & Quick Subject Jump Bar -->
+        <div class="glass-panel rounded-3xl p-3.5 sm:p-5 border border-slate-700/80">
+
+          <!-- Row 2: Instant Global Search + Quick Subject Jump Pills -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 items-center">
+            
+            <!-- Search Input across all folders and files -->
+            <div class="lg:col-span-5 relative">
+              <i data-lucide="search" class="w-4 h-4 text-amber-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+              <input 
+                type="text" 
+                id="search-input" 
+                placeholder="ابحث في المقررات أو بنوع الملف (المصدر، شرح، تلخيص، خريطه ذهنية)..." 
+                class="w-full pr-10 pl-9 py-2.5 rounded-2xl bg-slate-900/90 border border-slate-700/80 focus:border-amber-400 focus:outline-none text-xs sm:text-sm text-white placeholder-slate-400 transition"
+              />
+              <button type="button" id="clear-search-btn" class="hidden absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1" title="مسح البحث">
+                <i data-lucide="x-circle" class="w-4 h-4"></i>
+              </button>
+            </div>
+
+            <!-- Ordered Subject Quick-Jump Pills (Exact 8 Folders Order) -->
+            <div class="lg:col-span-7 flex items-center gap-1.5 overflow-x-auto py-1" id="quick-subject-bar">
+              <!-- Populated dynamically in exact order: باطنه، توليد، جراحه، دواجن، صحه، لحمه، مشتركه، معديه -->
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- Current Folder Status Header & Admin Quick-Add Button -->
+        <div class="flex flex-wrap items-center justify-between gap-2.5 px-1">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-sm shadow-amber-400 shrink-0"></span>
+            <h3 class="text-sm sm:text-lg font-black text-white truncate" id="explorer-heading">المقررات الدراسية (1Data)</h3>
+            <span id="explorer-count-badge" class="px-2.5 py-0.5 rounded-full bg-slate-800 text-amber-300 border border-amber-500/30 text-xs font-extrabold whitespace-nowrap shrink-0">8 مجلدات</span>
+          </div>
+
+          <div class="flex items-center gap-2 shrink-0">
+            <!-- Admin Add Folder or File in Current Path -->
+            <button type="button" id="inline-admin-add-btn" class="hidden px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs items-center gap-1.5 transition shadow-lg whitespace-nowrap">
+              <i data-lucide="folder-plus" class="w-4 h-4"></i>
+              <span>+ نشر ملف هنا</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Dynamic 3D Folder & File Explorer Container -->
+        <div id="explorer-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 perspective-container">
+          <!-- Populated dynamically according to current hierarchy level (Subjects -> Category -> Numbered Folder -> Files) -->
+        </div>
+
+        <!-- Empty State (Shown when search/filter finds no matches) -->
+        <div id="empty-state" class="hidden glass-panel rounded-3xl p-8 sm:p-10 text-center max-w-lg mx-auto my-6 border border-slate-700/60">
+          <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-800/90 border border-amber-500/30 flex items-center justify-center mx-auto mb-4 text-amber-400">
+            <i data-lucide="folder-search" class="w-7 h-7 sm:w-8 sm:h-8"></i>
+          </div>
+          <h4 class="text-base sm:text-lg font-extrabold text-white mb-2">لا توجد ملفات أو مجلدات مطابقة</h4>
+          <p class="text-xs sm:text-sm text-slate-400 mb-5">يمكنك العودة إلى المجلد الرئيسي (1Data) لتصفح جميع المقررات الثمانية.</p>
+          <button type="button" id="empty-reset-btn" class="btn-3d px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-600 text-white text-xs font-extrabold inline-flex items-center gap-2">
+            <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+            <span>العودة إلى المجلد الرئيسي (1Data)</span>
+          </button>
+        </div>
+
+      </div>
+    </main>
+    <!-- Footer -->
+    <footer class="glass-panel border-t border-slate-800/80 py-5 px-4 sm:px-6 lg:px-10 mt-auto">
+      <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-500 to-emerald-600 flex items-center justify-center text-slate-950 font-black">33</div>
+          <span class="font-bold text-slate-300" dir="ltr">Seniors 2027 VET-KSU 33 Old List</span>
+          <span class="hidden sm:inline">• مكتبة الفرقة الخامسة طب بيطري كفر الشيخ</span>
+        </div>
+        <div class="flex flex-wrap items-center gap-4">
+          <button type="button" id="footer-root-link" class="hover:text-amber-400 font-bold transition">المقررات (1Data)</button>
+          <button type="button" id="footer-saved-link" class="hover:text-cyan-400 font-bold transition">محفوظاتي</button>
+          <button type="button" id="footer-admin-link" class="hover:text-emerald-400 font-bold transition flex items-center gap-1">
+            <i data-lucide="key-round" class="w-3.5 h-3.5"></i>
+            <span>دخول مسؤولي الدفعة</span>
+          </button>
+        </div>
+      </div>
+    </footer>
+
+  </div> <!-- End Main Content Wrapper -->
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 1: LECTURE / SECTION FILE PREVIEW & DOWNLOAD MODAL              -->
+  <!-- ===================================================================== -->
+  <div id="preview-modal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-3 sm:p-4">
+    <div class="glass-panel modal-card-scroll rounded-3xl max-w-3xl w-full border border-amber-500/40 shadow-2xl">
+      
+      <!-- Sticky Modal Header -->
+      <div class="p-4 sm:p-6 border-b border-slate-800 flex items-start justify-between gap-3 shrink-0 bg-slate-950/60">
+        <div class="min-w-0">
+          <div class="flex flex-wrap items-center gap-1.5 mb-2" id="preview-badges"></div>
+          <h3 id="preview-title" class="text-base sm:text-xl font-black text-white leading-snug">عنوان الملف</h3>
+        </div>
+        <button type="button" id="close-preview-modal-btn" class="w-9 h-9 rounded-xl bg-slate-800/90 hover:bg-rose-500/20 text-slate-300 hover:text-rose-400 border border-slate-700 flex items-center justify-center transition shrink-0" title="إغلاق">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Scrollable Modal Body -->
+      <div class="modal-body-scroll p-4 sm:p-6 space-y-4">
+        <div class="flex flex-wrap items-center gap-3 text-xs text-slate-300 pb-3 border-b border-slate-800/80">
+          <span class="flex items-center gap-1.5">
+            <i data-lucide="folder-tree" class="w-4 h-4 text-amber-400 shrink-0"></i>
+            <strong id="preview-folder-path">1Data > صحه > محاضرات > 1</strong>
+          </span>
+          <span class="flex items-center gap-1.5">
+            <i data-lucide="user-check" class="w-4 h-4 text-emerald-400 shrink-0"></i>
+            <span id="preview-doctor">قسم المقرر</span>
+          </span>
+          <span class="flex items-center gap-1.5">
+            <i data-lucide="layers" class="w-4 h-4 text-cyan-400 shrink-0"></i>
+            <span id="preview-meta">المصدر</span>
+          </span>
+          <span class="flex items-center gap-1.5">
+            <i data-lucide="download" class="w-4 h-4 text-purple-400 shrink-0"></i>
+            <span id="preview-downloads">0 تحميل</span>
+          </span>
+        </div>
+
+        <div id="preview-description-box" class="p-4 rounded-2xl bg-slate-900/90 border border-slate-800">
+          <h4 class="text-xs font-extrabold text-emerald-400 uppercase mb-2 flex items-center gap-1.5">
+            <i data-lucide="list-checks" class="w-4 h-4"></i>
+            <span>وصف ومحتويات الملف الدراسي:</span>
+          </h4>
+          <p id="preview-description" class="text-xs sm:text-sm text-slate-200 leading-relaxed"></p>
+        </div>
+
+        <div id="preview-keypoints-box" class="p-4 rounded-2xl bg-slate-900/90 border border-cyan-500/20">
+          <h4 class="text-xs font-extrabold text-cyan-400 uppercase mb-2 flex items-center gap-1.5">
+            <i data-lucide="microscope" class="w-4 h-4"></i>
+            <span>العناصر العلمية المشمولة في الملف:</span>
+          </h4>
+          <ul id="preview-keypoints" class="space-y-1.5 text-xs sm:text-sm text-slate-300 list-disc list-inside"></ul>
+        </div>
+
+        <div id="preview-clinical-note-box" class="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30">
+          <h4 class="text-xs font-extrabold text-amber-300 mb-1 flex items-center gap-1.5">
+            <i data-lucide="lightbulb" class="w-4 h-4"></i>
+            <span>ملاحظة هامة للامتحان والعملي:</span>
+          </h4>
+          <p id="preview-clinical-note" class="text-xs text-amber-100/90 leading-relaxed"></p>
+        </div>
+      </div>
+
+      <!-- Sticky Modal Footer -->
+      <div class="p-4 sm:p-5 border-t border-slate-800 bg-slate-950/75 flex flex-wrap items-center justify-between gap-2.5 shrink-0">
+        <div class="flex flex-wrap items-center gap-2">
+          <button type="button" id="modal-download-btn" class="btn-3d px-4 sm:px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-600 text-white font-extrabold text-xs sm:text-sm flex items-center gap-1.5">
+            <i data-lucide="download-cloud" class="w-4 h-4"></i>
+            <span>تحميل الملف الآن</span>
+          </button>
+
+          <button type="button" id="modal-external-link-btn" class="hidden px-3.5 py-2.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 font-bold text-xs flex items-center gap-1.5 transition">
+            <i data-lucide="external-link" class="w-4 h-4"></i>
+            <span>فتح الرابط الخارجي</span>
+          </button>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button type="button" id="modal-complete-btn" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold flex items-center gap-1.5 transition">
+            <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>
+            <span id="modal-complete-text">تحديد كمذاكر</span>
+          </button>
+
+          <button type="button" id="modal-share-btn" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 transition" title="نسخ مسار وتفاصيل الملف">
+            <i data-lucide="share-2" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 2: ADMIN AUTHENTICATION MODAL (Restricted Publishing Gate)      -->
+  <!-- ===================================================================== -->
+  <div id="admin-login-modal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-3 sm:p-4">
+    <div class="glass-panel modal-card-scroll rounded-3xl max-w-md w-full border border-emerald-500/40 shadow-2xl">
+      
+      <div class="p-4 sm:p-6 border-b border-slate-800 flex items-center justify-between gap-3 shrink-0 bg-slate-950/60">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-cyan-600 flex items-center justify-center text-white shadow-lg shrink-0">
+            <i data-lucide="shield-lock" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="text-base sm:text-lg font-black text-white">بوابة مسؤولي الدفعة</h3>
+            <p class="text-[11px] text-slate-400">النشر متاح فقط للمسؤولين (Admin Only)</p>
+          </div>
+        </div>
+        <button type="button" id="close-admin-login-btn" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition shrink-0">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="admin-login-form" class="modal-body-scroll p-4 sm:p-6 space-y-4">
+        <div>
+          <label for="admin-name-input" class="block text-xs font-bold text-slate-300 mb-1.5">اسم المسؤول (اختياري):</label>
+          <input 
+            type="text" 
+            id="admin-name-input" 
+            value="مسؤول الدفعة" 
+            class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-xs sm:text-sm text-white focus:border-emerald-400 focus:outline-none"
+          />
+        </div>
+
+        <div>
+          <label for="admin-passcode-input" class="block text-xs font-bold text-slate-300 mb-1.5">كود الدخول السري للمسؤولين *</label>
+          <input 
+            type="password" 
+            id="admin-passcode-input" 
+            placeholder="أدخل كود المسؤول..." 
+            required
+            class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-xs sm:text-sm text-white focus:border-emerald-400 focus:outline-none"
+          />
+          <p id="admin-login-error" class="hidden text-xs text-rose-400 font-bold mt-1.5">كود المسؤول غير صحيح! تأكد من الكود وحاول مرة أخرى.</p>
+        </div>
+
+        <button type="submit" class="btn-3d w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-cyan-600 text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2">
+          <i data-lucide="unlock" class="w-4 h-4"></i>
+          <span>تفعيل وضع المسؤول وفتح النشر</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 3: ADMIN PUBLISH / EDIT FILE MODAL (Mobile-Friendly Scroll)     -->
+  <!-- Only 4 Required Fields: القسم, القسم الفرعي, رقم المجلد, صيغة الملف   -->
+  <!-- Format Options: المصدر , شرح , تلخيص , خريطه ذهنية                    -->
+  <!-- ===================================================================== -->
+  <div id="publish-modal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-2.5 sm:p-4">
+    <div class="glass-panel modal-card-scroll rounded-3xl max-w-2xl w-full border border-amber-500/40 shadow-2xl">
+      
+      <!-- Sticky Top Header (Never Clipped on Phone!) -->
+      <div class="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between gap-3 shrink-0 bg-slate-950/75">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center text-slate-950 shadow-lg shrink-0">
+            <i data-lucide="folder-plus" class="w-5 h-5 sm:w-6 sm:h-6"></i>
+          </div>
+          <div class="min-w-0">
+            <h3 id="publish-modal-title" class="text-sm sm:text-lg font-black text-white truncate">نشر ملف جديد داخل المكتبة</h3>
+            <p class="text-[11px] text-amber-300 font-semibold truncate">الخانات الإجبارية فقط (*) هي القسم والقسم الفرعي ورقم المجلد وصيغة الملف</p>
+          </div>
+        </div>
+        <button type="button" id="close-publish-modal-btn" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition shrink-0" title="إغلاق">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Scrollable Form Body -->
+      <form id="publish-form" class="modal-body-scroll p-4 sm:p-6 space-y-4">
+        <input type="hidden" id="edit-item-id" value="" />
+
+        <!-- MANDATORY SECTION: The 4 Required Fields Only -->
+        <div class="p-3.5 sm:p-4 rounded-2xl bg-slate-900/95 border-2 border-amber-500/40 space-y-3.5">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-black text-amber-300 flex items-center gap-1.5">
+              <i data-lucide="check-square" class="w-4 h-4"></i>
+              <span>البيانات الأساسية المطلوبة للنشر (*)</span>
+            </span>
+            <span class="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 text-[10px] font-bold">إجباري</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <!-- 1. القسم (Required) -->
+            <div>
+              <label for="pub-subject" class="block text-xs font-extrabold text-amber-300 mb-1">1. القسم (المقرر الدراسي) *</label>
+              <select id="pub-subject" required class="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs sm:text-sm text-white font-bold focus:border-amber-400 focus:outline-none">
+                <option value="batna">باطنه</option>
+                <option value="tawleed">توليد</option>
+                <option value="geraha">جراحه</option>
+                <option value="dawagen">دواجن</option>
+                <option value="seha">صحه</option>
+                <option value="lahma">لحمه</option>
+                <option value="moshtaraka">مشتركه</option>
+                <option value="moadya">معديه</option>
+              </select>
+            </div>
+
+            <!-- 2. القسم الفرعي (Required) -->
+            <div>
+              <label for="pub-category" class="block text-xs font-extrabold text-emerald-300 mb-1">2. القسم الفرعي *</label>
+              <select id="pub-category" required class="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs sm:text-sm text-white font-bold focus:border-emerald-400 focus:outline-none">
+                <option value="سكاشن">سكاشن</option>
+                <option value="محاضرات">محاضرات</option>
+              </select>
+            </div>
+
+            <!-- 3. رقم المجلد (Required) -->
+            <div>
+              <label for="pub-folder-num" class="block text-xs font-extrabold text-cyan-300 mb-1">3. رقم المجلد (1، 2، 3...) *</label>
+              <input type="number" id="pub-folder-num" min="1" max="50" value="1" required class="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs sm:text-sm text-white font-bold focus:border-cyan-400 focus:outline-none" />
+            </div>
+
+            <!-- 4. صيغة الملف (Required: المصدر ، شرح ، تلخيص ، خريطه ذهنية) -->
+            <div>
+              <label for="pub-format" class="block text-xs font-extrabold text-purple-300 mb-1">4. صيغة الملف *</label>
+              <select id="pub-format" required class="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs sm:text-sm text-white font-bold focus:border-purple-400 focus:outline-none">
+                <option value="المصدر">المصدر</option>
+                <option value="شرح">شرح</option>
+                <option value="تلخيص">تلخيص</option>
+                <option value="خريطه ذهنية">خريطه ذهنية</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- OPTIONAL SECTION: All Other Fields Strictly Optional -->
+        <div class="p-3.5 sm:p-4 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-3.5">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+              <i data-lucide="sliders" class="w-4 h-4 text-cyan-400"></i>
+              <span>بيانات إضافية ورفع الملف (جميعها اختيارية تماماً)</span>
+            </span>
+            <span class="px-2 py-0.5 rounded-md bg-slate-800 text-slate-400 text-[10px] font-bold">اختياري</span>
+          </div>
+
+          <!-- File Upload or External Link (Optional) -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-xl bg-slate-950/80 border border-slate-800/90">
+            <div>
+              <label for="pub-file-upload" class="block text-xs font-bold text-emerald-400 mb-1">رفع ملف من جهازك (اختياري):</label>
+              <input type="file" id="pub-file-upload" accept=".pdf,.doc,.docx,.ppt,.pptx,.mp3,.wav,.txt,.zip,image/*" class="w-full text-xs text-slate-300 file:ml-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-500/20 file:text-emerald-300 hover:file:bg-emerald-500/30 cursor-pointer" />
+            </div>
+            <div>
+              <label for="pub-external-url" class="block text-xs font-bold text-cyan-400 mb-1">رابط خارجي Drive / Telegram (اختياري):</label>
+              <input type="url" id="pub-external-url" placeholder="https://drive.google.com/..." class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:border-cyan-400 focus:outline-none" dir="ltr" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div class="sm:col-span-2">
+              <label for="pub-title" class="block text-xs font-bold text-slate-300 mb-1">عنوان الملف (اختياري - يُسمى تلقائياً إن تُرك فارغاً):</label>
+              <input type="text" id="pub-title" placeholder="يُملأ تلقائياً باسم الصيغة والمجلد إن تركته فارغاً..." class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:border-amber-400 focus:outline-none" />
+            </div>
+
+            <div>
+              <label for="pub-doctor" class="block text-xs font-bold text-slate-300 mb-1">اسم المحاضر (اختياري):</label>
+              <input type="text" id="pub-doctor" placeholder="اختياري..." class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:border-amber-400 focus:outline-none" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label for="pub-description" class="block text-xs font-bold text-slate-300 mb-1">ملخص ومحتوى الملف (اختياري):</label>
+              <textarea id="pub-description" rows="2" placeholder="اختياري: اكتب وصفاً مختصراً أو اتركه فارغاً..." class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:border-amber-400 focus:outline-none"></textarea>
+            </div>
+
+            <div>
+              <label for="pub-keypoints" class="block text-xs font-bold text-slate-300 mb-1">نقاط رئيسية (اختياري):</label>
+              <textarea id="pub-keypoints" rows="2" placeholder="اختياري: النقاط العلمية الرئيسية..." class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:border-amber-400 focus:outline-none"></textarea>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div class="sm:col-span-2">
+              <label for="pub-note" class="block text-xs font-bold text-slate-300 mb-1">ملاحظات للامتحان أو العملي (اختياري):</label>
+              <input type="text" id="pub-note" placeholder="اختياري: ملاحظات للامتحان..." class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:border-amber-400 focus:outline-none" />
+            </div>
+            <div>
+              <label for="pub-pages" class="block text-xs font-bold text-slate-300 mb-1">عدد الصفحات (اختياري):</label>
+              <input type="number" id="pub-pages" min="1" max="500" placeholder="اختياري..." class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:border-amber-400 focus:outline-none" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Sticky Submit Buttons Inside Form Bottom -->
+        <div class="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-800 sticky bottom-0 bg-slate-950/95 py-2.5 -mx-4 px-4 sm:-mx-6 sm:px-6">
+          <button type="button" id="cancel-publish-btn" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition">
+            إلغاء
+          </button>
+          <button type="submit" class="btn-3d-amber px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-extrabold text-xs sm:text-sm flex items-center gap-2">
+            <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+            <span id="publish-submit-label">نشر الملف الآن</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <!-- ===================================================================== -->
+  <!-- MODAL 4: NOTIFICATIONS CENTER MODAL (Publish History & Browser Push)  -->
+  <!-- ===================================================================== -->
+  <div id="notifications-modal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-2.5 sm:p-4">
+    <div class="glass-panel modal-card-scroll rounded-3xl max-w-xl w-full border border-amber-500/40 shadow-2xl">
+      
+      <!-- Sticky Header -->
+      <div class="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between gap-3 shrink-0 bg-slate-950/80">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-amber-500 to-emerald-500 flex items-center justify-center text-slate-950 shadow-lg shrink-0">
+            <i data-lucide="bell-ring" class="w-5 h-5 sm:w-6 sm:h-6"></i>
+          </div>
+          <div class="min-w-0">
+            <h3 class="text-sm sm:text-lg font-black text-white truncate">مركز الإشعارات والتحديثات</h3>
+            <p class="text-[11px] text-slate-400 truncate">سجل الملفات المنشورة حديثاً مع تاريخ ووقت النشر</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button type="button" id="enable-browser-notif-btn" class="px-2.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-[11px] font-extrabold flex items-center gap-1 transition whitespace-nowrap" title="تفعيل إشعارات المتصفح والهاتف">
+            <i data-lucide="smartphone" class="w-3.5 h-3.5"></i>
+            <span id="browser-notif-btn-text">تفعيل إشعارات الجهاز</span>
+          </button>
+          <button type="button" id="close-notifications-modal-btn" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition shrink-0" title="إغلاق">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Scrollable Notifications List -->
+      <div id="notifications-list" class="modal-body-scroll p-3.5 sm:p-5 space-y-2.5">
+        <!-- Populated dynamically by JS -->
+      </div>
+
+      <!-- Sticky Footer -->
+      <div class="p-3.5 sm:p-4 border-t border-slate-800 bg-slate-950/80 flex items-center justify-between gap-2 shrink-0 text-xs">
+        <span class="text-slate-400 font-semibold" id="notifications-total-label">0 إشعارات</span>
+        <button type="button" id="mark-all-read-btn" class="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 font-extrabold transition flex items-center gap-1.5">
+          <i data-lucide="check-check" class="w-3.5 h-3.5"></i>
+          <span>تحديد الكل كمقروء</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- STAGE 5A: HIERARCHICAL LIBRARY DATA, STATE & THREE.JS 3D ENGINE       -->
+  <!-- ===================================================================== -->
+  <script>
+    // 1. Exact 8 Subjects Ordered Identically to the User's Screenshots (1Data)
+    const ORDERED_SUBJECTS = [
+      {
+        id: 'batna',
+        folderName: 'باطنه',
+        fullName: 'الأمراض الباطنة الإكلينيكية (Internal Medicine)',
+        dateModified: '23 Sept 6:51 pm',
+        doctor: 'قسم طب الحيوان (باطنه)',
+        icon: 'stethoscope',
+        accent: 'cyan',
+        topics: { 'محاضرات': [], 'سكاشن': [] }
+      },
+      {
+        id: 'tawleed',
+        folderName: 'توليد',
+        fullName: 'التوليد والتناسل والتلقيح الاصطناعي (Theriogenology)',
+        dateModified: '23 Sept 6:49 pm',
+        doctor: 'قسم التوليد والتناسل',
+        icon: 'heart-pulse',
+        accent: 'amber',
+        topics: { 'محاضرات': [], 'سكاشن': [] }
+      },
+      {
+        id: 'geraha',
+        folderName: 'جراحه',
+        fullName: 'الجراحة والتخدير والأشعة (Surgery & Radiology)',
+        dateModified: '23 Sept 6:51 pm',
+        doctor: 'قسم الجراحة والتخدير والأشعة',
+        icon: 'scissors',
+        accent: 'rose',
+        topics: { 'محاضرات': [], 'سكاشن': [] }
+      },
+      {
+        id: 'dawagen',
+        folderName: 'دواجن',
+        fullName: 'أمراض الدواجن والأرانب (Poultry Diseases)',
+        dateModified: '23 Sept 6:51 pm',
+        doctor: 'قسم أمراض الدواجن',
+        icon: 'feather',
+        accent: 'orange',
+        topics: { 'محاضرات': [], 'سكاشن': [] }
+      },
+      {
+        id: 'seha',
+        folderName: 'صحه',
+        fullName: 'الصحة والطب الوقائي ورعاية الحيوان (Animal Hygiene)',
+        dateModified: '23 Sept 6:49 pm',
+        doctor: 'قسم الصحة والطب الوقائي',
+        icon: 'shield-check',
+        accent: 'emerald',
+        topics: { 'محاضرات': [], 'سكاشن': [] }
+      },
+      {
+        id: 'lahma',
+        folderName: 'لحمه',
+        fullName: 'الرقابة الصحية على اللحوم ومنتجاتها (Meat Hygiene)',
+        dateModified: '23 Sept 6:49 pm',
+        doctor: 'قسم مراقبة الأغذية (اللحوم)',
+        icon: 'beef',
+        accent: 'rose',
+        topics: { 'محاضرات': [], 'سكاشن': [] }
+      },
+      {
+        id: 'moshtaraka',
+        folderName: 'مشتركه',
+        fullName: 'الأمراض المشتركة (Zoonoses)',
+        dateModified: '23 Sept 6:49 pm',
+        doctor: 'قسم الأمراض المشتركة',
+        icon: 'globe-2',
+        accent: 'indigo',
+        topics: { 'محاضرات': [], 'سكاشن': [] }
+      },
+      {
+        id: 'moadya',
+        folderName: 'معديه',
+        fullName: 'الأمراض المعدية والوبائية (Infectious Diseases)',
+        dateModified: '23 Sept 6:50 pm',
+        doctor: 'قسم الأمراض المعدية',
+        icon: 'shield-alert',
+        accent: 'purple',
+        topics: { 'محاضرات': [], 'سكاشن': [] }
+      }
+    ];
+
+    function generateDefaultFilesDatabase() {
+      return [];
+    }
+
+    // Google Apps Script Web App URL (Connected to Google Drive Database)
+    const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyjiraRf1PCiLeuZBA_S3jzR9-lVec5GExE_UHp7A69VhTkzHYOVa-ZL-__mkh6H4zr/exec';
+
+    // 3. Application State Management (Connected to Google Drive + Local Cache Fallback)
+    const appState = {
+      files: [],
+      savedIds: [],
+      completedIds: [],
+      seenNotificationIds: [],
+      knownFileIdsOnLoad: new Set(),
+      hasInitializedRemote: false,
+      currentSubject: null,
+      currentCategory: null,
+      currentFolderNum: null,
+      onlySavedFilter: false,
+      searchQuery: '',
+      layoutMode: 'grid',
+      isAdmin: false,
+      adminName: 'مسؤول الدفعة',
+      is3DEnabled: true,
+      isLightMode: false,
+      activePreviewId: null,
+      uploadedFileCache: {},
+      isSyncing: false
+    };
+
+    // Play a gentle notification chime using Web Audio API
+    function playNotificationChime() {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+        osc.frequency.setValueAtTime(880, ctx.currentTime + 0.12); // A5
+        gain.gain.setValueAtTime(0.12, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.45);
+      } catch (e) {}
+    }
+
+    // Send Browser / Device Notification + In-App Alert Banner when a new file is published
+    function sendUserNotificationForFile(file, isFromCurrentAdmin = false) {
+      if (!file) return;
+      const sub = getSubjectObj(file.subject);
+      const unitName = file.category === 'محاضرات' ? 'محاضرة' : 'سكشن';
+      const pubDate = file.dateAdded || 'الآن';
+      const notifTitle = `🔔 تم نشر (${file.format}) جديد — ${sub.folderName}`;
+      const notifBody = `${file.title}
+المسار: ${sub.folderName} > ${file.category} > ${unitName} ${file.folderNum}
+تاريخ النشر: ${pubDate}`;
+
+      playNotificationChime();
+      showToast(`${notifTitle} (${pubDate})`, 'success');
+
+      // Also trigger native browser/phone notification if permission granted
+      try {
+        if ('Notification' in window && Notification.permission === 'granted') {
+          const n = new Notification(notifTitle, {
+            body: notifBody,
+            dir: 'rtl',
+            lang: 'ar'
+          });
+          n.onclick = () => {
+            window.focus();
+            navigateToHierarchy(file.subject, file.category, Number(file.folderNum));
+          };
+        }
+      } catch (e) {}
+
+      updateNotificationsUI();
+    }
+
+    // Request Browser Notification Permission
+    async function requestBrowserNotificationPermission() {
+      if (!('Notification' in window)) {
+        showToast('متصفحك الحالي لا يدعم إشعارات النظام الخارجي، ستصلك الإشعارات داخل مركز الإشعارات بالمنصة.', 'info');
+        return;
+      }
+      try {
+        const perm = await Notification.requestPermission();
+        syncBrowserNotifButton();
+        if (perm === 'granted') {
+          showToast('تم تفعيل إشعارات الجهاز بنجاح! سيصلك تنبيه فوري عند نشر أي ملف.', 'success');
+        } else {
+          showToast('تم الاحتفاظ بالإشعارات داخل المنصة فقط.', 'info');
+        }
+      } catch (e) {
+        showToast('تم تفعيل الإشعارات داخل المنصة.', 'info');
+      }
+    }
+
+    function syncBrowserNotifButton() {
+      const btnText = document.getElementById('browser-notif-btn-text');
+      const btn = document.getElementById('enable-browser-notif-btn');
+      if (!btnText || !btn) return;
+      if ('Notification' in window && Notification.permission === 'granted') {
+        btnText.textContent = 'إشعارات الجهاز مفعلة ✓';
+        btn.className = 'px-2.5 py-1.5 rounded-xl bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 text-[11px] font-extrabold flex items-center gap-1 transition whitespace-nowrap';
+      } else {
+        btnText.textContent = 'تفعيل إشعارات الجهاز';
+      }
+    }
+
+    // Render Notifications Center List & Unread Badge
+    function updateNotificationsUI() {
+      const badge = document.getElementById('notif-unread-badge');
+      const listEl = document.getElementById('notifications-list');
+      const totalLabel = document.getElementById('notifications-total-label');
+      if (!badge || !listEl || !totalLabel) return;
+
+      const allFiles = Array.isArray(appState.files) ? appState.files : [];
+      const unreadFiles = allFiles.filter(f => !appState.seenNotificationIds.includes(f.id));
+
+      if (unreadFiles.length > 0) {
+        badge.textContent = unreadFiles.length > 99 ? '99+' : String(unreadFiles.length);
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+
+      totalLabel.textContent = `${allFiles.length} إشعار منشور`;
+
+      if (allFiles.length === 0) {
+        listEl.innerHTML = `
+          <div class="text-center py-10 px-4">
+            <div class="w-12 h-12 rounded-2xl bg-slate-800/90 border border-amber-500/30 flex items-center justify-center mx-auto mb-3 text-amber-400">
+              <i data-lucide="bell-off" class="w-6 h-6"></i>
+            </div>
+            <p class="text-sm font-extrabold text-white mb-1">لا توجد إشعارات منشورة حتى الآن</p>
+            <p class="text-xs text-slate-400">عند قيام المسؤول بنشر أي ملف جديد سيظهر هنا فوراً مع تاريخ ووقت النشر.</p>
+          </div>
+        `;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        return;
+      }
+
+      listEl.innerHTML = allFiles.map(file => {
+        const sub = getSubjectObj(file.subject);
+        const fmt = getFormatVisuals(file.format);
+        const isUnread = !appState.seenNotificationIds.includes(file.id);
+        const unitLabel = file.category === 'محاضرات' ? 'محاضرة' : 'سكشن';
+        const dateStr = file.dateAdded || 'بتاريخ اليوم';
+
+        return `
+          <div data-notif-file-id="${file.id}" class="notif-item p-3.5 rounded-2xl border transition cursor-pointer flex items-start justify-between gap-3 ${isUnread ? 'bg-amber-500/10 border-amber-500/45 hover:bg-amber-500/15' : 'bg-slate-900/80 border-slate-800 hover:border-slate-700'}">
+            <div class="flex items-start gap-3 min-w-0">
+              <div class="w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 mt-0.5 ${fmt.badgeClass}">
+                <i data-lucide="${fmt.icon}" class="w-5 h-5"></i>
+              </div>
+              <div class="min-w-0 space-y-1">
+                <div class="flex flex-wrap items-center gap-1.5">
+                  ${isUnread ? `<span class="px-2 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-black">جديد</span>` : ''}
+                  <span class="px-2 py-0.5 rounded-lg bg-slate-800 text-amber-300 text-[10px] font-extrabold">${sub.folderName} • ${file.category} (${unitLabel} ${file.folderNum})</span>
+                  <span class="px-2 py-0.5 rounded-lg border text-[10px] font-extrabold ${fmt.badgeClass}">${fmt.label}</span>
+                </div>
+                <h4 class="text-xs sm:text-sm font-black text-white truncate">${getCleanFileTitle(file)}</h4>
+                <div class="flex flex-wrap items-center gap-3 text-[11px] text-slate-400 font-semibold">
+                  <span class="flex items-center gap-1 text-emerald-300">
+                    <i data-lucide="calendar-clock" class="w-3.5 h-3.5"></i>
+                    <span>تاريخ النشر: <strong dir="ltr">${dateStr}</strong></span>
+                  </span>
+                  <span>•</span>
+                  <span dir="ltr">${file.size || ''}</span>
+                </div>
+              </div>
+            </div>
+            <div class="shrink-0 flex items-center self-center">
+              <span class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-amber-500 hover:text-slate-950 text-amber-300 text-[11px] font-extrabold transition flex items-center gap-1 whitespace-nowrap">
+                <span>فتح</span>
+                <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+              </span>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      listEl.querySelectorAll('.notif-item').forEach(el => {
+        el.addEventListener('click', () => {
+          const fId = el.getAttribute('data-notif-file-id');
+          const targetFile = appState.files.find(f => f.id === fId);
+          if (!targetFile) return;
+          if (!appState.seenNotificationIds.includes(fId)) {
+            appState.seenNotificationIds.push(fId);
+            saveAppState();
+          }
+          document.getElementById('notifications-modal').classList.add('hidden');
+          appState.onlySavedFilter = false;
+          appState.searchQuery = '';
+          navigateToHierarchy(targetFile.subject, targetFile.category, Number(targetFile.folderNum));
+          openPreviewModal(targetFile.id);
+          updateNotificationsUI();
+        });
+      });
+
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    function setCloudSyncStatus(state, label) {
+      const dot = document.getElementById('cloud-sync-dot');
+      const icon = document.getElementById('cloud-sync-icon');
+      const text = document.getElementById('cloud-sync-text');
+      if (!dot || !icon || !text) return;
+
+      text.textContent = label || 'مزامنة Drive';
+      if (state === 'syncing') {
+        dot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-ping';
+        icon.classList.add('animate-spin');
+      } else if (state === 'error') {
+        dot.className = 'w-2 h-2 rounded-full bg-rose-400';
+        icon.classList.remove('animate-spin');
+      } else {
+        dot.className = 'w-2 h-2 rounded-full bg-emerald-400';
+        icon.classList.remove('animate-spin');
+      }
+    }
+
+    function readFileAsBase64(fileObj) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = String(reader.result || '');
+          const cleanBase64 = result.includes(',') ? result.split(',')[1] : result;
+          const mime = fileObj.type || 'application/octet-stream';
+          resolve({
+            name: fileObj.name,
+            fileName: fileObj.name,
+            mimeType: mime,
+            type: mime,
+            base64: cleanBase64,
+            data: cleanBase64,
+            dataUrl: result
+          });
+        };
+        reader.onerror = () => reject(new Error('فشل قراءة الملف المرفوع'));
+        reader.readAsDataURL(fileObj);
+      });
+    }
+
+    async function fetchDatabaseFromDrive(silent = false) {
+      if (appState.isSyncing) return;
+      appState.isSyncing = true;
+      setCloudSyncStatus('syncing', 'جاري الجلب...');
+      try {
+        const res = await fetch(GAS_WEB_APP_URL + '?t=' + Date.now(), {
+          method: 'GET',
+          redirect: 'follow'
+        });
+        const data = await res.json();
+        const remoteFiles = Array.isArray(data) ? data : (Array.isArray(data.files) ? data.files : null);
+        if (remoteFiles) {
+          // Detect if any brand-new file was published since last check
+          if (appState.hasInitializedRemote) {
+            const newlyPublished = remoteFiles.filter(rf => !appState.knownFileIdsOnLoad.has(rf.id));
+            if (newlyPublished.length > 0) {
+              newlyPublished.forEach(nf => appState.knownFileIdsOnLoad.add(nf.id));
+              sendUserNotificationForFile(newlyPublished[0], false);
+            }
+          } else {
+            remoteFiles.forEach(rf => appState.knownFileIdsOnLoad.add(rf.id));
+            appState.hasInitializedRemote = true;
+          }
+
+          appState.files = remoteFiles;
+          saveAppState();
+          renderQuickSubjectBar();
+          renderBreadcrumbBar();
+          renderExplorerContent();
+          updateNotificationsUI();
+          setCloudSyncStatus('online', `متصل (${remoteFiles.length})`);
+          if (!silent) {
+            showToast(`تمت المزامنة مع Google Drive بنجاح (${remoteFiles.length} ملف)`, 'success');
+          }
+        } else {
+          setCloudSyncStatus('online', 'متصل بـ Drive');
+        }
+      } catch (err) {
+        setCloudSyncStatus('error', 'وضع محلي');
+        if (!silent) {
+          showToast('تعذر الاتصال بـ Google Drive حالياً، يتم العرض من الذاكرة المحلية.', 'warning');
+        }
+      } finally {
+        appState.isSyncing = false;
+      }
+    }
+
+    async function syncActionToDrive(payload) {
+      setCloudSyncStatus('syncing', 'جاري الحفظ...');
+      try {
+        const res = await fetch(GAS_WEB_APP_URL, {
+          method: 'POST',
+          redirect: 'follow',
+          headers: {
+            'Content-Type': 'text/plain;charset=utf-8'
+          },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data && data.ok) {
+          if (Array.isArray(data.files)) {
+            appState.files = data.files;
+            saveAppState();
+          }
+          setCloudSyncStatus('online', `متصل (${appState.files.length})`);
+          return { ok: true, data };
+        }
+        setCloudSyncStatus('error', 'خطأ في الحفظ');
+        return { ok: false, error: (data && data.error) || 'Unknown error' };
+      } catch (err) {
+        setCloudSyncStatus('error', 'حُفظ محلياً');
+        return { ok: false, error: err.message };
+      }
+    }
+
+    function loadAppState() {
+      try {
+        localStorage.removeItem('ksu_vet33_files_v3');
+        localStorage.removeItem('ksu_vet33_saved_v3');
+        localStorage.removeItem('ksu_vet33_completed_v3');
+
+        const storedFiles = localStorage.getItem('ksu_vet33_files_v4');
+        appState.files = storedFiles ? JSON.parse(storedFiles) : generateDefaultFilesDatabase();
+
+        const storedSaved = localStorage.getItem('ksu_vet33_saved_v4');
+        appState.savedIds = storedSaved ? JSON.parse(storedSaved) : [];
+
+        const storedCompleted = localStorage.getItem('ksu_vet33_completed_v4');
+        appState.completedIds = storedCompleted ? JSON.parse(storedCompleted) : [];
+
+        const storedSeen = localStorage.getItem('ksu_vet33_seen_notifs_v4');
+        appState.seenNotificationIds = storedSeen ? JSON.parse(storedSeen) : [];
+      } catch (e) {
+        appState.files = generateDefaultFilesDatabase();
+        appState.savedIds = [];
+        appState.completedIds = [];
+        appState.seenNotificationIds = [];
+      }
+    }
+
+    function saveAppState() {
+      try {
+        localStorage.setItem('ksu_vet33_files_v4', JSON.stringify(appState.files));
+        localStorage.setItem('ksu_vet33_saved_v4', JSON.stringify(appState.savedIds));
+        localStorage.setItem('ksu_vet33_completed_v4', JSON.stringify(appState.completedIds));
+        localStorage.setItem('ksu_vet33_seen_notifs_v4', JSON.stringify(appState.seenNotificationIds));
+      } catch (e) {}
+    }
+
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+
+      const colors = {
+        success: 'border-emerald-500/50 bg-slate-900/95 text-emerald-300',
+        warning: 'border-amber-500/50 bg-slate-900/95 text-amber-300',
+        info: 'border-cyan-500/50 bg-slate-900/95 text-cyan-300'
+      };
+
+      const toast = document.createElement('div');
+      toast.className = `pointer-events-auto flex items-center gap-2.5 px-4 py-3 rounded-2xl border shadow-xl backdrop-blur-md transition-all duration-300 text-xs font-bold ${colors[type] || colors.success}`;
+      toast.innerHTML = `
+        <span class="w-2.5 h-2.5 rounded-full bg-current shrink-0 animate-ping"></span>
+        <span class="flex-1 leading-relaxed">${message}</span>
+      `;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        setTimeout(() => toast.remove(), 300);
+      }, 3200);
+    }
+
+    // 4. Three.js 3D Interactive Background
+    let threeAnimId = null;
+    function initThreeBackground() {
+      const container = document.getElementById('bg-canvas-container');
+      if (!container || typeof THREE === 'undefined') return;
+
+      container.innerHTML = '';
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.z = 32;
+
+      let renderer;
+      try {
+        renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        container.appendChild(renderer.domElement);
+      } catch (err) {
+        return;
+      }
+
+      const group = new THREE.Group();
+      scene.add(group);
+
+      const sphereGeo = new THREE.SphereGeometry(0.32, 12, 12);
+      const amberMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.55 });
+      const emeraldMat = new THREE.MeshBasicMaterial({ color: 0x10b981, transparent: true, opacity: 0.55 });
+
+      const helixGroup = new THREE.Group();
+      for (let i = -18; i <= 18; i++) {
+        const angle = i * 0.35;
+        const y = i * 0.9;
+        const radius = 5.5;
+
+        const nodeA = new THREE.Mesh(sphereGeo, amberMat);
+        nodeA.position.set(Math.cos(angle) * radius, y, Math.sin(angle) * radius);
+        helixGroup.add(nodeA);
+
+        const nodeB = new THREE.Mesh(sphereGeo, emeraldMat);
+        nodeB.position.set(Math.cos(angle + Math.PI) * radius, y, Math.sin(angle + Math.PI) * radius);
+        helixGroup.add(nodeB);
+
+        const points = [nodeA.position.clone(), nodeB.position.clone()];
+        const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+        const lineMat = new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.18 });
+        helixGroup.add(new THREE.Line(lineGeo, lineMat));
+      }
+      helixGroup.position.set(-14, 0, -6);
+      helixGroup.rotation.z = 0.25;
+      group.add(helixGroup);
+
+      const icoGeo = new THREE.IcosahedronGeometry(3.8, 1);
+      const wireMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b, wireframe: true, transparent: true, opacity: 0.13 });
+      const icoMesh = new THREE.Mesh(icoGeo, wireMat);
+      icoMesh.position.set(15, 6, -8);
+      group.add(icoMesh);
+
+      const particlesCount = 85;
+      const posArray = new Float32Array(particlesCount * 3);
+      for (let i = 0; i < particlesCount * 3; i++) {
+        posArray[i] = (Math.random() - 0.5) * 65;
+      }
+      const partGeo = new THREE.BufferGeometry();
+      partGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+      const partMat = new THREE.PointsMaterial({ size: 0.22, color: 0xfbbf24, transparent: true, opacity: 0.45 });
+      const particleMesh = new THREE.Points(partGeo, partMat);
+      group.add(particleMesh);
+
+      let mouseX = 0;
+      let mouseY = 0;
+      window.addEventListener('mousemove', (e) => {
+        mouseX = (e.clientX / window.innerWidth - 0.5) * 2;
+        mouseY = (e.clientY / window.innerHeight - 0.5) * 2;
+      });
+
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      function animate3D() {
+        threeAnimId = requestAnimationFrame(animate3D);
+        if (!appState.is3DEnabled) return;
+
+        helixGroup.rotation.y += 0.0045;
+        icoMesh.rotation.x += 0.003;
+        icoMesh.rotation.y += 0.004;
+        particleMesh.rotation.y += 0.0008;
+
+        group.position.x += (mouseX * 1.8 - group.position.x) * 0.04;
+        group.position.y += (-mouseY * 1.8 - group.position.y) * 0.04;
+
+        renderer.render(scene, camera);
+      }
+
+      if (threeAnimId) cancelAnimationFrame(threeAnimId);
+      animate3D();
+    }
+    // =====================================================================
+    // STAGE 5B: HIERARCHICAL FOLDER EXPLORER, FORMAT STYLING & CONTROLLERS
+    // =====================================================================
+
+    function getSubjectObj(subId) {
+      return ORDERED_SUBJECTS.find(s => s.id === subId) || ORDERED_SUBJECTS[0];
+    }
+
+    // Visual Styling Helper for the 4 File Formats: المصدر , شرح , تلخيص , خريطه ذهنية
+    function getFormatVisuals(formatName) {
+      const f = String(formatName || 'المصدر').trim();
+      if (f === 'شرح') {
+        return {
+          label: 'شرح',
+          icon: 'book-open-check',
+          badgeClass: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+        };
+      }
+      if (f === 'تلخيص') {
+        return {
+          label: 'تلخيص',
+          icon: 'file-check-2',
+          badgeClass: 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+        };
+      }
+      if (f === 'خريطه ذهنية') {
+        return {
+          label: 'خريطه ذهنية',
+          icon: 'git-fork',
+          badgeClass: 'bg-purple-500/20 text-purple-300 border-purple-500/40'
+        };
+      }
+      return {
+        label: 'المصدر',
+        icon: 'file-text',
+        badgeClass: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+      };
+    }
+
+    function updateLibraryCounters() {
+      const lecturesCount = new Set(
+        appState.files.filter(f => f.category === 'محاضرات').map(f => `${f.subject}-${f.folderNum}`)
+      ).size;
+      const sectionsCount = new Set(
+        appState.files.filter(f => f.category === 'سكاشن').map(f => `${f.subject}-${f.folderNum}`)
+      ).size;
+      document.getElementById('stat-subjects-count').textContent = ORDERED_SUBJECTS.length;
+      document.getElementById('stat-lectures-count').textContent = lecturesCount;
+      document.getElementById('stat-sections-count').textContent = sectionsCount;
+      document.getElementById('saved-count-badge').textContent = appState.savedIds.length;
+
+      const total = appState.files.length || 1;
+      const done = appState.completedIds.filter(id => appState.files.some(f => f.id === id)).length;
+      const pct = Math.min(100, Math.round((done / total) * 100));
+      document.getElementById('study-progress-text').textContent = `${pct}%`;
+    }
+
+    // Attach 3D Tilt Effect to Cards
+    function attach3DTiltListeners() {
+      document.querySelectorAll('.card-3d').forEach(card => {
+        card.addEventListener('mousemove', (e) => {
+          if (!appState.is3DEnabled) return;
+          const rect = card.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+          const centerX = rect.width / 2;
+          const centerY = rect.height / 2;
+          const rotateX = ((y - centerY) / centerY) * -5;
+          const rotateY = ((x - centerX) / centerX) * 5;
+
+          card.style.setProperty('--mouse-x', `${x}px`);
+          card.style.setProperty('--mouse-y', `${y}px`);
+          card.style.transform = `perspective(1000px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) translateY(-3px)`;
+        });
+
+        card.addEventListener('mouseleave', () => {
+          card.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) translateY(0px)';
+        });
+      });
+    }
+
+    // Render Quick Subject Bar in Exact Screenshot Order
+    function renderQuickSubjectBar() {
+      const bar = document.getElementById('quick-subject-bar');
+      if (!bar) return;
+
+      const isRootActive = !appState.currentSubject && !appState.onlySavedFilter;
+
+      const rootPill = `
+        <button type="button" data-quick-sub="root" class="quick-sub-btn shrink-0 px-3 py-1.5 rounded-xl border text-xs font-extrabold transition flex items-center gap-1.5 whitespace-nowrap ${isRootActive ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md' : 'bg-slate-900/90 text-slate-300 hover:text-white border-slate-700'}">
+          <i data-lucide="folder-root" class="w-3.5 h-3.5"></i>
+          <span>1Data (الكل)</span>
+        </button>
+      `;
+
+      const subjectPills = ORDERED_SUBJECTS.map(sub => {
+        const isActive = appState.currentSubject === sub.id && !appState.onlySavedFilter;
+        return `
+          <button type="button" data-quick-sub="${sub.id}" class="quick-sub-btn shrink-0 px-3 py-1.5 rounded-xl border text-xs font-extrabold transition flex items-center gap-1.5 whitespace-nowrap ${isActive ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md' : 'bg-slate-900/90 text-slate-300 hover:text-white border-slate-700'}">
+            <i data-lucide="folder" class="w-3.5 h-3.5 ${isActive ? 'text-slate-950' : 'text-amber-400'}"></i>
+            <span>${sub.folderName}</span>
+          </button>
+        `;
+      }).join('');
+
+      bar.innerHTML = rootPill + subjectPills;
+
+      bar.querySelectorAll('.quick-sub-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const target = btn.getAttribute('data-quick-sub');
+          appState.onlySavedFilter = false;
+          appState.searchQuery = '';
+          document.getElementById('search-input').value = '';
+          document.getElementById('clear-search-btn').classList.add('hidden');
+
+          if (target === 'root') {
+            navigateToHierarchy(null, null, null);
+          } else {
+            navigateToHierarchy(target, null, null);
+          }
+        });
+      });
+
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    // Navigate to Specific Hierarchy Level (1Data -> Subject -> Category -> FolderNum)
+    function navigateToHierarchy(subjectId, categoryName, folderNum) {
+      appState.currentSubject = subjectId;
+      appState.currentCategory = categoryName;
+      appState.currentFolderNum = folderNum !== null && folderNum !== undefined ? Number(folderNum) : null;
+      renderQuickSubjectBar();
+      renderBreadcrumbBar();
+      renderExplorerContent();
+    }
+
+    // Step Back One Level in Folder Hierarchy
+    function stepBackHierarchy() {
+      if (appState.onlySavedFilter || appState.searchQuery.trim() !== '') {
+        appState.onlySavedFilter = false;
+        appState.searchQuery = '';
+        document.getElementById('search-input').value = '';
+        document.getElementById('clear-search-btn').classList.add('hidden');
+        renderQuickSubjectBar();
+        renderBreadcrumbBar();
+        renderExplorerContent();
+        return;
+      }
+
+      if (appState.currentFolderNum !== null) {
+        navigateToHierarchy(appState.currentSubject, appState.currentCategory, null);
+      } else if (appState.currentCategory !== null) {
+        navigateToHierarchy(appState.currentSubject, null, null);
+      } else if (appState.currentSubject !== null) {
+        navigateToHierarchy(null, null, null);
+      }
+    }
+
+    // Render Interactive Breadcrumb Trail
+    function renderBreadcrumbBar() {
+      const bar = document.getElementById('breadcrumb-bar');
+      const backBtn = document.getElementById('step-back-btn');
+      if (!bar) return;
+
+      const headerBackBtn = document.getElementById('header-back-btn');
+      const isDeep = appState.currentSubject !== null || appState.onlySavedFilter || appState.searchQuery.trim() !== '';
+      if (backBtn) {
+        backBtn.classList.toggle('hidden', !isDeep);
+        backBtn.classList.toggle('flex', isDeep);
+      }
+      if (headerBackBtn) {
+        headerBackBtn.classList.toggle('hidden', !isDeep);
+        headerBackBtn.classList.toggle('flex', isDeep);
+      }
+
+      const crumbs = [
+        {
+          label: 'Internal storage',
+          icon: 'hard-drive',
+          active: false,
+          onClick: () => navigateToHierarchy(null, null, null)
+        },
+        {
+          label: '1Data',
+          icon: 'folder',
+          active: !appState.currentSubject && !appState.onlySavedFilter && !appState.searchQuery.trim(),
+          onClick: () => {
+            appState.onlySavedFilter = false;
+            appState.searchQuery = '';
+            document.getElementById('search-input').value = '';
+            document.getElementById('clear-search-btn').classList.add('hidden');
+            navigateToHierarchy(null, null, null);
+          }
+        }
+      ];
+
+      if (appState.onlySavedFilter) {
+        crumbs.push({
+          label: 'محفوظاتي المفضلة',
+          icon: 'bookmark',
+          active: true,
+          onClick: () => {}
+        });
+      } else if (appState.searchQuery.trim() !== '') {
+        crumbs.push({
+          label: `بحث: "${appState.searchQuery.trim()}"`,
+          icon: 'search',
+          active: true,
+          onClick: () => {}
+        });
+      } else {
+        if (appState.currentSubject) {
+          const sub = getSubjectObj(appState.currentSubject);
+          crumbs.push({
+            label: sub.folderName,
+            icon: 'folder-open',
+            active: !appState.currentCategory,
+            onClick: () => navigateToHierarchy(appState.currentSubject, null, null)
+          });
+        }
+        if (appState.currentCategory) {
+          crumbs.push({
+            label: appState.currentCategory,
+            icon: 'folder-open',
+            active: appState.currentFolderNum === null,
+            onClick: () => navigateToHierarchy(appState.currentSubject, appState.currentCategory, null)
+          });
+        }
+        if (appState.currentFolderNum !== null) {
+          crumbs.push({
+            label: String(appState.currentFolderNum),
+            icon: 'folder-open',
+            active: true,
+            onClick: () => {}
+          });
+        }
+      }
+
+      bar.innerHTML = crumbs.map((c, i) => `
+        <button type="button" data-crumb-idx="${i}" class="crumb-btn px-2 py-1 rounded-xl font-extrabold transition flex items-center gap-1 whitespace-nowrap ${c.active ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'text-slate-400 hover:text-white hover:bg-slate-800'}">
+          <i data-lucide="${c.icon}" class="w-3.5 h-3.5 ${c.active ? 'text-emerald-400' : 'text-amber-400'}"></i>
+          <span>${c.label}</span>
+        </button>
+        ${i < crumbs.length - 1 ? `<i data-lucide="chevron-left" class="w-3.5 h-3.5 text-slate-600 shrink-0"></i>` : ''}
+      `).join('');
+
+      bar.querySelectorAll('.crumb-btn').forEach(btn => {
+        const idx = Number(btn.getAttribute('data-crumb-idx'));
+        btn.addEventListener('click', () => crumbs[idx].onClick());
+      });
+
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    // Helper: Build a 3D Folder Card
+    function buildFolderCardHTML({ title, subtitle, timestamp, itemCountLabel, badgeText, dataAttrs }) {
+      if (appState.layoutMode === 'list') {
+        return `
+          <div ${dataAttrs} class="card-3d glass-panel rounded-2xl p-3.5 sm:p-4 border border-slate-800 hover:border-amber-500/50 cursor-pointer flex items-center justify-between gap-3 transition">
+            <div class="card-3d-inner flex items-center gap-3.5 min-w-0">
+              <div class="folder-3d-icon"></div>
+              <div class="min-w-0">
+                <div class="flex items-center gap-2">
+                  <h4 class="text-base sm:text-lg font-black text-white truncate">${title}</h4>
+                  ${badgeText ? `<span class="px-2 py-0.5 rounded-full bg-slate-800 text-amber-300 text-[10px] font-bold whitespace-nowrap">${badgeText}</span>` : ''}
+                </div>
+                <p class="text-xs text-slate-400 truncate mt-0.5">${subtitle}</p>
+                <span class="text-[11px] text-slate-500 font-semibold block mt-0.5" dir="ltr">${timestamp}</span>
+              </div>
+            </div>
+            <div class="card-3d-inner flex items-center gap-2.5 shrink-0">
+              <span class="px-2.5 py-1 rounded-xl bg-slate-900 border border-slate-700 text-xs font-extrabold text-slate-200 whitespace-nowrap" dir="ltr">${itemCountLabel}</span>
+              <div class="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                <i data-lucide="chevron-left" class="w-4 h-4"></i>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      return `
+        <div ${dataAttrs} class="card-3d glass-panel rounded-3xl p-5 border border-slate-800 hover:border-amber-500/60 cursor-pointer flex flex-col justify-between gap-4 transition group">
+          <div class="card-3d-inner flex items-start justify-between gap-3">
+            <div class="folder-3d-icon"></div>
+            <span class="px-3 py-1 rounded-xl bg-slate-900/95 border border-amber-500/30 text-xs font-extrabold text-amber-300 shadow whitespace-nowrap" dir="ltr">
+              ${itemCountLabel}
+            </span>
+          </div>
+
+          <div class="card-3d-inner space-y-1.5">
+            <div class="flex items-center justify-between gap-2">
+              <h4 class="text-xl sm:text-2xl font-black text-white group-hover:text-amber-300 transition">${title}</h4>
+              ${badgeText ? `<span class="px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold whitespace-nowrap">${badgeText}</span>` : ''}
+            </div>
+            <p class="text-xs text-slate-300 font-medium line-clamp-1">${subtitle}</p>
+          </div>
+
+          <div class="card-3d-inner pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400 font-semibold">
+            <span dir="ltr">${timestamp}</span>
+            <span class="text-amber-400 font-extrabold flex items-center gap-1 group-hover:-translate-x-1 transition-transform">
+              <span>فتح المجلد</span>
+              <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+            </span>
+          </div>
+        </div>
+      `;
+    }
+
+    // Helper: Strip leading format prefix (e.g. "شرح: ", "تلخيص: ", "المصدر: ", "خريطه ذهنية: ") from file title
+    function getCleanFileTitle(file) {
+      let t = String(file?.title || '').trim();
+      t = t.replace(/^(المصدر|شرح|تلخيص|خريطه ذهنية|خريطة ذهنية)\s*[:\-]\s*/i, '');
+      return t || String(file?.title || '');
+    }
+
+    // Helper: Detect if description/keypoints/clinicalNote were auto-generated placeholders from older uploads
+    function getCleanOptionalFields(file) {
+      const sub = getSubjectObj(file.subject);
+      const unitName = file.category === 'محاضرات' ? 'المحاضرة' : 'السكشن';
+      const autoDesc = `ملف (${file.format}) خاص بـ ${unitName} رقم (${file.folderNum}) في مقرر ${sub.fullName}.`;
+      const autoKp = `${file.format} معتمد لـ ${unitName} رقم (${file.folderNum}) في مقرر ${sub.folderName}`;
+      const autoNote = `راجع ملف (${file.format}) جيداً قبل الامتحان.`;
+
+      const rawDesc = String(file.description || '').trim();
+      const description = (rawDesc && rawDesc !== autoDesc) ? rawDesc : '';
+
+      const rawKps = Array.isArray(file.keypoints) ? file.keypoints.map(k => String(k || '').trim()).filter(Boolean) : [];
+      const keypoints = rawKps.filter(k => k !== autoKp);
+
+      const rawNote = String(file.clinicalNote || '').trim();
+      const clinicalNote = (rawNote && rawNote !== autoNote) ? rawNote : '';
+
+      return { description, keypoints, clinicalNote };
+    }
+
+    // Helper: Build File Card HTML inside Numbered Folder
+    function buildFileCardHTML(file, showFullPath = false) {
+      const sub = getSubjectObj(file.subject);
+      const isSaved = appState.savedIds.includes(file.id);
+      const isCompleted = appState.completedIds.includes(file.id);
+      const fmt = getFormatVisuals(file.format);
+
+      return `
+        <article class="card-3d glass-panel rounded-3xl p-4 sm:p-5 border ${isCompleted ? 'border-emerald-500/50' : 'border-slate-800'} flex flex-col justify-between gap-4 h-full">
+          <div class="card-3d-inner space-y-3">
+            
+            <!-- Top Row: File Format Badge (المصدر / شرح / تلخيص / خريطه ذهنية) & Bookmark / Studied Toggles -->
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex flex-wrap items-center gap-1.5">
+                <span class="px-2.5 py-1 rounded-xl border text-xs font-extrabold flex items-center gap-1.5 ${fmt.badgeClass}">
+                  <i data-lucide="${fmt.icon}" class="w-3.5 h-3.5"></i>
+                  <span>${fmt.label}</span>
+                </span>
+                <span class="px-2.5 py-1 rounded-xl bg-slate-900 text-amber-300 border border-slate-700 text-[11px] font-extrabold">
+                  ${file.category} > مجلد ${file.folderNum}
+                </span>
+              </div>
+
+              <div class="flex items-center gap-1 shrink-0">
+                <button type="button" data-file-action="toggle-save" data-id="${file.id}" class="p-2 rounded-xl ${isSaved ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40' : 'bg-slate-800/80 text-slate-400 hover:text-amber-300 border border-slate-700'} transition" title="${isSaved ? 'إزالة من المحفوظات' : 'حفظ في مكتبتي'}">
+                  <i data-lucide="bookmark" class="w-4 h-4 ${isSaved ? 'fill-current' : ''}"></i>
+                </button>
+                <button type="button" data-file-action="toggle-complete" data-id="${file.id}" class="p-2 rounded-xl ${isCompleted ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-slate-800/80 text-slate-400 hover:text-emerald-300 border border-slate-700'} transition" title="${isCompleted ? 'تمت المذاكرة' : 'تحديد كمذاكر'}">
+                  <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </div>
+
+            ${showFullPath ? `
+              <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900/90 border border-amber-500/25 text-[11px] font-extrabold text-amber-300">
+                <i data-lucide="folder-tree" class="w-3.5 h-3.5"></i>
+                <span>1Data > ${sub.folderName} > ${file.category} > ${file.folderNum}</span>
+              </div>
+            ` : ''}
+
+            <h4 class="text-sm sm:text-base font-black text-white leading-snug hover:text-amber-300 transition cursor-pointer" data-file-action="preview" data-id="${file.id}">
+              ${getCleanFileTitle(file)}
+            </h4>
+
+            ${getCleanOptionalFields(file).description ? `
+              <p class="text-xs text-slate-300 leading-relaxed line-clamp-2">
+                ${getCleanOptionalFields(file).description}
+              </p>
+            ` : ''}
+          </div>
+
+          <div class="card-3d-inner pt-3 border-t border-slate-800/90 space-y-3">
+            <div class="flex items-center justify-between text-[11px] text-slate-400 font-semibold">
+              <span class="truncate">${file.doctor}</span>
+              <span class="shrink-0 font-bold text-cyan-300" dir="ltr">${file.size} • <span id="card-dl-${file.id}">${file.downloads}</span> DL</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <button type="button" data-file-action="preview" data-id="${file.id}" class="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 text-xs font-extrabold flex items-center justify-center gap-1.5 transition">
+                <i data-lucide="eye" class="w-4 h-4"></i>
+                <span>معاينة</span>
+              </button>
+              <button type="button" data-file-action="download" data-id="${file.id}" class="btn-3d py-2 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-extrabold flex items-center justify-center gap-1.5">
+                <i data-lucide="download-cloud" class="w-4 h-4"></i>
+                <span>تحميل</span>
+              </button>
+            </div>
+
+            ${appState.isAdmin ? `
+              <div class="flex items-center justify-between gap-2 pt-2 border-t border-amber-500/30">
+                <span class="text-[10px] font-bold text-amber-400">تحكم المسؤول:</span>
+                <div class="flex items-center gap-1.5">
+                  <button type="button" data-file-action="edit" data-id="${file.id}" class="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/35 text-amber-300 border border-amber-500/40 text-[11px] font-bold">تعديل</button>
+                  <button type="button" data-file-action="delete" data-id="${file.id}" class="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/35 text-rose-300 border border-rose-500/40 text-[11px] font-bold">حذف</button>
+                </div>
+              </div>
+            ` : ''}
+          </div>
+        </article>
+      `;
+    }
+
+    // Main Render Engine for the 4-Level Folder Hierarchy
+    function renderExplorerContent() {
+      const grid = document.getElementById('explorer-grid');
+      const emptyState = document.getElementById('empty-state');
+      const heading = document.getElementById('explorer-heading');
+      const countBadge = document.getElementById('explorer-count-badge');
+      if (!grid) return;
+
+      emptyState.classList.add('hidden');
+      const isList = appState.layoutMode === 'list';
+
+      // CASE A: Global Search Mode or Saved Bookmarks Mode
+      const q = appState.searchQuery.trim().toLowerCase();
+      if (q !== '' || appState.onlySavedFilter) {
+        const matchedFiles = appState.files.filter(f => {
+          if (appState.onlySavedFilter && !appState.savedIds.includes(f.id)) return false;
+          if (q) {
+            const sub = getSubjectObj(f.subject);
+            const hay = `${sub.folderName} ${sub.fullName} ${f.category} ${f.folderNum} ${f.format} ${f.title} ${f.description} ${(f.keypoints || []).join(' ')}`.toLowerCase();
+            if (!hay.includes(q)) return false;
+          }
+          return true;
+        });
+
+        heading.textContent = appState.onlySavedFilter
+          ? 'ملفاتي المحفوظة (Bookmarks)'
+          : `نتائج البحث: "${appState.searchQuery.trim()}"`;
+        countBadge.textContent = `${matchedFiles.length} ملف`;
+
+        grid.className = isList
+          ? 'grid grid-cols-1 gap-3.5 perspective-container'
+          : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 perspective-container';
+
+        if (matchedFiles.length === 0) {
+          grid.innerHTML = '';
+          emptyState.classList.remove('hidden');
+          return;
+        }
+
+        grid.innerHTML = matchedFiles.map(f => buildFileCardHTML(f, true)).join('');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        attach3DTiltListeners();
+        updateLibraryCounters();
+        return;
+      }
+
+      // CASE B: LEVEL 1 — Root (1Data) -> Show the 8 Ordered Subject Folders
+      if (!appState.currentSubject) {
+        heading.textContent = 'مجلد المقررات الرئيسي (1Data)';
+        countBadge.textContent = '8 مجلدات مقررات';
+
+        grid.className = isList
+          ? 'grid grid-cols-1 gap-3.5 perspective-container'
+          : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 perspective-container';
+
+        grid.innerHTML = ORDERED_SUBJECTS.map(sub => {
+          const subLecturesCount = new Set(
+            appState.files.filter(f => f.subject === sub.id && f.category === 'محاضرات').map(f => Number(f.folderNum))
+          ).size;
+          const subSectionsCount = new Set(
+            appState.files.filter(f => f.subject === sub.id && f.category === 'سكاشن').map(f => Number(f.folderNum))
+          ).size;
+          return buildFolderCardHTML({
+            title: sub.folderName,
+            subtitle: sub.fullName,
+            timestamp: sub.dateModified,
+            itemCountLabel: '2 items',
+            badgeText: `${subLecturesCount} محاضرات • ${subSectionsCount} سكاشن`,
+            dataAttrs: `data-open-subject="${sub.id}"`
+          });
+        }).join('');
+
+        grid.querySelectorAll('[data-open-subject]').forEach(el => {
+          el.addEventListener('click', () => {
+            navigateToHierarchy(el.getAttribute('data-open-subject'), null, null);
+          });
+        });
+
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        attach3DTiltListeners();
+        updateLibraryCounters();
+        return;
+      }
+
+      // CASE C: LEVEL 2 — Inside a Subject -> Show `سكاشن` & `محاضرات`
+      const currentSubObj = getSubjectObj(appState.currentSubject);
+      if (!appState.currentCategory) {
+        heading.textContent = `مجلد مقرر: ${currentSubObj.folderName}`;
+        countBadge.textContent = '2 items (سكاشن • محاضرات)';
+
+        grid.className = isList
+          ? 'grid grid-cols-1 gap-3.5 perspective-container'
+          : 'grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 max-w-4xl perspective-container';
+
+        const secFiles = appState.files.filter(f => f.subject === currentSubObj.id && f.category === 'سكاشن');
+        const secFolderNums = [...new Set(secFiles.map(f => f.folderNum))];
+        const secFolderCount = secFolderNums.length;
+
+        const lecFiles = appState.files.filter(f => f.subject === currentSubObj.id && f.category === 'محاضرات');
+        const lecFolderNums = [...new Set(lecFiles.map(f => f.folderNum))];
+        const lecFolderCount = lecFolderNums.length;
+
+        grid.innerHTML = [
+          buildFolderCardHTML({
+            title: 'سكاشن',
+            subtitle: `السكاشن العملية والإكلينيكية لمقرر ${currentSubObj.folderName}`,
+            timestamp: '23 Sept 6:52 pm',
+            itemCountLabel: `${secFolderCount} ${secFolderCount === 1 ? 'item' : 'items'}`,
+            badgeText: `${secFolderCount} سكاشن`,
+            dataAttrs: `data-open-category="سكاشن"`
+          }),
+          buildFolderCardHTML({
+            title: 'محاضرات',
+            subtitle: `المحاضرات النظرية والتفريغات والخرائط الذهنية لمقرر ${currentSubObj.folderName}`,
+            timestamp: '25 Sept 11:41 pm',
+            itemCountLabel: `${lecFolderCount} ${lecFolderCount === 1 ? 'item' : 'items'}`,
+            badgeText: `${lecFolderCount} محاضرات`,
+            dataAttrs: `data-open-category="محاضرات"`
+          })
+        ].join('');
+
+        grid.querySelectorAll('[data-open-category]').forEach(el => {
+          el.addEventListener('click', () => {
+            navigateToHierarchy(currentSubObj.id, el.getAttribute('data-open-category'), null);
+          });
+        });
+
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        attach3DTiltListeners();
+        updateLibraryCounters();
+        return;
+      }
+
+      // CASE D: LEVEL 3 — Inside `سكاشن` or `محاضرات` -> Show Numbered Folders `1`, `2`, `3`...
+      if (appState.currentFolderNum === null) {
+        heading.textContent = `${currentSubObj.folderName} > ${appState.currentCategory}`;
+
+        const catFiles = appState.files.filter(
+          f => f.subject === currentSubObj.id && f.category === appState.currentCategory
+        );
+        const folderNumbers = [...new Set(catFiles.map(f => Number(f.folderNum)))].sort((a, b) => a - b);
+
+        const unitPlural = appState.currentCategory === 'محاضرات' ? 'محاضرات' : 'سكاشن';
+        countBadge.textContent = `${folderNumbers.length} ${unitPlural} • ${catFiles.length} ملف`;
+
+        grid.className = isList
+          ? 'grid grid-cols-1 gap-3.5 perspective-container'
+          : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 perspective-container';
+
+        if (folderNumbers.length === 0) {
+          grid.innerHTML = '';
+          emptyState.classList.remove('hidden');
+          return;
+        }
+
+        const formatOrder = ['المصدر', 'شرح', 'تلخيص', 'خريطه ذهنية'];
+        grid.innerHTML = folderNumbers.map(num => {
+          const filesInNum = catFiles.filter(f => Number(f.folderNum) === num);
+          const formatCounts = {};
+          filesInNum.forEach(f => {
+            const fmt = String(f.format || 'المصدر').trim();
+            formatCounts[fmt] = (formatCounts[fmt] || 0) + 1;
+          });
+          const orderedFormats = [
+            ...formatOrder.filter(k => formatCounts[k]),
+            ...Object.keys(formatCounts).filter(k => !formatOrder.includes(k))
+          ];
+          const typesSummary = orderedFormats
+            .map(k => formatCounts[k] > 1 ? `${k} (${formatCounts[k]})` : k)
+            .join(' • ');
+
+          const countText = filesInNum.length === 1 ? 'ملف واحد' : (filesInNum.length === 2 ? 'ملفان' : `${filesInNum.length} ملفات`);
+          const subtitle = typesSummary
+            ? `الأنواع المتوفرة (${ filesInNum.length }): ${typesSummary}`
+            : `لا توجد ملفات مرفوعة بعد`;
+
+          return buildFolderCardHTML({
+            title: String(num),
+            subtitle,
+            timestamp: filesInNum[0]?.dateAdded || '26 Oct',
+            itemCountLabel: countText,
+            badgeText: `${appState.currentCategory === 'محاضرات' ? 'محاضرة' : 'سكشن'} ${num}`,
+            dataAttrs: `data-open-foldernum="${num}"`
+          });
+        }).join('');
+
+        grid.querySelectorAll('[data-open-foldernum]').forEach(el => {
+          el.addEventListener('click', () => {
+            navigateToHierarchy(currentSubObj.id, appState.currentCategory, Number(el.getAttribute('data-open-foldernum')));
+          });
+        });
+
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        attach3DTiltListeners();
+        updateLibraryCounters();
+        return;
+      }
+
+      // CASE E: LEVEL 4 — Inside Numbered Folder -> Show Files
+      const folderFiles = appState.files.filter(
+        f => f.subject === currentSubObj.id &&
+             f.category === appState.currentCategory &&
+             Number(f.folderNum) === Number(appState.currentFolderNum)
+      );
+
+      heading.textContent = `${currentSubObj.folderName} > ${appState.currentCategory} > مجلد (${appState.currentFolderNum})`;
+      const level4Types = [...new Set(folderFiles.map(f => String(f.format || 'المصدر').trim()))].join(' • ');
+      countBadge.textContent = level4Types ? `${folderFiles.length} ملفات (${level4Types})` : `${folderFiles.length} ملفات`;
+
+      grid.className = isList
+        ? 'grid grid-cols-1 gap-3.5 perspective-container'
+        : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 perspective-container';
+
+      if (folderFiles.length === 0) {
+        grid.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        return;
+      }
+
+      grid.innerHTML = folderFiles.map(f => buildFileCardHTML(f, false)).join('');
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+      attach3DTiltListeners();
+      updateLibraryCounters();
+    }
+
+    // Helper: Convert any Google Drive sharing URL or file ID to a direct download / open URL
+    function resolveDriveUrl(file) {
+      const rawUrl = String(
+        file.downloadUrl || file.fileUrl || file.driveUrl || file.webContentLink || file.url || file.externalUrl || ''
+      ).trim();
+      if (file.driveFileId) {
+        return 'https://drive.google.com/uc?export=download&id=' + file.driveFileId;
+      }
+      if (!rawUrl) return '';
+      // Extract Drive file ID from /file/d/ID/view or ?id=ID if present
+      const matchD = rawUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+      if (matchD && matchD[1]) {
+        return 'https://drive.google.com/uc?export=download&id=' + matchD[1];
+      }
+      return rawUrl;
+    }
+
+    // Trigger Real Download of a File
+    function triggerFileDownload(file) {
+      file.downloads = (Number(file.downloads) || 0) + 1;
+      saveAppState();
+
+      const cardDl = document.getElementById(`card-dl-${file.id}`);
+      if (cardDl) cardDl.textContent = file.downloads;
+      const previewDl = document.getElementById('preview-downloads');
+      if (previewDl && appState.activePreviewId === file.id) {
+        previewDl.textContent = `${file.downloads} تحميل`;
+      }
+
+      // 1. Priority: Direct Google Drive URL or External Link (works for all students on any device)
+      const cloudUrl = resolveDriveUrl(file);
+      if (cloudUrl) {
+        // Only sync download count if cloudUrl already exists so we never overwrite it with empty
+        syncActionToDrive({ action: 'save', file: file, item: file });
+        window.open(cloudUrl, '_blank', 'noopener');
+        showToast('جاري فتح وتحميل الملف الأصلي من Google Drive...', 'success');
+        return;
+      }
+
+      // 2. Embedded Base64 file stored inside JSON database
+      if (file.fileDataUrl || file.fileBase64) {
+        const mime = file.fileMimeType || 'application/octet-stream';
+        const href = file.fileDataUrl || ('data:' + mime + ';base64,' + file.fileBase64);
+        const a = document.createElement('a');
+        a.href = href;
+        a.download = file.originalFileName || (file.title + '.pdf');
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        showToast('تم تحميل الملف الأصلي بنجاح!', 'success');
+        return;
+      }
+
+      // 3. Local session cache (same device right after upload)
+      if (appState.uploadedFileCache[file.id]) {
+        const cached = appState.uploadedFileCache[file.id];
+        const a = document.createElement('a');
+        a.href = cached.url;
+        a.download = cached.name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        showToast(`تم تحميل الملف الأصلي: ${cached.name}`, 'success');
+        return;
+      }
+
+      showToast('تنبيه: هذا السجل لا يحتوي على رابط ملف مرفوع في Google Drive بعد. يرجى إعادة رفع الملف بعد تحديث الصفحة.', 'warning');
+      return;
+
+      const sub = getSubjectObj(file.subject);
+      const docContent = `<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>${file.title} - Seniors 2027 VET-KSU 33 Old List</title>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; margin: 40px; line-height: 1.8; color: #0f172a; background: #f8fafc; }
+    .card { background: #fff; border: 2px solid #f59e0b; border-radius: 16px; padding: 32px; max-width: 850px; margin: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.06); }
+    .header { border-bottom: 2px solid #e2e8f0; padding-bottom: 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+    .badge { background: #fef3c7; color: #b45309; padding: 6px 14px; border-radius: 999px; font-weight: bold; font-size: 14px; border: 1px solid #fde68a; }
+    h1 { color: #065f46; font-size: 23px; margin-top: 8px; }
+    h2 { color: #0284c7; font-size: 18px; margin-top: 24px; border-right: 4px solid #0284c7; padding-right: 10px; }
+    ul { padding-right: 22px; }
+    li { margin-bottom: 8px; }
+    .note { background: #ecfdf5; border: 1px solid #a7f3d0; padding: 16px; border-radius: 12px; margin-top: 24px; color: #065f46; font-weight: 600; }
+    .footer { margin-top: 30px; font-size: 12px; color: #64748b; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 14px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <div><strong>Seniors 2027 VET-KSU 33 Old List • طب بيطري كفر الشيخ</strong></div>
+      <span class="badge">1Data > ${sub.folderName} > ${file.category} > ${file.folderNum}</span>
+    </div>
+    <h1>${file.title}</h1>
+    <p><strong>القسم / المحاضر:</strong> ${file.doctor} | <strong>نوع الملف:</strong> ${file.format} | <strong>الحجم:</strong> ${file.size}</p>
+    <h2>ملخص ومحتوى الملف</h2>
+    <p>${file.description}</p>
+    <h2>أهم النقاط العلمية والإكلينيكية</h2>
+    <ul>
+      ${(file.keypoints || []).map(k => `<li>${k}</li>`).join('')}
+    </ul>
+    <div class="note">
+      <strong>ملاحظة هامة للامتحان والعملي:</strong><br/>
+      ${file.clinicalNote || 'راجع الجداول والنقاط العملية المرفقة.'}
+    </div>
+    <div class="footer">
+      تم التحميل من منصة Seniors 2027 VET-KSU 33 Old List
+    </div>
+  </div>
+</body>
+</html>`;
+
+      const blob = new Blob([docContent], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `VET_KSU_33_${sub.folderName}_${file.category}_${file.folderNum}_${file.format}.html`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+
+      showToast(`تم تحميل "${file.title}" بنجاح!`, 'success');
+    }
+
+    // Open File Preview Modal
+    function openPreviewModal(fileId) {
+      const file = appState.files.find(f => f.id === fileId);
+      if (!file) return;
+
+      appState.activePreviewId = file.id;
+      const sub = getSubjectObj(file.subject);
+      const fmt = getFormatVisuals(file.format);
+
+      document.getElementById('preview-badges').innerHTML = `
+        <span class="px-2.5 py-1 rounded-xl border text-xs font-extrabold flex items-center gap-1 ${fmt.badgeClass}">
+          <i data-lucide="${fmt.icon}" class="w-3.5 h-3.5"></i>
+          <span>${fmt.label}</span>
+        </span>
+        <span class="px-2.5 py-1 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-extrabold">${sub.folderName}</span>
+        <span class="px-2.5 py-1 rounded-xl bg-slate-800 text-cyan-300 text-xs font-extrabold">${file.category} > ${file.folderNum}</span>
+      `;
+      document.getElementById('preview-title').textContent = getCleanFileTitle(file);
+      document.getElementById('preview-folder-path').textContent = `1Data > ${sub.folderName} > ${file.category} > ${file.folderNum}`;
+      document.getElementById('preview-doctor').textContent = file.doctor;
+      document.getElementById('preview-meta').textContent = `${file.format} • ${file.size}`;
+      document.getElementById('preview-downloads').textContent = `${file.downloads} تحميل`;
+
+      const cleanOpt = getCleanOptionalFields(file);
+
+      const descBox = document.getElementById('preview-description-box');
+      if (cleanOpt.description) {
+        descBox.classList.remove('hidden');
+        document.getElementById('preview-description').textContent = cleanOpt.description;
+      } else {
+        descBox.classList.add('hidden');
+        document.getElementById('preview-description').textContent = '';
+      }
+
+      const kpBox = document.getElementById('preview-keypoints-box');
+      const kpList = document.getElementById('preview-keypoints');
+      if (cleanOpt.keypoints.length > 0) {
+        kpBox.classList.remove('hidden');
+        kpList.innerHTML = cleanOpt.keypoints.map(kp => `<li class="leading-relaxed">${kp}</li>`).join('');
+      } else {
+        kpBox.classList.add('hidden');
+        kpList.innerHTML = '';
+      }
+
+      const noteBox = document.getElementById('preview-clinical-note-box');
+      if (cleanOpt.clinicalNote) {
+        noteBox.classList.remove('hidden');
+        document.getElementById('preview-clinical-note').textContent = cleanOpt.clinicalNote;
+      } else {
+        noteBox.classList.add('hidden');
+        document.getElementById('preview-clinical-note').textContent = '';
+      }
+
+      const extBtn = document.getElementById('modal-external-link-btn');
+      const cloudViewUrl = file.externalUrl || file.fileUrl || file.driveUrl || file.downloadUrl || '';
+      if (cloudViewUrl) {
+        extBtn.classList.remove('hidden');
+        extBtn.onclick = () => window.open(cloudViewUrl, '_blank', 'noopener');
+      } else {
+        extBtn.classList.add('hidden');
+      }
+
+      const isCompleted = appState.completedIds.includes(file.id);
+      document.getElementById('modal-complete-text').textContent = isCompleted ? 'تمت المذاكرة ✓' : 'تحديد كمذاكر';
+
+      document.getElementById('preview-modal').classList.remove('hidden');
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    // Sync Admin Mode Controls (Clean Single-Line Mobile Labels)
+    function syncAdminUI() {
+      const statusBar = document.getElementById('admin-status-bar');
+      const publishBtn = document.getElementById('open-publish-modal-btn');
+      const inlineAddBtn = document.getElementById('inline-admin-add-btn');
+      const adminBtnText = document.getElementById('admin-btn-text');
+      const welcomeName = document.getElementById('admin-welcome-name');
+
+      if (appState.isAdmin) {
+        statusBar.classList.remove('hidden');
+        publishBtn.classList.remove('hidden');
+        publishBtn.classList.add('flex');
+        inlineAddBtn.classList.remove('hidden');
+        inlineAddBtn.classList.add('flex');
+        adminBtnText.textContent = 'المسؤول نشط';
+        welcomeName.textContent = `مرحباً (${appState.adminName}) — النشر والتعديل مفعل`;
+      } else {
+        statusBar.classList.add('hidden');
+        publishBtn.classList.add('hidden');
+        publishBtn.classList.remove('flex');
+        inlineAddBtn.classList.add('hidden');
+        inlineAddBtn.classList.remove('flex');
+        adminBtnText.textContent = 'بوابة المسؤولين';
+      }
+
+      renderExplorerContent();
+    }
+
+    // Open Admin Publish / Edit Modal
+    function openPublishModal(editFile = null) {
+      if (!appState.isAdmin) {
+        showToast('النشر متاح فقط لمسؤولي الدفعة! يرجى تسجيل الدخول كمسؤول أولاً.', 'warning');
+        document.getElementById('admin-login-modal').classList.remove('hidden');
+        return;
+      }
+
+      const form = document.getElementById('publish-form');
+      form.reset();
+
+      if (editFile) {
+        document.getElementById('publish-modal-title').textContent = 'تعديل بيانات الملف الدراسي';
+        document.getElementById('publish-submit-label').textContent = 'حفظ التعديلات';
+        document.getElementById('edit-item-id').value = editFile.id;
+        document.getElementById('pub-subject').value = editFile.subject;
+        document.getElementById('pub-category').value = editFile.category;
+        document.getElementById('pub-folder-num').value = editFile.folderNum;
+
+        const validFormats = ['المصدر', 'شرح', 'تلخيص', 'خريطه ذهنية'];
+        document.getElementById('pub-format').value = validFormats.includes(editFile.format) ? editFile.format : 'المصدر';
+
+        document.getElementById('pub-title').value = getCleanFileTitle(editFile);
+        document.getElementById('pub-doctor').value = editFile.doctor || '';
+        document.getElementById('pub-external-url').value = editFile.externalUrl || '';
+        const cleanEditOpt = getCleanOptionalFields(editFile);
+        document.getElementById('pub-description').value = cleanEditOpt.description;
+        document.getElementById('pub-keypoints').value = cleanEditOpt.keypoints.join('\n');
+        document.getElementById('pub-note').value = cleanEditOpt.clinicalNote;
+        document.getElementById('pub-pages').value = editFile.pages || '';
+      } else {
+        document.getElementById('publish-modal-title').textContent = 'نشر ملف جديد داخل المكتبة';
+        document.getElementById('publish-submit-label').textContent = 'نشر الملف الآن';
+        document.getElementById('edit-item-id').value = '';
+
+        if (appState.currentSubject) {
+          document.getElementById('pub-subject').value = appState.currentSubject;
+        }
+        if (appState.currentCategory) {
+          document.getElementById('pub-category').value = appState.currentCategory;
+        }
+        if (appState.currentFolderNum !== null) {
+          document.getElementById('pub-folder-num').value = appState.currentFolderNum;
+        }
+      }
+
+      document.getElementById('publish-modal').classList.remove('hidden');
+    }
+
+    // Initialize All Listeners
+    window.addEventListener('DOMContentLoaded', () => {
+      loadAppState();
+      renderQuickSubjectBar();
+      renderBreadcrumbBar();
+      renderExplorerContent();
+      initThreeBackground();
+      fetchDatabaseFromDrive(true);
+
+      const cloudSyncBtn = document.getElementById('cloud-sync-btn');
+      if (cloudSyncBtn) {
+        cloudSyncBtn.addEventListener('click', () => fetchDatabaseFromDrive(false));
+      }
+
+      const goRoot = () => {
+        appState.onlySavedFilter = false;
+        appState.searchQuery = '';
+        document.getElementById('search-input').value = '';
+        document.getElementById('clear-search-btn').classList.add('hidden');
+        navigateToHierarchy(null, null, null);
+      };
+
+      document.getElementById('brand-logo-btn').addEventListener('click', goRoot);
+      document.getElementById('header-root-btn').addEventListener('click', goRoot);
+      document.getElementById('footer-root-link').addEventListener('click', goRoot);
+      document.getElementById('empty-reset-btn').addEventListener('click', goRoot);
+
+      document.getElementById('step-back-btn').addEventListener('click', stepBackHierarchy);
+      const headerBackBtn = document.getElementById('header-back-btn');
+      if (headerBackBtn) {
+        headerBackBtn.addEventListener('click', stepBackHierarchy);
+      }
+
+      // Notifications Center Modal Listeners
+      const notifModal = document.getElementById('notifications-modal');
+      const notifBtn = document.getElementById('notifications-btn');
+      if (notifBtn && notifModal) {
+        notifBtn.addEventListener('click', () => {
+          updateNotificationsUI();
+          syncBrowserNotifButton();
+          notifModal.classList.remove('hidden');
+        });
+      }
+      document.getElementById('close-notifications-modal-btn').addEventListener('click', () => {
+        notifModal.classList.add('hidden');
+      });
+      document.getElementById('enable-browser-notif-btn').addEventListener('click', () => {
+        requestBrowserNotificationPermission();
+      });
+      document.getElementById('mark-all-read-btn').addEventListener('click', () => {
+        appState.seenNotificationIds = appState.files.map(f => f.id);
+        saveAppState();
+        updateNotificationsUI();
+        showToast('تم تحديد جميع الإشعارات كمقروءة ✓', 'info');
+      });
+
+      updateNotificationsUI();
+      // Poll Google Drive every 45 seconds in background to push notifications for newly published files
+      setInterval(() => {
+        fetchDatabaseFromDrive(true);
+      }, 45000);
+
+      const toggleSavedView = () => {
+        appState.onlySavedFilter = !appState.onlySavedFilter;
+        renderQuickSubjectBar();
+        renderBreadcrumbBar();
+        renderExplorerContent();
+      };
+      document.getElementById('header-saved-btn').addEventListener('click', toggleSavedView);
+      document.getElementById('footer-saved-link').addEventListener('click', () => {
+        appState.onlySavedFilter = true;
+        renderQuickSubjectBar();
+        renderBreadcrumbBar();
+        renderExplorerContent();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+
+      // Layout Mode Switcher
+      const gridBtn = document.getElementById('layout-grid-btn');
+      const listBtn = document.getElementById('layout-list-btn');
+      gridBtn.addEventListener('click', () => {
+        appState.layoutMode = 'grid';
+        gridBtn.className = 'px-2.5 py-1 rounded-lg bg-amber-500 text-slate-950 text-xs font-extrabold flex items-center gap-1 transition whitespace-nowrap';
+        listBtn.className = 'px-2.5 py-1 rounded-lg text-slate-400 hover:text-white text-xs font-bold flex items-center gap-1 transition whitespace-nowrap';
+        renderExplorerContent();
+      });
+      listBtn.addEventListener('click', () => {
+        appState.layoutMode = 'list';
+        listBtn.className = 'px-2.5 py-1 rounded-lg bg-amber-500 text-slate-950 text-xs font-extrabold flex items-center gap-1 transition whitespace-nowrap';
+        gridBtn.className = 'px-2.5 py-1 rounded-lg text-slate-400 hover:text-white text-xs font-bold flex items-center gap-1 transition whitespace-nowrap';
+        renderExplorerContent();
+      });
+
+      // 3D & Theme Toggles (Desktop + Mobile buttons)
+      const toggle3DFn = () => {
+        appState.is3DEnabled = !appState.is3DEnabled;
+        const lbl = document.getElementById('toggle-3d-label');
+        if (lbl) lbl.textContent = appState.is3DEnabled ? '3D نشط' : '3D متوقف';
+        document.getElementById('bg-canvas-container').style.opacity = appState.is3DEnabled ? '1' : '0.15';
+        showToast(appState.is3DEnabled ? 'تم تفعيل المؤثرات ثلاثية الأبعاد' : 'تم إيقاف حركة الخلفية ثلاثية الأبعاد', 'info');
+      };
+      document.getElementById('toggle-3d-btn').addEventListener('click', toggle3DFn);
+      document.getElementById('toggle-3d-btn-mobile').addEventListener('click', toggle3DFn);
+
+      const toggleThemeFn = () => {
+        appState.isLightMode = !appState.isLightMode;
+        document.body.classList.toggle('light-mode', appState.isLightMode);
+        showToast(appState.isLightMode ? 'تم التبديل للوضع النهاري' : 'تم التبديل للوضع الليلي', 'info');
+      };
+      document.getElementById('toggle-theme-btn').addEventListener('click', toggleThemeFn);
+      document.getElementById('toggle-theme-btn-mobile').addEventListener('click', toggleThemeFn);
+
+      // Search Input
+      const searchInput = document.getElementById('search-input');
+      const clearSearchBtn = document.getElementById('clear-search-btn');
+      searchInput.addEventListener('input', (e) => {
+        appState.searchQuery = e.target.value;
+        clearSearchBtn.classList.toggle('hidden', !appState.searchQuery);
+        renderBreadcrumbBar();
+        renderExplorerContent();
+      });
+      clearSearchBtn.addEventListener('click', () => {
+        searchInput.value = '';
+        appState.searchQuery = '';
+        clearSearchBtn.classList.add('hidden');
+        renderBreadcrumbBar();
+        renderExplorerContent();
+      });
+
+      // Delegated File Actions inside Explorer Grid
+      document.getElementById('explorer-grid').addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-file-action]');
+        if (!btn) return;
+
+        const action = btn.getAttribute('data-file-action');
+        const id = btn.getAttribute('data-id');
+        const file = appState.files.find(f => f.id === id);
+        if (!file) return;
+
+        if (action === 'preview') {
+          openPreviewModal(id);
+        } else if (action === 'download') {
+          triggerFileDownload(file);
+        } else if (action === 'toggle-save') {
+          if (appState.savedIds.includes(id)) {
+            appState.savedIds = appState.savedIds.filter(x => x !== id);
+            showToast('تمت إزالة الملف من محفوظاتك', 'info');
+          } else {
+            appState.savedIds.push(id);
+            showToast('تم حفظ الملف في محفوظاتك ⭐', 'success');
+          }
+          saveAppState();
+          renderExplorerContent();
+        } else if (action === 'toggle-complete') {
+          if (appState.completedIds.includes(id)) {
+            appState.completedIds = appState.completedIds.filter(x => x !== id);
+          } else {
+            appState.completedIds.push(id);
+            showToast('تم تحديد الملف كمذاكر ✓', 'success');
+          }
+          saveAppState();
+          renderExplorerContent();
+        } else if (action === 'edit' && appState.isAdmin) {
+          openPublishModal(file);
+        } else if (action === 'delete' && appState.isAdmin) {
+          appState.files = appState.files.filter(f => f.id !== id);
+          saveAppState();
+          renderExplorerContent();
+          showToast('جاري حذف الملف من Google Drive...', 'info');
+          syncActionToDrive({ action: 'delete', id: id }).then(res => {
+            renderExplorerContent();
+            if (res.ok) {
+              showToast('تم حذف الملف من قاعدة بيانات Google Drive بنجاح', 'warning');
+            } else {
+              showToast('تم الحذف محلياً، وتعذر الاتصال بـ Drive', 'warning');
+            }
+          });
+        }
+      });
+
+      // Preview Modal Controls
+      document.getElementById('close-preview-modal-btn').addEventListener('click', () => {
+        document.getElementById('preview-modal').classList.add('hidden');
+      });
+      document.getElementById('modal-download-btn').addEventListener('click', () => {
+        const file = appState.files.find(f => f.id === appState.activePreviewId);
+        if (file) triggerFileDownload(file);
+      });
+      document.getElementById('modal-complete-btn').addEventListener('click', () => {
+        const id = appState.activePreviewId;
+        if (!id) return;
+        if (appState.completedIds.includes(id)) {
+          appState.completedIds = appState.completedIds.filter(x => x !== id);
+          document.getElementById('modal-complete-text').textContent = 'تحديد كمذاكر';
+        } else {
+          appState.completedIds.push(id);
+          document.getElementById('modal-complete-text').textContent = 'تمت المذاكرة ✓';
+        }
+        saveAppState();
+        renderExplorerContent();
+      });
+      document.getElementById('modal-share-btn').addEventListener('click', () => {
+        const file = appState.files.find(f => f.id === appState.activePreviewId);
+        if (!file) return;
+        const sub = getSubjectObj(file.subject);
+        const text = `📁 Seniors 2027 VET-KSU 33 Old List\nالمسار: 1Data > ${sub.folderName} > ${file.category} > ${file.folderNum}\nالصيغة: ${file.format}\nالملف: ${file.title}`;
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text);
+        } catch (err) {}
+        showToast('تم نسخ مسار وعنوان الملف لمشاركته مع الزملاء!', 'info');
+      });
+
+      // Admin Login Modal
+      const adminModal = document.getElementById('admin-login-modal');
+      const openAdminGate = () => {
+        if (appState.isAdmin) {
+          openPublishModal();
+        } else {
+          document.getElementById('admin-login-error').classList.add('hidden');
+          adminModal.classList.remove('hidden');
+        }
+      };
+      document.getElementById('admin-access-btn').addEventListener('click', openAdminGate);
+      document.getElementById('footer-admin-link').addEventListener('click', openAdminGate);
+      document.getElementById('close-admin-login-btn').addEventListener('click', () => adminModal.classList.add('hidden'));
+
+      document.getElementById('admin-login-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const code = document.getElementById('admin-passcode-input').value.trim();
+        const name = document.getElementById('admin-name-input').value.trim() || 'مسؤول الدفعة';
+        if (code === '122333') {
+          appState.isAdmin = true;
+          appState.adminName = name;
+          adminModal.classList.add('hidden');
+          syncAdminUI();
+          showToast(`مرحباً بك يا ${name}! تم تفعيل وضع المسؤول.`, 'success');
+        } else {
+          document.getElementById('admin-login-error').classList.remove('hidden');
+        }
+      });
+
+      document.getElementById('admin-logout-btn').addEventListener('click', () => {
+        appState.isAdmin = false;
+        syncAdminUI();
+        showToast('تم تسجيل الخروج من وضع المسؤول.', 'info');
+      });
+
+      // Admin Publish / Edit Form Submission (With Automatic Fallbacks for All Optional Fields!)
+      document.getElementById('open-publish-modal-btn').addEventListener('click', () => openPublishModal());
+      document.getElementById('banner-publish-btn').addEventListener('click', () => openPublishModal());
+      document.getElementById('inline-admin-add-btn').addEventListener('click', () => openPublishModal());
+
+      const closePub = () => document.getElementById('publish-modal').classList.add('hidden');
+      document.getElementById('close-publish-modal-btn').addEventListener('click', closePub);
+      document.getElementById('cancel-publish-btn').addEventListener('click', closePub);
+
+      document.getElementById('publish-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!appState.isAdmin) return;
+
+        const submitBtn = document.querySelector('#publish-form button[type="submit"]');
+        const submitLabel = document.getElementById('publish-submit-label');
+        const origLabel = submitLabel ? submitLabel.textContent : 'نشر الملف الآن';
+
+        // 4 Mandatory Fields
+        const subject = document.getElementById('pub-subject').value;
+        const category = document.getElementById('pub-category').value;
+        const folderNum = Number(document.getElementById('pub-folder-num').value) || 1;
+        const format = document.getElementById('pub-format').value || 'المصدر';
+
+        const subObj = getSubjectObj(subject);
+        const editId = document.getElementById('edit-item-id').value;
+
+        // Optional Fields with Smart Auto-Defaults if left blank
+        const rawTitle = document.getElementById('pub-title').value.trim();
+        const rawDoctor = document.getElementById('pub-doctor').value.trim();
+        const externalUrl = document.getElementById('pub-external-url').value.trim();
+        const rawDesc = document.getElementById('pub-description').value.trim();
+        const rawKp = document.getElementById('pub-keypoints').value.trim();
+        const rawNote = document.getElementById('pub-note').value.trim();
+        const rawPages = Number(document.getElementById('pub-pages').value) || 15;
+        const fileInput = document.getElementById('pub-file-upload');
+
+        const unitName = category === 'محاضرات' ? 'المحاضرة' : 'السكشن';
+        let autoTitle = `${unitName} (${folderNum}) - ${subObj.folderName}`;
+
+        const targetId = editId || `${subject}-${Date.now()}`;
+        const existingFile = editId ? appState.files.find(f => f.id === editId) : null;
+        let sizeLabel = existingFile ? existingFile.size : '2.4 MB';
+        let uploadPayload = null;
+
+        if (submitBtn) submitBtn.disabled = true;
+        if (submitLabel) submitLabel.textContent = 'جاري الرفع والحفظ في Google Drive...';
+
+        if (fileInput && fileInput.files && fileInput.files[0]) {
+          const fObj = fileInput.files[0];
+          sizeLabel = `${Math.max(0.1, fObj.size / (1024 * 1024)).toFixed(1)} MB`;
+          if (!rawTitle) {
+            autoTitle = fObj.name.replace(/\.[^/.]+$/, '');
+          }
+          appState.uploadedFileCache[targetId] = {
+            name: fObj.name,
+            url: URL.createObjectURL(fObj)
+          };
+          try {
+            uploadPayload = await readFileAsBase64(fObj);
+          } catch (readErr) {
+            showToast('تعذر قراءة الملف المرفوع، سيتم حفظ البيانات النصية.', 'warning');
+          }
+        }
+
+        const nowObj = new Date();
+        const nowStr = nowObj.toLocaleDateString('ar-EG', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+
+        const finalTitle = rawTitle || autoTitle;
+        const finalDoctor = rawDoctor || subObj.doctor;
+        const finalDesc = rawDesc;
+        const finalKeypoints = rawKp
+          ? rawKp.split(/\n|،|,/).map(s => s.trim()).filter(Boolean)
+          : [];
+
+        const newFile = {
+          id: targetId,
+          subject,
+          category,
+          folderNum,
+          title: finalTitle,
+          doctor: finalDoctor,
+          format,
+          pages: rawPages,
+          size: sizeLabel,
+          dateAdded: existingFile ? existingFile.dateAdded : nowStr,
+          downloads: existingFile ? (existingFile.downloads || 1) : 1,
+          description: finalDesc,
+          keypoints: finalKeypoints,
+          clinicalNote: rawNote,
+          externalUrl: externalUrl || (existingFile ? existingFile.externalUrl : ''),
+          fileUrl: existingFile ? (existingFile.fileUrl || '') : '',
+          downloadUrl: existingFile ? (existingFile.downloadUrl || '') : '',
+          driveFileId: existingFile ? (existingFile.driveFileId || '') : '',
+          originalFileName: uploadPayload ? uploadPayload.name : (existingFile ? (existingFile.originalFileName || '') : ''),
+          fileMimeType: uploadPayload ? uploadPayload.mimeType : (existingFile ? (existingFile.fileMimeType || '') : '')
+        };
+
+        // Sync with Google Drive via Google Apps Script (passes body.fileUpload as required by Code.gs line 38!)
+        const syncRes = await syncActionToDrive({
+          action: 'save',
+          item: newFile,
+          file: newFile,
+          fileUpload: uploadPayload ? {
+            base64: uploadPayload.base64,
+            mimeType: uploadPayload.mimeType,
+            name: uploadPayload.name
+          } : null
+        });
+
+        if (!syncRes.ok || !Array.isArray(syncRes.data?.files)) {
+          if (editId) {
+            appState.files = appState.files.map(f => f.id === editId ? newFile : f);
+          } else {
+            appState.files.unshift(newFile);
+          }
+          saveAppState();
+        }
+
+        if (submitBtn) submitBtn.disabled = false;
+        if (submitLabel) submitLabel.textContent = origLabel;
+
+        appState.knownFileIdsOnLoad.add(targetId);
+        closePub();
+        navigateToHierarchy(subject, category, folderNum);
+        updateNotificationsUI();
+
+        if (!editId) {
+          sendUserNotificationForFile(newFile, true);
+        }
+
+        if (syncRes.ok) {
+          const savedItem = appState.files.find(f => f.id === targetId);
+          if (uploadPayload && savedItem && !savedItem.externalUrl && !savedItem.fileUrl && !savedItem.downloadUrl) {
+            showToast('تم حفظ بيانات البطاقة، ولكن السكربت لم ينشئ رابط الملف في Drive! تأكد من كود Code.gs.', 'warning');
+          } else if (editId) {
+            showToast('تم حفظ التعديلات ومزامنتها مع Google Drive بنجاح!', 'success');
+          }
+        } else {
+          showToast('تم حفظ الملف محلياً وإضافته للإشعارات، ولكن تعذر تأكيد المزامنة مع Google Drive.', 'warning');
+        }
+      });
+    });
+  </script>
+</body>
+</html>
