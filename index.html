@@ -621,7 +621,7 @@
           </button>
 
           <button type="button" id="modal-external-link-btn" class="hidden px-3.5 py-2.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 font-bold text-xs flex items-center gap-1.5 transition">
-            <i data-lucide="https://script.google.com/macros/s/AKfycbyjiraRf1PCiLeuZBA_S3jzR9-lVec5GExE_UHp7A69VhTkzHYOVa-ZL-__mkh6H4zr/exec" class="w-4 h-4"></i>
+            <i data-lucide="external-link" class="w-4 h-4"></i>
             <span>فتح الرابط الخارجي</span>
           </button>
         </div>
@@ -856,6 +856,7 @@
       </form>
     </div>
   </div>
+
   <!-- ===================================================================== -->
   <!-- STAGE 5A: HIERARCHICAL LIBRARY DATA, STATE & THREE.JS 3D ENGINE       -->
   <!-- ===================================================================== -->
@@ -948,7 +949,12 @@
       return [];
     }
 
-    // 3. Application State Management (Bumped storage key to v3 so new formats load cleanly)
+    // =========================================================================
+    // 3. GOOGLE DRIVE DATABASE & STORAGE CONNECTION (via Google Apps Script)
+    // ضع رابط تطبيق الويب (Web App URL) الخاص بـ Google Drive Apps Script هنا بين علامتي التنصيص:
+    // =========================================================================
+    const GOOGLE_DRIVE_SCRIPT_URL = "";
+
     const appState = {
       files: [],
       savedIds: [],
@@ -967,11 +973,16 @@
       uploadedFileCache: {}
     };
 
+    function isGoogleDriveConfigured() {
+      return Boolean(GOOGLE_DRIVE_SCRIPT_URL && GOOGLE_DRIVE_SCRIPT_URL.trim().startsWith('https://'));
+    }
+
     function loadAppState() {
       try {
         localStorage.removeItem('ksu_vet33_files_v3');
         localStorage.removeItem('ksu_vet33_saved_v3');
         localStorage.removeItem('ksu_vet33_completed_v3');
+        localStorage.removeItem('ksu_vet33_cloud_cfg_v4');
 
         const storedFiles = localStorage.getItem('ksu_vet33_files_v4');
         appState.files = storedFiles ? JSON.parse(storedFiles) : generateDefaultFilesDatabase();
@@ -994,6 +1005,78 @@
         localStorage.setItem('ksu_vet33_saved_v4', JSON.stringify(appState.savedIds));
         localStorage.setItem('ksu_vet33_completed_v4', JSON.stringify(appState.completedIds));
       } catch (e) {}
+    }
+
+    function fileToBase64(fileBlob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = String(reader.result || '');
+          const base64 = result.includes(',') ? result.split(',')[1] : result;
+          resolve(base64);
+        };
+        reader.onerror = (err) => reject(err);
+        reader.readAsDataURL(fileBlob);
+      });
+    }
+
+    async function fetchFilesFromCloud() {
+      if (!isGoogleDriveConfigured()) return false;
+      try {
+        const endpoint = GOOGLE_DRIVE_SCRIPT_URL.trim();
+        const res = await fetch(endpoint);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && Array.isArray(data.files)) {
+          appState.files = data.files;
+          saveAppState();
+          renderExplorerContent();
+          return true;
+        }
+      } catch (err) {}
+      return false;
+    }
+
+    async function sendGoogleDriveAction(payload) {
+      if (!isGoogleDriveConfigured()) return null;
+      try {
+        const endpoint = GOOGLE_DRIVE_SCRIPT_URL.trim();
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && Array.isArray(data.files)) {
+          appState.files = data.files;
+          saveAppState();
+          renderExplorerContent();
+        }
+        return data;
+      } catch (err) {
+        showToast('تعذر الاتصال بقاعدة بيانات Google Drive. تأكد من صحة رابط السكربت.', 'warning');
+        return null;
+      }
+    }
+
+    async function saveSingleFileToCloud(fileObj, fileUploadPayload = null) {
+      if (!isGoogleDriveConfigured()) return true;
+      const res = await sendGoogleDriveAction({
+        action: 'save',
+        item: fileObj,
+        fileUpload: fileUploadPayload
+      });
+      return Boolean(res && res.ok);
+    }
+
+    async function deleteFileFromCloud(fileId) {
+      if (!isGoogleDriveConfigured()) return true;
+      const res = await sendGoogleDriveAction({
+        action: 'delete',
+        id: fileId
+      });
+      return Boolean(res && res.ok);
     }
 
     function showToast(message, type = 'success') {
@@ -1704,6 +1787,19 @@
     function triggerFileDownload(file) {
       file.downloads = (Number(file.downloads) || 0) + 1;
       saveAppState();
+      saveSingleFileToCloud(file);
+
+      if (file.externalUrl) {
+        const cardDl = document.getElementById(`card-dl-${file.id}`);
+        if (cardDl) cardDl.textContent = file.downloads;
+        const previewDl = document.getElementById('preview-downloads');
+        if (previewDl && appState.activePreviewId === file.id) {
+          previewDl.textContent = `${file.downloads} تحميل`;
+        }
+        window.open(file.externalUrl, '_blank', 'noopener');
+        showToast(`جاري فتح وتحميل الملف السحابي: ${file.title}`, 'success');
+        return;
+      }
 
       const cardDl = document.getElementById(`card-dl-${file.id}`);
       if (cardDl) cardDl.textContent = file.downloads;
@@ -1916,6 +2012,9 @@
       renderBreadcrumbBar();
       renderExplorerContent();
       initThreeBackground();
+      if (isGoogleDriveConfigured()) {
+        fetchFilesFromCloud();
+      }
 
       const goRoot = () => {
         appState.onlySavedFilter = false;
@@ -2037,6 +2136,7 @@
         } else if (action === 'delete' && appState.isAdmin) {
           appState.files = appState.files.filter(f => f.id !== id);
           saveAppState();
+          deleteFileFromCloud(id);
           renderExplorerContent();
           showToast('تم حذف الملف بنجاح', 'warning');
         }
@@ -2123,9 +2223,13 @@
       document.getElementById('close-publish-modal-btn').addEventListener('click', closePub);
       document.getElementById('cancel-publish-btn').addEventListener('click', closePub);
 
-      document.getElementById('publish-form').addEventListener('submit', (e) => {
+      document.getElementById('publish-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         if (!appState.isAdmin) return;
+
+        const submitBtnLbl = document.getElementById('publish-submit-label');
+        const origLbl = submitBtnLbl.textContent;
+        submitBtnLbl.textContent = 'جاري الرفع إلى Google Drive...';
 
         // 4 Mandatory Fields
         const subject = document.getElementById('pub-subject').value;
@@ -2139,7 +2243,7 @@
         // Optional Fields with Smart Auto-Defaults if left blank
         const rawTitle = document.getElementById('pub-title').value.trim();
         const rawDoctor = document.getElementById('pub-doctor').value.trim();
-        const externalUrl = document.getElementById('pub-external-url').value.trim();
+        let externalUrl = document.getElementById('pub-external-url').value.trim();
         const rawDesc = document.getElementById('pub-description').value.trim();
         const rawKp = document.getElementById('pub-keypoints').value.trim();
         const rawNote = document.getElementById('pub-note').value.trim();
@@ -2151,6 +2255,7 @@
 
         const targetId = editId || `${subject}-${Date.now()}`;
         let sizeLabel = '2.4 MB';
+        let fileUploadPayload = null;
 
         if (fileInput && fileInput.files && fileInput.files[0]) {
           const fObj = fileInput.files[0];
@@ -2162,6 +2267,16 @@
             name: fObj.name,
             url: URL.createObjectURL(fObj)
           };
+          if (isGoogleDriveConfigured()) {
+            try {
+              const base64Data = await fileToBase64(fObj);
+              fileUploadPayload = {
+                name: fObj.name,
+                mimeType: fObj.type || 'application/octet-stream',
+                base64: base64Data
+              };
+            } catch (err) {}
+          }
         }
 
         const finalTitle = rawTitle || autoTitle;
@@ -2170,6 +2285,11 @@
         const finalKeypoints = rawKp
           ? rawKp.split(/\n|،|,/).map(s => s.trim()).filter(Boolean)
           : [`${format} معتمد لـ ${unitName} رقم (${folderNum}) في مقرر ${subObj.folderName}`];
+
+        const existingItem = editId ? appState.files.find(f => f.id === editId) : null;
+        if (editId && !externalUrl && existingItem && existingItem.externalUrl) {
+          externalUrl = existingItem.externalUrl;
+        }
 
         const newFile = {
           id: targetId,
@@ -2181,8 +2301,9 @@
           format,
           pages: rawPages,
           size: sizeLabel,
-          dateAdded: '26 Oct 12:35 pm',
-          downloads: editId ? (appState.files.find(f => f.id === editId)?.downloads || 1) : 1,
+          dateAdded: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
+          createdAt: existingItem?.createdAt || Date.now(),
+          downloads: existingItem ? (existingItem.downloads || 1) : 1,
           description: finalDesc,
           keypoints: finalKeypoints,
           clinicalNote: rawNote || `راجع ملف (${format}) جيداً قبل الامتحان.`,
@@ -2191,13 +2312,15 @@
 
         if (editId) {
           appState.files = appState.files.map(f => f.id === editId ? newFile : f);
-          showToast('تم حفظ التعديلات بنجاح!', 'success');
         } else {
           appState.files.unshift(newFile);
-          showToast(`تم نشر (${format}) داخل (${subObj.folderName} > ${category} > ${folderNum})!`, 'success');
         }
 
         saveAppState();
+        await saveSingleFileToCloud(newFile, fileUploadPayload);
+
+        submitBtnLbl.textContent = origLbl;
+        showToast(editId ? 'تم حفظ التعديلات على Google Drive بنجاح!' : `تم نشر (${format}) داخل (${subObj.folderName} > ${category} > ${folderNum})!`, 'success');
         closePub();
         navigateToHierarchy(subject, category, folderNum);
       });
