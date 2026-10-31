@@ -1,7 +1,10 @@
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbyjiraRf1PCiLeuZBA_S3jzR9-lVec5GExE_UHp7A69VhTkzHYOVa-ZL-__mkh6H4zr/exec';
 const DB_NAME = 'vet33_bg_sw_db_v10';
 const STORE_NAME = 'state';
-const CACHE_NAME = 'vet33-pwa-cache-v10';
+const CACHE_NAME = 'vet33-pwa-cache-v11';
+const APP_SHELL = ['./', './index.html', './manifest.json', './favicon.svg', './icon-192.svg', './icon-512.svg'];
+const RUNTIME_CDN_HOSTS = ['cdn.tailwindcss.com', 'cdnjs.cloudflare.com', 'cdn.jsdelivr.net', 'unpkg.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
+const NEVER_CACHE_HOSTS = ['script.google.com', 'script.googleusercontent.com', 'googleusercontent.com', 'drive.google.com', 'drive.usercontent.google.com', 'docs.google.com', 't.me', 'telegram.org', 'corsproxy.io'];
 const NL = String.fromCharCode(10);
 const ICON_SVG = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192"><rect width="192" height="192" rx="42" fill="#0f172a"/><rect x="16" y="16" width="160" height="160" rx="32" fill="#10b981" fill-opacity="0.18" stroke="#f59e0b" stroke-width="6"/><text x="96" y="118" font-family="Arial,sans-serif" font-size="68" font-weight="900" fill="#fbbf24" text-anchor="middle">33</text></svg>');
 
@@ -16,22 +19,53 @@ const SUBJECT_NAMES = {
   moadya: 'معديه'
 };
 
-const MANIFEST_JSON = JSON.stringify({
-  name: 'Seniors 2027 VET-KSU 33 Old List',
-  short_name: 'VET-KSU 33',
-  description: 'المكتبة الرقمية للمحاضرات والسكاشن - طب بيطري كفر الشيخ',
-  lang: 'ar',
-  dir: 'rtl',
-  start_url: './',
-  scope: './',
-  display: 'standalone',
-  background_color: '#050914',
-  theme_color: '#050914',
-  icons: [
-    { src: ICON_SVG, sizes: '192x192', type: 'image/svg+xml', purpose: 'any maskable' },
-    { src: ICON_SVG, sizes: '512x512', type: 'image/svg+xml', purpose: 'any maskable' }
-  ]
-});
+function isHostMatch(hostname, list) {
+  return list.some(h => hostname === h || hostname.endsWith('.' + h));
+}
+
+// Network-first for the app itself (always shows the latest GitHub version when online),
+// falls back to the cached copy when offline or when the network is very slow.
+async function networkFirst(req, fallbackUrl, timeoutMs = 5000) {
+  const cache = await caches.open(CACHE_NAME);
+  const networkPromise = fetch(req).then((res) => {
+    if (res && res.ok) cache.put(req, res.clone()).catch(() => {});
+    return res;
+  });
+  const cachedPromise = cache.match(req, { ignoreSearch: true })
+    .then(r => r || (fallbackUrl ? cache.match(fallbackUrl) : undefined))
+    .catch(() => undefined);
+  try {
+    return await new Promise((resolve, reject) => {
+      let settled = false;
+      const timer = setTimeout(async () => {
+        const cached = await cachedPromise;
+        if (cached && !settled) { settled = true; resolve(cached); }
+      }, timeoutMs);
+      networkPromise.then((res) => {
+        if (!settled) { settled = true; clearTimeout(timer); resolve(res); }
+      }).catch(async (err) => {
+        clearTimeout(timer);
+        const cached = await cachedPromise;
+        if (!settled) { settled = true; if (cached) resolve(cached); else reject(err); }
+      });
+    });
+  } catch (e) {
+    return Response.error();
+  }
+}
+
+// Stale-while-revalidate for pinned CDN libraries (Tailwind, Three.js, Lucide, Google Fonts).
+async function staleWhileRevalidate(req) {
+  const cache = await caches.open(CACHE_NAME);
+  const cached = await cache.match(req);
+  const networkPromise = fetch(req).then((res) => {
+    if (res && (res.ok || res.type === 'opaque')) cache.put(req, res.clone()).catch(() => {});
+    return res;
+  }).catch(() => null);
+  if (cached) return cached;
+  const res = await networkPromise;
+  return res || Response.error();
+}
 
 async function fetchSwWithTimeout(url, options = {}, timeoutMs = 12000) {
   if (typeof AbortController === 'undefined') {
@@ -221,6 +255,12 @@ function runBackgroundKeepAliveLoop(cycles = 11, intervalMs = 12000) {
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
+  event.waitUntil((async () => {
+    try {
+      const cache = await caches.open(CACHE_NAME);
+      await Promise.allSettled(APP_SHELL.map(u => cache.add(new Request(u, { cache: 'reload' }))));
+    } catch (e) {}
+  })());
 });
 
 self.addEventListener('activate', (event) => {
@@ -235,16 +275,28 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  try {
-    const url = new URL(event.request.url);
-    if (url.pathname.endsWith('/manifest.json') || url.pathname.endsWith('/manifest.webmanifest')) {
-      event.respondWith(new Response(MANIFEST_JSON, {
-        status: 200,
-        headers: { 'Content-Type': 'application/manifest+json; charset=utf-8' }
-      }));
-      return;
+  const req = event.request;
+  if (req.method !== 'GET') return;
+  let url;
+  try { url = new URL(req.url); } catch (e) { return; }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
+
+  // Google Drive database (Apps Script), Drive files and Telegram links must ALWAYS stay live.
+  if (isHostMatch(url.hostname, NEVER_CACHE_HOSTS)) return;
+
+  if (url.origin === self.location.origin) {
+    if (url.pathname.endsWith('/sw.js')) return;
+    if (req.mode === 'navigate') {
+      event.respondWith(networkFirst(req, './index.html'));
+    } else {
+      event.respondWith(networkFirst(req));
     }
-  } catch (e) {}
+    return;
+  }
+
+  if (RUNTIME_CDN_HOSTS.includes(url.hostname)) {
+    event.respondWith(staleWhileRevalidate(req));
+  }
 });
 
 self.addEventListener('message', (event) => {
