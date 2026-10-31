@@ -5,7 +5,7 @@
 [![PWA Ready](https://img.shields.io/badge/PWA-Ready%20%26%20Installable-amber?style=for-the-badge&logo=pwa)](https://samehzarara123456-eng.github.io/vet-ksu-33/)
 [![Database](https://img.shields.io/badge/Database-Google%20Drive-blue?style=for-the-badge&logo=googledrive)](https://drive.google.com)
 
-منصة وتطبيق ويب تقدمي (PWA) مصمم خصيصاً لطلاب دفعة **Seniors 2027 (الفرقة الرابعة - اللائحة القديمة)** بكلية الطب البيطري - جامعة كفر الشيخ، لتنظيم وتصفح وتحميل المحاضرات والسكاشن والملخصات والخرائط الذهنية لجميع المقررات الدراسية الثمانية بسهولة وسرعة، مع دعم العمل بدون إنترنت (Offline Mode).
+منصة وتطبيق ويب تقدمي (PWA) مصمم خصيصاً لطلاب دفعة **Seniors 2027 (الفرقة الخامسة - اللائحة القديمة)** بكلية الطب البيطري - جامعة كفر الشيخ، لتنظيم وتصفح وتحميل المحاضرات والسكاشن والملخصات والخرائط الذهنية لجميع المقررات الدراسية الثمانية بسهولة وسرعة، مع دعم العمل بدون إنترنت (Offline Mode).
 
 ---
 
