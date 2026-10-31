@@ -1,8 +1,22 @@
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbyjiraRf1PCiLeuZBA_S3jzR9-lVec5GExE_UHp7A69VhTkzHYOVa-ZL-__mkh6H4zr/exec';
 const DB_NAME = 'vet33_bg_sw_db_v10';
 const STORE_NAME = 'state';
-const CACHE_NAME = 'vet33-pwa-cache-v11';
-const APP_SHELL = ['./', './index.html', './manifest.json', './favicon.svg', './icon-192.svg', './icon-512.svg'];
+const CACHE_NAME = 'vet33-pwa-cache-v33';
+const APP_SHELL = [
+  './',
+  './index.html',
+  './manifest.json',
+  './css/style.css',
+  './js/app.js',
+  './assets/icons/favicon.png',
+  './assets/icons/icon-192.png',
+  './assets/icons/icon-512.png',
+  './assets/icons/app-icon.png',
+  './assets/images/bg.jpg',
+  './assets/icons/favicon.svg',
+  './assets/icons/icon-192.svg',
+  './assets/icons/icon-512.svg'
+];
 const RUNTIME_CDN_HOSTS = ['cdn.tailwindcss.com', 'cdnjs.cloudflare.com', 'cdn.jsdelivr.net', 'unpkg.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 const NEVER_CACHE_HOSTS = ['script.google.com', 'script.googleusercontent.com', 'googleusercontent.com', 'drive.google.com', 'drive.usercontent.google.com', 'docs.google.com', 't.me', 'telegram.org', 'corsproxy.io'];
 const NL = String.fromCharCode(10);
@@ -286,6 +300,8 @@ self.addEventListener('fetch', (event) => {
 
   if (url.origin === self.location.origin) {
     if (url.pathname.endsWith('/sw.js')) return;
+    // Do not intercept or cache mp4 video or HTTP Range partial stream requests
+    if (url.pathname.endsWith('.mp4') || req.headers.has('range')) return;
     if (req.mode === 'navigate') {
       event.respondWith(networkFirst(req, './index.html'));
     } else {
