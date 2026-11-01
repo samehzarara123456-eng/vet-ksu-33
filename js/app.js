@@ -95,13 +95,14 @@
     }
 
     // Google Apps Script Web App URL (Connected to Google Drive Database)
-    const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyjiraRf1PCiLeuZBA_S3jzR9-lVec5GExE_UHp7A69VhTkzHYOVa-ZL-__mkh6H4zr/exec';
+    const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxjlsN__9eXZvIuGLMJW0rCcpCiggFIdzdatlVXKuAy-34wGQN4b0k2iNSkP1SBI8S54A/exec';
 
     // 3. Application State Management (Connected to Google Drive + Local Cache Fallback)
     const appState = {
       currentView: 'explorer',
       previousHierarchy: null,
       files: [],
+      folders: [],
       savedIds: [],
       completedIds: [],
       seenNotificationIds: [],
@@ -332,7 +333,7 @@
       "const GAS_URL = '" + GAS_WEB_APP_URL + "';",
       "const DB_NAME = 'vet33_bg_sw_db_v10';",
       "const STORE_NAME = 'state';",
-      "const CACHE_NAME = 'vet33-pwa-cache-v33';",
+      "const CACHE_NAME = 'vet33-pwa-cache-v34';",
       "const APP_SHELL = [",
       "  './',",
       "  './index.html',",
@@ -802,7 +803,7 @@
       }
 
       try {
-        let reg = await navigator.serviceWorker.register('./sw.js?v=33', {
+        let reg = await navigator.serviceWorker.register('./sw.js?v=34', {
           scope: './',
           updateViaCache: 'none'
         });
@@ -1226,18 +1227,164 @@
       } catch (e) {}
     }
 
+
+    // Map subjects between Version 1 Code.gs (medicine, obstetrics...) and app.js (batna, tawleed...)
+    const DRIVE_SUBJECT_TO_APP_ID = {
+      'medicine': 'batna', 'الباطنة': 'batna', 'باطنة': 'batna', 'باطنه': 'batna', 'batna': 'batna',
+      'obstetrics': 'tawleed', 'التوليد': 'tawleed', 'توليد': 'tawleed', 'ولادة': 'tawleed', 'ولاده': 'tawleed', 'tawleed': 'tawleed',
+      'surgery': 'geraha', 'الجراحة': 'geraha', 'جراحة': 'geraha', 'جراحه': 'geraha', 'geraha': 'geraha',
+      'poultry': 'dawagen', 'الدواجن': 'dawagen', 'دواجن': 'dawagen', 'dawagen': 'dawagen',
+      'hygiene': 'seha', 'الصحة': 'seha', 'صحة': 'seha', 'صحه': 'seha', 'seha': 'seha',
+      'meat': 'lahma', 'اللحوم': 'lahma', 'لحوم': 'lahma', 'لحمة': 'lahma', 'لحمه': 'lahma', 'lahma': 'lahma',
+      'zoonoses': 'moshtaraka', 'المشتركة': 'moshtaraka', 'مشتركة': 'moshtaraka', 'مشتركه': 'moshtaraka', 'moshtaraka': 'moshtaraka',
+      'infectious': 'moadya', 'المعدية': 'moadya', 'معدية': 'moadya', 'معديه': 'moadya', 'moadya': 'moadya'
+    };
+
+    function detectAppFormatFromDriveFile(f) {
+      const raw = String((f && (f.format || f.badge || f.type || '')) + ' ' + (f && (f.name || f.title || ''))).toLowerCase();
+      if (raw.includes('خريط') || raw.includes('ذهني') || raw.includes('mindmap') || raw.includes('mind')) {
+        return 'خريطه ذهنية';
+      }
+      if (raw.includes('تلخيص') || raw.includes('ملخص') || raw.includes('summary')) {
+        return 'تلخيص';
+      }
+      if (raw.includes('شرح') || raw.includes('تفصيلي') || raw.includes('explanation')) {
+        return 'شرح';
+      }
+      return 'المصدر';
+    }
+
+    function extractNumFromAnyString(str) {
+      const s = String(str || '').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+      const m = s.match(/(\d+)/);
+      return m ? parseInt(m[1], 10) : null;
+    }
+
+    function normalizeDriveApiPayload(apiResponse) {
+      if (!apiResponse) return { files: null, folders: [] };
+
+      // Case 1: Direct array of files
+      if (Array.isArray(apiResponse)) {
+        return { files: apiResponse, folders: [] };
+      }
+
+      // Case 2: Version 2 GasCode response ({ ok: true, files: [...], folders: [...] })
+      if (Array.isArray(apiResponse.files)) {
+        return {
+          files: apiResponse.files,
+          folders: Array.isArray(apiResponse.folders) ? apiResponse.folders : []
+        };
+      }
+
+      // Case 3: Version 1 Code.gs response ({ status: 'success', ok: true, data: { subjects: [...] } })
+      const dbData = apiResponse.data || apiResponse;
+      if (dbData && Array.isArray(dbData.subjects)) {
+        const mappedFiles = [];
+        const mappedFolders = [];
+        const existingMap = {};
+        (appState.files || []).forEach(ef => {
+          if (ef && ef.id) existingMap[ef.id] = ef;
+          if (ef && ef.driveFileId) existingMap[ef.driveFileId] = ef;
+        });
+
+        dbData.subjects.forEach(subj => {
+          const appSubId = DRIVE_SUBJECT_TO_APP_ID[subj.id] || DRIVE_SUBJECT_TO_APP_ID[subj.name] || DRIVE_SUBJECT_TO_APP_ID[subj.driveName] || 'batna';
+          const subObj = getSubjectObj(appSubId);
+
+          const processTopicsList = (topicsArr, categoryAr) => {
+            if (!Array.isArray(topicsArr)) return;
+            topicsArr.forEach((topic, tIdx) => {
+              const isDirectBucket = String(topic.id || '').endsWith('_direct') || Number(topic.number) === 999;
+              const topicNum = !isDirectBucket ? (Number(topic.number) || extractNumFromAnyString(topic.name) || (tIdx + 1)) : null;
+
+              if (!isDirectBucket && topicNum) {
+                mappedFolders.push({
+                  id: topic.folderId || topic.id,
+                  subject: appSubId,
+                  category: categoryAr,
+                  folderNum: topicNum,
+                  name: topic.name || `${categoryAr === 'محاضرات' ? 'محاضرة' : 'سكشن'} ${topicNum}`
+                });
+              }
+
+              if (Array.isArray(topic.files)) {
+                topic.files.forEach(df => {
+                  const dId = df.driveFileId || df.id;
+                  if (!dId) return;
+                  const fNum = topicNum || extractNumFromAnyString(df.name || df.title) || 1;
+                  const fmt = detectAppFormatFromDriveFile(df);
+                  const extUpper = String(df.extension || (df.name ? df.name.split('.').pop() : 'PDF') || 'PDF').toUpperCase();
+                  const sizeLabel = df.sizeFormatted ? `${extUpper} • ${df.sizeFormatted}` : extUpper;
+                  const dateIso = df.updatedAt || df.createdAt || new Date().toISOString();
+                  let dateStr = '';
+                  try {
+                    dateStr = new Date(dateIso).toLocaleDateString('ar-EG');
+                  } catch (e) {
+                    dateStr = dateIso.slice(0, 10);
+                  }
+                  const prev = existingMap[dId] || existingMap['drive_' + dId] || {};
+                  const cleanRawTitle = String(df.title || df.name || '').replace(/\.[^/.]+$/, '').replace(/\s*-\s*(المصدر|شرح|تلخيص|خريطه ذهنية|خريطة ذهنية)$/i, '').trim();
+
+                  mappedFiles.push({
+                    id: 'drive_' + dId,
+                    driveFileId: dId,
+                    title: cleanRawTitle || df.title || df.name,
+                    originalFileName: df.name || df.title,
+                    driveModifiedTime: new Date(dateIso).getTime() || Date.now(),
+                    subject: appSubId,
+                    category: categoryAr,
+                    folderNum: Number(fNum) || 1,
+                    format: fmt,
+                    doctor: prev.doctor || subObj.doctor || 'أعضاء هيئة التدريس',
+                    externalUrl: df.viewUrl || ('https://drive.google.com/file/d/' + dId + '/view'),
+                    fileUrl: df.viewUrl || ('https://drive.google.com/file/d/' + dId + '/view'),
+                    driveUrl: df.viewUrl || ('https://drive.google.com/file/d/' + dId + '/view'),
+                    previewUrl: df.previewUrl || ('https://drive.google.com/file/d/' + dId + '/preview'),
+                    downloadUrl: df.downloadUrl || ('https://drive.google.com/uc?export=download&id=' + dId),
+                    size: sizeLabel,
+                    date: dateStr,
+                    dateAdded: dateStr,
+                    downloads: Number(prev.downloads) || 0,
+                    downloadsCount: Number(prev.downloadsCount) || 0,
+                    viewsCount: Number(prev.viewsCount) || 0,
+                    description: prev.description || '',
+                    keypoints: Array.isArray(prev.keypoints) ? prev.keypoints : [],
+                    clinicalNote: prev.clinicalNote || '',
+                    pages: prev.pages || null,
+                    term: 'الترم الاول'
+                  });
+                });
+              }
+            });
+          };
+
+          processTopicsList(subj.lectures, 'محاضرات');
+          processTopicsList(subj.sections, 'سكاشن');
+        });
+
+        mappedFiles.sort((a, b) => (b.driveModifiedTime || 0) - (a.driveModifiedTime || 0));
+        return { files: mappedFiles, folders: mappedFolders };
+      }
+
+      return { files: null, folders: [] };
+    }
+
     async function fetchDatabaseFromDrive(silent = false) {
       if (appState.isSyncing) return;
       appState.isSyncing = true;
       setCloudSyncStatus('syncing', 'جاري الجلب...');
       try {
-        const res = await fetchWithTimeout(GAS_WEB_APP_URL + '?t=' + Date.now(), {
+        const res = await fetchWithTimeout(GAS_WEB_APP_URL + '?action=sync&force=true&t=' + Date.now(), {
           method: 'GET',
           redirect: 'follow',
           cache: 'no-store'
-        }, 14000);
+        }, 22000);
         const data = await res.json();
-        const rawRemoteList = Array.isArray(data) ? data : (Array.isArray(data.files) ? data.files : null);
+        const normalized = normalizeDriveApiPayload(data);
+        if (Array.isArray(normalized.folders)) {
+          appState.folders = normalized.folders;
+        }
+        const rawRemoteList = normalized.files;
         if (rawRemoteList) {
           const sysSubEntry = rawRemoteList.find(rf => rf && (rf.id === SYS_PUSH_SUBS_ID || rf.isSystemMeta));
           if (sysSubEntry && Array.isArray(sysSubEntry.subs)) {
@@ -1332,20 +1479,27 @@
           body: JSON.stringify(payload)
         }, 25000);
         const data = await res.json();
-        if (data && data.ok) {
-          if (Array.isArray(data.files)) {
-            const sysSubEntry = data.files.find(rf => rf && (rf.id === SYS_PUSH_SUBS_ID || rf.isSystemMeta));
+        if (data && (data.ok || data.status === 'success')) {
+          const normalized = normalizeDriveApiPayload(data);
+          if (Array.isArray(normalized.folders)) {
+            appState.folders = normalized.folders;
+          }
+          if (Array.isArray(normalized.files)) {
+            const sysSubEntry = normalized.files.find(rf => rf && (rf.id === SYS_PUSH_SUBS_ID || rf.isSystemMeta));
             if (sysSubEntry && Array.isArray(sysSubEntry.subs)) {
               appState.pushSubscriptions = sysSubEntry.subs;
             }
-            appState.files = data.files.filter(rf => {
+            appState.files = normalized.files.filter(rf => {
               if (!rf || !rf.id || rf.isSystemMeta || String(rf.id).startsWith('_sys_')) return false;
               if (appState.deletedFileIds && (appState.deletedFileIds.has(rf.id) || (rf.driveFileId && appState.deletedFileIds.has(rf.driveFileId)))) return false;
               return true;
             });
             saveAppState();
+            renderQuickSubjectBar();
+            renderBreadcrumbBar();
             renderExplorerContent();
             updateLibraryCounters();
+            updateNotificationsUI();
           }
           setCloudSyncStatus('online', `متصل (${appState.files.length})`);
           return { ok: true, data };
@@ -1558,6 +1712,7 @@
 
         appState.files = safeParseArray(localStorage.getItem('ksu_vet33_files_v5'), generateDefaultFilesDatabase())
           .filter(rf => rf && rf.id && !rf.isSystemMeta && !String(rf.id).startsWith('_sys_'));
+        appState.folders = safeParseArray(localStorage.getItem('ksu_vet33_folders_v5'), []);
         loadSavedFilesFromStorage();
         loadCompletedFilesFromStorage();
         appState.seenNotificationIds = safeParseArray(localStorage.getItem('ksu_vet33_seen_notifs_v4'), []);
@@ -1611,6 +1766,7 @@
     function saveAppState() {
       try {
         localStorage.setItem('ksu_vet33_files_v5', JSON.stringify(appState.files));
+        localStorage.setItem('ksu_vet33_folders_v5', JSON.stringify(appState.folders || []));
         saveSavedFilesToStorage();
         saveCompletedFilesToStorage();
         localStorage.setItem('ksu_vet33_seen_notifs_v4', JSON.stringify(appState.seenNotificationIds));
@@ -1713,12 +1869,15 @@
 
     function updateLibraryCounters() {
       loadSavedFilesFromStorage();
-      const lecturesCount = new Set(
-        appState.files.filter(f => f.category === 'محاضرات').map(f => `${f.subject}-${f.folderNum}`)
-      ).size;
-      const sectionsCount = new Set(
-        appState.files.filter(f => f.category === 'سكاشن').map(f => `${f.subject}-${f.folderNum}`)
-      ).size;
+      const allFolders = Array.isArray(appState.folders) ? appState.folders : [];
+      const lecturesCount = new Set([
+        ...appState.files.filter(f => f.category === 'محاضرات').map(f => `${f.subject}-${Number(f.folderNum)}`),
+        ...allFolders.filter(fl => fl.category === 'محاضرات').map(fl => `${fl.subject}-${Number(fl.folderNum)}`)
+      ]).size;
+      const sectionsCount = new Set([
+        ...appState.files.filter(f => f.category === 'سكاشن').map(f => `${f.subject}-${Number(f.folderNum)}`),
+        ...allFolders.filter(fl => fl.category === 'سكاشن').map(fl => `${fl.subject}-${Number(fl.folderNum)}`)
+      ]).size;
       const statFilesEl = document.getElementById('stat-files-count');
       if (statFilesEl) statFilesEl.textContent = appState.files.length;
       const statSubjectsEl = document.getElementById('stat-subjects-count');
@@ -2122,13 +2281,16 @@
       const subFiles = appState.files.filter(f => f.subject === sub.id);
       const subFilesCount = subFiles.length;
 
-      const subLecturesCount = new Set(
-        subFiles.filter(f => f.category === 'محاضرات').map(f => Number(f.folderNum))
-      ).size;
+      const subFolders = (Array.isArray(appState.folders) ? appState.folders : []).filter(fl => fl.subject === sub.id);
+      const subLecturesCount = new Set([
+        ...subFiles.filter(f => f.category === 'محاضرات').map(f => Number(f.folderNum)),
+        ...subFolders.filter(fl => fl.category === 'محاضرات').map(fl => Number(fl.folderNum))
+      ]).size;
 
-      const subSectionsCount = new Set(
-        subFiles.filter(f => f.category === 'سكاشن').map(f => Number(f.folderNum))
-      ).size;
+      const subSectionsCount = new Set([
+        ...subFiles.filter(f => f.category === 'سكاشن').map(f => Number(f.folderNum)),
+        ...subFolders.filter(fl => fl.category === 'سكاشن').map(fl => Number(fl.folderNum))
+      ]).size;
 
       const subDoneFiles = subFiles.filter(f => appState.completedIds.includes(f.id)).length;
       const subProgressPct = subFilesCount > 0 ? Math.round((subDoneFiles / subFilesCount) * 100) : 0;
@@ -2246,7 +2408,13 @@
 
     // Helper: Build Cyber Category Card ("محاضرات" or "سكاشن")
     function buildCategoryCardHTML({ category, subjectObj, files, isList = false }) {
-      const folderNums = [...new Set(files.map(f => Number(f.folderNum)))];
+      const catFolders = (Array.isArray(appState.folders) ? appState.folders : []).filter(
+        fl => fl.subject === (subjectObj && subjectObj.id) && fl.category === category
+      );
+      const folderNums = [...new Set([
+        ...files.map(f => Number(f.folderNum)),
+        ...catFolders.map(fl => Number(fl.folderNum))
+      ])];
       const folderCount = folderNums.length;
       const totalFiles = files.length;
       const doneCount = files.filter(f => appState.completedIds.includes(f.id)).length;
@@ -2791,7 +2959,13 @@
         const catFiles = appState.files.filter(
           f => f.subject === currentSubObj.id && f.category === appState.currentCategory
         );
-        const folderNumbers = [...new Set(catFiles.map(f => Number(f.folderNum)))].sort((a, b) => a - b);
+        const catFolders = (Array.isArray(appState.folders) ? appState.folders : []).filter(
+          fl => fl.subject === currentSubObj.id && fl.category === appState.currentCategory
+        );
+        const folderNumbers = [...new Set([
+          ...catFiles.map(f => Number(f.folderNum)),
+          ...catFolders.map(fl => Number(fl.folderNum))
+        ])].filter(n => !isNaN(n) && n >= 1).sort((a, b) => a - b);
 
         const unitPlural = appState.currentCategory === 'محاضرات' ? 'محاضرات' : 'سكاشن';
         countBadge.textContent = `${folderNumbers.length} ${unitPlural} • ${catFiles.length} ملف`;
@@ -3016,6 +3190,32 @@
         extBtn.onclick = () => window.open(cloudViewUrl, '_blank', 'noopener');
       } else {
         extBtn.classList.add('hidden');
+      }
+
+      // Inject live Google Drive preview iframe inside modal when Drive file is available
+      const modalBody = document.querySelector('#preview-modal .modal-body-scroll');
+      let drivePreviewContainer = document.getElementById('preview-drive-embed-box');
+      const driveId = file.driveFileId || extractDriveFileId(cloudViewUrl);
+      if (modalBody) {
+        if (!drivePreviewContainer) {
+          drivePreviewContainer = document.createElement('div');
+          drivePreviewContainer.id = 'preview-drive-embed-box';
+          drivePreviewContainer.className = 'rounded-2xl overflow-hidden border border-slate-800 bg-slate-950/90';
+          modalBody.appendChild(drivePreviewContainer);
+        }
+        if (driveId) {
+          drivePreviewContainer.classList.remove('hidden');
+          drivePreviewContainer.innerHTML = `
+            <div class="px-3.5 py-2 bg-slate-900 border-b border-slate-800 flex items-center justify-between text-xs text-amber-300 font-extrabold">
+              <span>معاينة مباشرة من Google Drive</span>
+              <a href="https://drive.google.com/file/d/${encodeURIComponent(driveId)}/view" target="_blank" rel="noopener" class="text-cyan-400 hover:underline">فتح في نافذة كاملة ↗</a>
+            </div>
+            <iframe src="https://drive.google.com/file/d/${encodeURIComponent(driveId)}/preview" class="w-full h-[380px] sm:h-[460px] border-0" allow="autoplay"></iframe>
+          `;
+        } else {
+          drivePreviewContainer.classList.add('hidden');
+          drivePreviewContainer.innerHTML = '';
+        }
       }
 
       const isCompleted = appState.completedIds.includes(file.id);
@@ -3383,8 +3583,8 @@
       if (editItemId) editItemId.value = '';
     }
 
-    // Handle Publish / Edit Form Submission (Feature F08)
-    function handlePublishSubmit(e) {
+    // Handle Publish / Edit Form Submission with Two-Way Google Drive Folder Upload (Feature F08)
+    async function handlePublishSubmit(e) {
       if (e && typeof e.preventDefault === 'function') {
         e.preventDefault();
       }
@@ -3399,10 +3599,13 @@
       const titleEl = document.getElementById('pub-title') || document.getElementById('publish-title-input');
       const docEl = document.getElementById('pub-doctor') || document.getElementById('publish-doctor-input');
       const urlEl = document.getElementById('pub-external-url') || document.getElementById('publish-url-input');
+      const fileInputEl = document.getElementById('pub-file-upload');
       const descEl = document.getElementById('pub-description');
       const kpEl = document.getElementById('pub-keypoints');
       const noteEl = document.getElementById('pub-note');
       const pagesEl = document.getElementById('pub-pages');
+      const submitBtn = document.getElementById('publish-submit-btn');
+      const submitLabel = document.getElementById('publish-submit-label');
 
       const subject = subEl ? subEl.value : '';
       const category = catEl ? catEl.value : '';
@@ -3416,8 +3619,12 @@
         return;
       }
 
+      const subObj = getSubjectObj(subject);
+      const unitSingular = category === 'محاضرات' ? 'محاضرة' : 'سكشن';
+      const uploadedFileObj = (fileInputEl && fileInputEl.files && fileInputEl.files[0]) ? fileInputEl.files[0] : null;
       const rawTitle = titleEl ? titleEl.value.trim() : '';
-      const finalTitle = rawTitle || (subject ? `${format} - ${category} (مجلد ${folderNum})` : `${format} (مجلد ${folderNum})`);
+      const uploadedCleanName = uploadedFileObj ? uploadedFileObj.name.replace(/\.[^/.]+$/, '').trim() : '';
+      const finalTitle = rawTitle || uploadedCleanName || `${unitSingular} ${folderNum} ${subObj.folderName} ${format}`;
       const doctor = docEl ? docEl.value.trim() : '';
       const externalUrl = urlEl ? urlEl.value.trim() : '';
       const description = descEl ? descEl.value.trim() : '';
@@ -3425,11 +3632,27 @@
       const note = noteEl ? noteEl.value.trim() : '';
       const pages = pagesEl && pagesEl.value ? (parseInt(pagesEl.value, 10) || null) : null;
 
+      let fileUploadPayload = null;
+      if (uploadedFileObj) {
+        try {
+          if (submitBtn) submitBtn.disabled = true;
+          if (submitLabel) submitLabel.textContent = 'جاري تجهيز ورفع الملف إلى Google Drive...';
+          fileUploadPayload = await readFileAsBase64(uploadedFileObj);
+        } catch (readErr) {
+          if (submitBtn) submitBtn.disabled = false;
+          if (submitLabel) submitLabel.textContent = editId ? 'حفظ التعديلات' : 'نشر الملف الآن';
+          showToast('تعذر قراءة الملف المرفوع من الجهاز', 'warning');
+          return;
+        }
+      }
+
       let targetFile = null;
+      let oldDriveFileIdToTrash = '';
 
       if (editId) {
         targetFile = appState.files.find(f => f.id === editId);
         if (targetFile) {
+          oldDriveFileIdToTrash = targetFile.driveFileId || extractDriveFileId(targetFile.fileUrl || targetFile.driveUrl || '');
           targetFile.subject = subject;
           targetFile.category = category;
           targetFile.folderNum = folderNum;
@@ -3447,8 +3670,9 @@
           if (pages) targetFile.pages = pages;
         }
       } else {
-        const subObj = getSubjectObj(subject);
         const newId = 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        const extUpper = uploadedFileObj ? (uploadedFileObj.name.split('.').pop() || 'PDF').toUpperCase() : 'PDF';
+        const sizeKb = uploadedFileObj ? (uploadedFileObj.size >= 1048576 ? (uploadedFileObj.size / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(uploadedFileObj.size / 1024)) + ' KB') : 'جديد';
         targetFile = {
           id: newId,
           title: finalTitle,
@@ -3464,7 +3688,7 @@
           keypoints: keypoints.length > 0 ? keypoints : [`${format} معتمد لـ ${category === 'محاضرات' ? 'المحاضرة' : 'السكشن'} رقم (${folderNum})`],
           clinicalNote: note || '',
           pages: pages || null,
-          size: 'PDF • جديد',
+          size: `${extUpper} • ${sizeKb}`,
           date: new Date().toLocaleDateString('ar-EG'),
           dateAdded: new Date().toLocaleDateString('ar-EG'),
           downloads: 0,
@@ -3474,23 +3698,86 @@
           isSaved: false,
           term: 'الترم الاول'
         };
+        if (fileUploadPayload) {
+          appState.uploadedFileCache[newId] = {
+            url: fileUploadPayload.dataUrl,
+            name: uploadedFileObj.name
+          };
+        }
         appState.files.unshift(targetFile);
       }
 
       saveAppState();
       updateLibraryCounters();
+      renderQuickSubjectBar();
+      renderBreadcrumbBar();
       renderExplorerContent();
+
+      if (submitBtn) submitBtn.disabled = false;
+      if (submitLabel) submitLabel.textContent = editId ? 'حفظ التعديلات' : 'نشر الملف الآن';
       closePublishModal();
 
-      if (editId) {
-        showToast('تم تحديث بيانات الملف بنجاح ✓', 'success');
+      if (fileUploadPayload) {
+        showToast('جاري رفع الملف إلى مجلد Google Drive المخصص...', 'info');
+      } else if (editId) {
+        showToast('تم تحديث بيانات الملف وجاري مزامنة Google Drive ✓', 'success');
       } else {
-        showToast('تم حفظ ونشر المادة بنجاح', 'success');
+        showToast('تم حفظ ونشر المادة وجاري مزامنة Google Drive', 'success');
       }
 
       if (targetFile) {
         try {
-          syncActionToDrive({ action: 'save', file: targetFile, item: targetFile }).catch(() => {});
+          const ext = uploadedFileObj
+            ? (uploadedFileObj.name.split('.').pop() || 'pdf').toLowerCase()
+            : ((targetFile.originalFileName && targetFile.originalFileName.includes('.')) ? targetFile.originalFileName.split('.').pop().toLowerCase() : 'pdf');
+
+          let driveFileName = finalTitle.replace(/\.[^/.]+$/, '').trim();
+          const detectedNow = detectAppFormatFromDriveFile({ name: driveFileName });
+          if (format !== 'المصدر' && detectedNow !== format) {
+            driveFileName = `${driveFileName} - ${format}`;
+          }
+          driveFileName = `${driveFileName}.${ext}`;
+
+          if (fileUploadPayload) {
+            if (editId && oldDriveFileIdToTrash) {
+              await syncActionToDrive({ action: 'deleteFile', driveFileId: oldDriveFileIdToTrash, id: editId }).catch(() => {});
+            }
+            const syncRes = await syncActionToDrive({
+              action: 'uploadFile',
+              subjectId: subject,
+              subjectName: subObj.displayName || subObj.folderName,
+              category: category === 'سكاشن' ? 'sections' : 'lectures',
+              topicName: `${unitSingular} ${folderNum}`,
+              fileName: driveFileName,
+              mimeType: fileUploadPayload.mimeType,
+              base64: fileUploadPayload.base64,
+              file: targetFile,
+              item: targetFile,
+              fileUpload: fileUploadPayload
+            });
+            if (syncRes && syncRes.ok) {
+              triggerBackgroundPushForAllSubscribers(targetFile);
+              showToast('تم رفع الملف إلى المجلد المخصص في Google Drive بنجاح ✓', 'success');
+            }
+          } else if (editId && oldDriveFileIdToTrash) {
+            const syncRes = await syncActionToDrive({
+              action: 'updateFile',
+              driveFileId: oldDriveFileIdToTrash,
+              id: editId,
+              newName: driveFileName,
+              file: targetFile,
+              item: targetFile
+            });
+            if (syncRes && syncRes.ok) {
+              showToast('تم تحديث اسم الملف في مجلد Google Drive بنجاح ✓', 'success');
+            }
+          } else {
+            await syncActionToDrive({
+              action: 'save',
+              file: targetFile,
+              item: targetFile
+            });
+          }
         } catch (e) {}
       }
     }
@@ -4435,8 +4722,13 @@
             updateLibraryCounters();
             showToast('جاري حذف الملف نهائياً من Google Drive...', 'info');
 
-            // Send persistent deletion command to Google Drive cloud backend
-            syncActionToDrive({ action: 'delete', id: fileId }).then(res => {
+            // Send persistent deletion command to Google Drive cloud backend (including clean driveFileId)
+            const cleanDriveId = file.driveFileId || (String(fileId).startsWith('drive_') ? String(fileId).replace(/^drive_/, '') : extractDriveFileId(file.fileUrl || file.driveUrl || file.externalUrl || ''));
+            syncActionToDrive({
+              action: 'deleteFile',
+              id: fileId,
+              driveFileId: cleanDriveId
+            }).then(res => {
               if (res && res.ok) {
                 showToast('تم حذف الملف نهائياً من Google Drive ✓', 'success');
               } else {
@@ -4451,4 +4743,3 @@
         }
       });
     }
-
