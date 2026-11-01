@@ -1,0 +1,90 @@
+[
+  {
+    "name": "test_adv_cache_storage_exact_13_assets",
+    "tier": "Tier 5 Adversarial",
+    "feature": "F09",
+    "status": "PASS",
+    "duration": 6.792838096618652,
+    "error_message": null,
+    "stack_trace": null,
+    "console_errors": [],
+    "metadata": {
+      "verified_assets_count": 13,
+      "cached_total": 13
+    }
+  },
+  {
+    "name": "test_adv_offline_navigation_full_reload",
+    "tier": "Tier 5 Adversarial",
+    "feature": "F09",
+    "status": "PASS",
+    "duration": 8.955255031585693,
+    "error_message": null,
+    "stack_trace": null,
+    "console_errors": [],
+    "metadata": {}
+  },
+  {
+    "name": "test_adv_offline_network_failure_tolerance",
+    "tier": "Tier 5 Adversarial",
+    "feature": "F09",
+    "status": "PASS",
+    "duration": 7.175456285476685,
+    "error_message": null,
+    "stack_trace": null,
+    "console_errors": [],
+    "metadata": {
+      "drive_fetch_result": {
+        "executed": true,
+        "success": true
+      }
+    }
+  },
+  {
+    "name": "test_adv_outdated_cache_eviction",
+    "tier": "Tier 5 Adversarial",
+    "feature": "F09",
+    "status": "PASS",
+    "duration": 5.776942014694214,
+    "error_message": null,
+    "stack_trace": null,
+    "console_errors": [],
+    "metadata": {
+      "evicted_caches": [
+        "vet33-pwa-cache-v24",
+        "vet33-pwa-cache-v30",
+        "vet33-legacy-orphaned-cache"
+      ],
+      "remaining_caches": [
+        "vet33-pwa-cache-v33"
+      ]
+    }
+  },
+  {
+    "name": "test_adv_offline_view_navigation_and_layout_switching",
+    "tier": "Tier 5 Adversarial",
+    "feature": "F09",
+    "status": "PASS",
+    "duration": 8.323996782302856,
+    "error_message": null,
+    "stack_trace": null,
+    "console_errors": [],
+    "metadata": {}
+  },
+  {
+    "name": "test_adv_non_cacheable_hosts_and_video_bypass",
+    "tier": "Tier 5 Adversarial",
+    "feature": "F09",
+    "status": "PASS",
+    "duration": 5.749675750732422,
+    "error_message": null,
+    "stack_trace": null,
+    "console_errors": [],
+    "metadata": {
+      "hasCache": true,
+      "mp4InCache": [],
+      "gasInCache": [],
+      "totalCached": 13
+    }
+  }
+]

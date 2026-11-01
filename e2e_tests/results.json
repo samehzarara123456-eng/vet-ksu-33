@@ -1,0 +1,40 @@
+{
+  "summary": {
+    "total": 3,
+    "passed": 1,
+    "failed": 2,
+    "pass_rate": "33.3%",
+    "duration": 87.97592258453369,
+    "browser": "msedge",
+    "timestamp": "2026-11-01T06:59:15Z"
+  },
+  "results": [
+    {
+      "name": "test_t4_admin_publishing_and_management_journey",
+      "tier": "Tier 4",
+      "feature": "Admin Workflow",
+      "status": "FAIL",
+      "duration": 18.06665301322937,
+      "error": "Locator.click: Timeout 5000ms exceeded.\nCall log:\n  - waiting for locator(\"#admin-access-btn\")\n    - locator resolved to <button type=\"button\" id=\"admin-access-btn\" class=\"h-9 px-3.5 sm:px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white text-xs font-extrabold inline-flex items-center justify-center gap-1.5 transition whitespace-nowrap shrink-0 shadow-md\">…</button>\n  - attempting click action\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n",
+      "console_errors": []
+    },
+    {
+      "name": "test_t4_offline_study_and_revision_journey",
+      "tier": "Tier 4",
+      "feature": "Offline Study Workflow",
+      "status": "FAIL",
+      "duration": 24.196479082107544,
+      "error": "Page.reload: net::ERR_INTERNET_DISCONNECTED\nCall log:\n  - waiting for navigation until \"domcontentloaded\"\n",
+      "console_errors": []
+    },
+    {
+      "name": "test_t4_student_browsing_and_bookmarking_journey",
+      "tier": "Tier 4",
+      "feature": "Student Workflow",
+      "status": "PASS",
+      "duration": 22.205983877182007,
+      "error": null,
+      "console_errors": []
+    }
+  ]
+}

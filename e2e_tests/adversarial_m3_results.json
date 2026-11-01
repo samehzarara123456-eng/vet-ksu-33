@@ -1,0 +1,68 @@
+[
+  {
+    "name": "test_adv_f08_missing_required_fields_validation_and_no_record_added",
+    "tier": "Tier 5 (Adversarial)",
+    "feature": "F08",
+    "status": "PASS",
+    "duration": 7.832942962646484,
+    "error_message": null,
+    "stack_trace": null,
+    "console_errors": [],
+    "metadata": {}
+  },
+  {
+    "name": "test_adv_f08_edit_action_prefill_and_inplace_update",
+    "tier": "Tier 5 (Adversarial)",
+    "feature": "F08",
+    "status": "PASS",
+    "duration": 10.925920009613037,
+    "error_message": null,
+    "stack_trace": null,
+    "console_errors": [],
+    "metadata": {}
+  },
+  {
+    "name": "test_adv_f08_modal_dismissal_backdrop_and_form_reset",
+    "tier": "Tier 5 (Adversarial)",
+    "feature": "F08",
+    "status": "PASS",
+    "duration": 9.457777261734009,
+    "error_message": null,
+    "stack_trace": null,
+    "console_errors": [],
+    "metadata": {}
+  },
+  {
+    "name": "test_adv_f08_escape_key_dismissing_topmost_modal_in_stacked_scenarios",
+    "tier": "Tier 5 (Adversarial)",
+    "feature": "F08",
+    "status": "PASS",
+    "duration": 10.751246929168701,
+    "error_message": null,
+    "stack_trace": null,
+    "console_errors": [],
+    "metadata": {}
+  },
+  {
+    "name": "test_adv_f08_non_admin_edit_action_blocked",
+    "tier": "Tier 5 (Adversarial)",
+    "feature": "F08",
+    "status": "PASS",
+    "duration": 9.657102823257446,
+    "error_message": null,
+    "stack_trace": null,
+    "console_errors": [],
+    "metadata": {}
+  },
+  {
+    "name": "test_adv_f08_xss_and_special_character_injection_sanitization",
+    "tier": "Tier 5 (Adversarial)",
+    "feature": "F08",
+    "status": "PASS",
+    "duration": 8.089998722076416,
+    "error_message": null,
+    "stack_trace": null,
+    "console_errors": [],
+    "metadata": {}
+  }
+]

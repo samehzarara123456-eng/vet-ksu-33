@@ -1,0 +1,35 @@
+[
+  {
+    "name": "challenger_folder_number_validation_matrix",
+    "tier": "Challenger",
+    "feature": "F08",
+    "status": "PASS",
+    "duration": 6.83833122253418,
+    "error_message": null,
+    "stack_trace": null,
+    "console_errors": [],
+    "metadata": {}
+  },
+  {
+    "name": "challenger_valid_folder_submission_control",
+    "tier": "Challenger",
+    "feature": "F08",
+    "status": "PASS",
+    "duration": 0.16548943519592285,
+    "error_message": null,
+    "stack_trace": null,
+    "console_errors": [],
+    "metadata": {}
+  },
+  {
+    "name": "challenger_stored_xss_neutralization_matrix",
+    "tier": "Challenger",
+    "feature": "F08",
+    "status": "PASS",
+    "duration": 8.583294868469238,
+    "error_message": null,
+    "stack_trace": null,
+    "console_errors": [],
+    "metadata": {}
+  }
+]
