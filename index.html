@@ -159,6 +159,12 @@
 
           
 
+          <!-- Admin Header Quick Publish Button -->
+          <button type="button" id="header-publish-btn" class="hidden h-9 px-3 sm:px-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 text-xs font-black items-center justify-center gap-1.5 transition whitespace-nowrap shrink-0 shadow-md cursor-pointer" title="نشر مادة جديدة داخل المكتبة">
+            <i data-lucide="plus-circle" class="w-4 h-4 shrink-0 text-slate-950"></i>
+            <span class="hidden sm:inline">نشر مادة</span>
+          </button>
+
           <!-- Admin Portal Button -->
           <button type="button" id="admin-access-btn" class="h-9 px-3.5 sm:px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white text-xs font-extrabold inline-flex items-center justify-center gap-1.5 transition whitespace-nowrap shrink-0 shadow-md">
             <i data-lucide="shield-check" class="w-4 h-4 shrink-0"></i>
@@ -180,6 +186,10 @@
           <span class="text-amber-200 font-bold truncate" id="admin-welcome-name">صلاحيات النشر والتعديل مفعلة</span>
         </div>
         <div class="flex items-center gap-2 shrink-0">
+          <button type="button" id="admin-publish-btn" class="h-8 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black shadow-md transition flex items-center gap-1.5 whitespace-nowrap cursor-pointer">
+            <i data-lucide="plus-circle" class="w-4 h-4 text-slate-950"></i>
+            <span>نشر مادة جديدة</span>
+          </button>
           <button type="button" id="admin-logout-btn" class="h-8 px-3.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/35 text-rose-300 border border-rose-500/40 font-bold transition flex items-center gap-1.5 whitespace-nowrap">
             <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
             <span>خروج المسؤول</span>
@@ -304,7 +314,11 @@
 
           <!-- Right Controls: Quick Step Up + View Layout Toggle -->
           <div class="flex items-center gap-2 shrink-0 mr-auto sm:mr-0">
-            <button type="button" id="step-back-btn" class="hidden px-3 sm:px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-extrabold items-center gap-1.5 transition whitespace-nowrap shadow-md" title="رجوع للمجلد السابق">
+            <button type="button" id="breadcrumb-publish-btn" class="hidden px-2.5 sm:px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 text-xs font-black items-center gap-1.5 transition whitespace-nowrap shadow-md cursor-pointer" title="نشر مادة جديدة داخل هذا المجلد">
+            <i data-lucide="plus-circle" class="w-3.5 h-3.5 text-slate-950"></i>
+            <span class="hidden sm:inline">نشر مادة</span>
+          </button>
+          <button type="button" id="step-back-btn" class="hidden px-3 sm:px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-extrabold items-center gap-1.5 transition whitespace-nowrap shadow-md" title="رجوع للمجلد السابق">
               <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
               <span>رجوع للخلف</span>
             </button>
@@ -403,6 +417,14 @@
             <span>فيديو المقدمة</span>
           </div>
           <span class="text-[10px] text-amber-400/80 font-black">تشغيل</span>
+        </button>
+
+        <button type="button" id="sidebar-publish-btn" class="hidden w-full p-2.5 rounded-2xl border border-emerald-500/40 bg-gradient-to-r from-emerald-950/40 to-teal-950/40 hover:from-emerald-900/60 hover:to-teal-900/60 text-emerald-300 text-xs font-black transition items-center justify-between gap-2 shadow-sm cursor-pointer">
+          <div class="flex items-center gap-2">
+            <i data-lucide="plus-circle" class="w-4 h-4 text-emerald-400"></i>
+            <span>نشر مادة جديدة</span>
+          </div>
+          <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">مسؤول</span>
         </button>
 
         <button type="button" id="sidebar-saved-btn" class="w-full p-2.5 rounded-2xl border border-cyan-500/30 bg-cyan-950/20 hover:bg-cyan-900/40 text-cyan-300 text-xs font-bold transition flex items-center justify-between gap-2">

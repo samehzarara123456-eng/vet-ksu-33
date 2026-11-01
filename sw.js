@@ -1,7 +1,7 @@
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbyjiraRf1PCiLeuZBA_S3jzR9-lVec5GExE_UHp7A69VhTkzHYOVa-ZL-__mkh6H4zr/exec';
 const DB_NAME = 'vet33_bg_sw_db_v10';
 const STORE_NAME = 'state';
-const CACHE_NAME = 'vet33-pwa-cache-v34';
+const CACHE_NAME = 'vet33-pwa-cache-v36';
 const APP_SHELL = [
   './',
   './index.html',

@@ -120,7 +120,8 @@
       
       activePreviewId: null,
       uploadedFileCache: {},
-      isSyncing: false
+      isSyncing: false,
+      deletedFileIds: new Set()
     };
 
     // Expose appState on window for test harness and global availability
@@ -1242,7 +1243,11 @@
           if (sysSubEntry && Array.isArray(sysSubEntry.subs)) {
             appState.pushSubscriptions = sysSubEntry.subs;
           }
-          const remoteFiles = rawRemoteList.filter(rf => rf && rf.id && !rf.isSystemMeta && !String(rf.id).startsWith('_sys_'));
+          const remoteFiles = rawRemoteList.filter(rf => {
+            if (!rf || !rf.id || rf.isSystemMeta || String(rf.id).startsWith('_sys_')) return false;
+            if (appState.deletedFileIds && (appState.deletedFileIds.has(rf.id) || (rf.driveFileId && appState.deletedFileIds.has(rf.driveFileId)))) return false;
+            return true;
+          });
 
           let wasSeededBefore = false;
           try {
@@ -1314,7 +1319,9 @@
     }
 
     async function syncActionToDrive(payload) {
-      setCloudSyncStatus('syncing', 'جاري الحفظ...');
+      appState.isSyncing = true;
+      const statusMsg = payload && payload.action === 'delete' ? 'جاري الحذف...' : 'جاري الحفظ...';
+      setCloudSyncStatus('syncing', statusMsg);
       try {
         const res = await fetchWithTimeout(GAS_WEB_APP_URL, {
           method: 'POST',
@@ -1331,8 +1338,14 @@
             if (sysSubEntry && Array.isArray(sysSubEntry.subs)) {
               appState.pushSubscriptions = sysSubEntry.subs;
             }
-            appState.files = data.files.filter(rf => rf && rf.id && !rf.isSystemMeta && !String(rf.id).startsWith('_sys_'));
+            appState.files = data.files.filter(rf => {
+              if (!rf || !rf.id || rf.isSystemMeta || String(rf.id).startsWith('_sys_')) return false;
+              if (appState.deletedFileIds && (appState.deletedFileIds.has(rf.id) || (rf.driveFileId && appState.deletedFileIds.has(rf.driveFileId)))) return false;
+              return true;
+            });
             saveAppState();
+            renderExplorerContent();
+            updateLibraryCounters();
           }
           setCloudSyncStatus('online', `متصل (${appState.files.length})`);
           return { ok: true, data };
@@ -1342,6 +1355,8 @@
       } catch (err) {
         setCloudSyncStatus('error', 'حُفظ محلياً');
         return { ok: false, error: err.message };
+      } finally {
+        appState.isSyncing = false;
       }
     }
 
@@ -3137,10 +3152,25 @@
       const adminBtnText = document.getElementById('admin-btn-text');
       const welcomeName = document.getElementById('admin-welcome-name');
       const aboutEditBtn = document.getElementById('about-admin-edit-btn');
+      const headerPubBtn = document.getElementById('header-publish-btn');
+      const sidebarPubBtn = document.getElementById('sidebar-publish-btn');
+      const breadcrumbPubBtn = document.getElementById('breadcrumb-publish-btn');
 
       if (aboutEditBtn) {
         aboutEditBtn.classList.toggle('hidden', !appState.isAdmin);
         aboutEditBtn.classList.toggle('inline-flex', appState.isAdmin);
+      }
+      if (headerPubBtn) {
+        headerPubBtn.classList.toggle('hidden', !appState.isAdmin);
+        headerPubBtn.classList.toggle('inline-flex', appState.isAdmin);
+      }
+      if (sidebarPubBtn) {
+        sidebarPubBtn.classList.toggle('hidden', !appState.isAdmin);
+        sidebarPubBtn.classList.toggle('flex', appState.isAdmin);
+      }
+      if (breadcrumbPubBtn) {
+        breadcrumbPubBtn.classList.toggle('hidden', !appState.isAdmin);
+        breadcrumbPubBtn.classList.toggle('inline-flex', appState.isAdmin);
       }
 
       if (appState.isAdmin) {
@@ -3160,6 +3190,9 @@
         if (adminBtnText) adminBtnText.textContent = 'بوابة المسؤولين';
       }
 
+      if (typeof lucide !== 'undefined' && lucide.createIcons) {
+        lucide.createIcons();
+      }
       renderExplorerContent();
     }
 
@@ -4223,6 +4256,30 @@
         });
       }
 
+      // Publish Buttons Click Listeners (Admin Mode)
+      const bindPublishClick = (btnId, closeSidebar = false) => {
+        const btn = document.getElementById(btnId);
+        if (btn) {
+          btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (!appState.isAdmin) {
+              openAdminLoginModal();
+              return;
+            }
+            openPublishModal();
+            if (closeSidebar && typeof closeQuickSidebar === 'function') {
+              closeQuickSidebar();
+            }
+          });
+        }
+      };
+
+      bindPublishClick('admin-publish-btn');
+      bindPublishClick('header-publish-btn');
+      bindPublishClick('sidebar-publish-btn', true);
+      bindPublishClick('breadcrumb-publish-btn');
+      bindPublishClick('inline-admin-add-btn');
+
       // Publish & Edit Modal Listeners (Feature F08)
       const publishModal = document.getElementById('publish-modal');
       const closePublishModalBtn = document.getElementById('close-publish-modal-btn');
@@ -4364,13 +4421,31 @@
             const confirmed = window.confirm(`هل أنت متأكد من حذف الملف "${getCleanFileTitle(file)}" نهائياً؟`);
             if (!confirmed) return;
 
+            // Track deleted ID so background pollings never bring it back
+            if (!appState.deletedFileIds) appState.deletedFileIds = new Set();
+            appState.deletedFileIds.add(fileId);
+            if (file.driveFileId) appState.deletedFileIds.add(file.driveFileId);
+
+            // Immediate optimistic UI removal
             appState.files = appState.files.filter(f => f.id !== fileId);
             appState.savedIds = appState.savedIds.filter(id => id !== fileId);
             appState.completedIds = appState.completedIds.filter(id => id !== fileId);
             saveAppState();
             renderExplorerContent();
             updateLibraryCounters();
-            showToast('تم حذف السجل بنجاح ✓', 'success');
+            showToast('جاري حذف الملف نهائياً من Google Drive...', 'info');
+
+            // Send persistent deletion command to Google Drive cloud backend
+            syncActionToDrive({ action: 'delete', id: fileId }).then(res => {
+              if (res && res.ok) {
+                showToast('تم حذف الملف نهائياً من Google Drive ✓', 'success');
+              } else {
+                showToast('تم الحذف محلياً وسيتم المزامنة لاحقاً', 'warning');
+              }
+            }).catch(syncErr => {
+              console.error('Delete sync error:', syncErr);
+              showToast('تم الحذف محلياً (تعذر الاتصال بالسحابة)', 'warning');
+            });
             break;
           }
         }
