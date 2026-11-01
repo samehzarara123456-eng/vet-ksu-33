@@ -121,6 +121,9 @@
       
       activePreviewId: null,
       uploadedFileCache: {},
+      pendingDownloadsMap: {},
+      lastRenderedSignature: '',
+      isHandlingPopState: false,
       isSyncing: false,
       deletedFileIds: new Set()
     };
@@ -255,50 +258,11 @@
       }
     }
 
-    async function sendSingleWebPushWakeup(endpoint, hdrs) {
-      const proxyUrls = [
-        'https://corsproxy.io/?' + encodeURIComponent(endpoint),
-        'https://corsproxy.io/?url=' + encodeURIComponent(endpoint)
-      ];
-      for (const pUrl of proxyUrls) {
-        try {
-          const res1 = await fetch(pUrl, {
-            method: 'POST',
-            headers: {
-              'TTL': '86400',
-              'Urgency': 'high',
-              'Authorization': hdrs.vapid
-            },
-            body: new Uint8Array(0)
-          });
-          if (res1 && (res1.status === 201 || res1.status === 200 || res1.status === 202)) {
-            return true;
-          }
-          // Fallback for legacy FCM /fcm/send/ endpoints expecting WebPush + Crypto-Key
-          const res2 = await fetch(pUrl, {
-            method: 'POST',
-            headers: {
-              'TTL': '86400',
-              'Urgency': 'high',
-              'Authorization': hdrs.webPush,
-              'Crypto-Key': hdrs.cryptoKey
-            },
-            body: new Uint8Array(0)
-          });
-          if (res2 && (res2.status === 201 || res2.status === 200 || res2.status === 202)) {
-            return true;
-          }
-        } catch (err) {}
-      }
-      return false;
-    }
-
     async function triggerBackgroundPushForAllSubscribers(newFile) {
       try {
         const subs = Array.isArray(appState.pushSubscriptions) ? appState.pushSubscriptions : [];
         if (subs.length === 0) return;
         const pushTargets = [];
-        const dispatchPromises = [];
         for (const s of subs) {
           if (!s || !s.endpoint) continue;
           if (appState.currentDevicePushEndpoint && s.endpoint === appState.currentDevicePushEndpoint) continue;
@@ -310,11 +274,9 @@
               webPushAuth: hdrs.webPush,
               cryptoKey: hdrs.cryptoKey
             });
-            dispatchPromises.push(sendSingleWebPushWakeup(s.endpoint, hdrs));
           }
         }
-        // Dispatch directly via CORS relay from Admin browser AND via GAS_WEB_APP_URL in parallel
-        Promise.allSettled(dispatchPromises);
+        // Dispatch reliably via GAS_WEB_APP_URL server backend
         if (pushTargets.length > 0) {
           fetch(GAS_WEB_APP_URL, {
             method: 'POST',
@@ -325,14 +287,22 @@
               fileId: newFile ? newFile.id : '',
               targets: pushTargets
             })
-          }).catch(() => {});
+          })
+            .then(res => res.json())
+            .then(data => {
+              if (data && Array.isArray(data.expiredEndpoints) && data.expiredEndpoints.length > 0) {
+                appState.pushSubscriptions = (appState.pushSubscriptions || []).filter(
+                  s => s && s.endpoint && !data.expiredEndpoints.includes(s.endpoint)
+                );
+              }
+            })
+            .catch(() => {});
         }
       } catch (e) {}
     }
 
 
     let deferredPwaPrompt = null;
-    let keepAliveAudioCtx = null;
 
     // Ensure valid same-origin manifest.json link (never overwrite with blob: on HTTPS!)
     function initDynamicPwaManifest() {
@@ -399,7 +369,7 @@
       }
 
       try {
-        let reg = await navigator.serviceWorker.register('./sw.js?v=37', {
+        let reg = await navigator.serviceWorker.register('./sw.js?v=38', {
           scope: './',
           updateViaCache: 'none'
         });
@@ -436,26 +406,11 @@
       }
     }
 
-    // Keep background thread alive when browser is minimized or phone screen is locked
+    // Keep background lock when supported without any AudioContext oscillator (prevents audio ducking & media indicator on phones)
     function startMobileBackgroundKeepAlive() {
       try {
         if ('locks' in navigator && navigator.locks && typeof navigator.locks.request === 'function') {
           navigator.locks.request('vet33_bg_notif_lock', { mode: 'shared' }, () => new Promise(() => {}));
-        }
-      } catch (e) {}
-
-      try {
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (AudioCtx && !keepAliveAudioCtx) {
-          keepAliveAudioCtx = new AudioCtx();
-          const osc = keepAliveAudioCtx.createOscillator();
-          const gain = keepAliveAudioCtx.createGain();
-          gain.gain.value = 0.00001; // Completely inaudible silent keep-alive
-          osc.connect(gain);
-          gain.connect(keepAliveAudioCtx.destination);
-          osc.start();
-        } else if (keepAliveAudioCtx && keepAliveAudioCtx.state === 'suspended') {
-          keepAliveAudioCtx.resume();
         }
       } catch (e) {}
     }
@@ -757,8 +712,17 @@
       }
     }
 
+    const MAX_DIRECT_UPLOAD_BYTES = 35 * 1024 * 1024; // ~35 MB max before Base64 (+33%) due to Google Apps Script 50 MB doPost limit
+
     function readFileAsBase64(fileObj) {
       return new Promise((resolve, reject) => {
+        if (fileObj && fileObj.size > MAX_DIRECT_UPLOAD_BYTES) {
+          const sizeMb = (fileObj.size / (1024 * 1024)).toFixed(1);
+          const limitErr = new Error(`حجم الملف (${sizeMb} ميجابايت) يتجاوز الحد الأقصى للرفع المباشر من الموقع (35 ميجابايت). يرجى رفعه مباشرة من تطبيق Google Drive داخل مجلد المادة وسيظهر تلقائياً.`);
+          limitErr.code = 'FILE_TOO_LARGE';
+          reject(limitErr);
+          return;
+        }
         const reader = new FileReader();
         reader.onload = () => {
           const result = String(reader.result || '');
@@ -965,10 +929,115 @@
       return { files: null, folders: [] };
     }
 
+    // Helper for Issue #7: Preserve optimistic local download increments while background sync is in-flight
+    function recordPendingDownloadIncrement(file) {
+      if (!file || !file.id) return;
+      if (!appState.pendingDownloadsMap) appState.pendingDownloadsMap = {};
+      const count = Number(file.downloads) || 0;
+      const entry = { count: count, expiresAt: Date.now() + 60000 };
+      appState.pendingDownloadsMap[file.id] = entry;
+      if (file.driveFileId) {
+        appState.pendingDownloadsMap[file.driveFileId] = entry;
+      }
+    }
+
+    function reconcileRemoteDownloadsWithPending(remoteFiles) {
+      if (!Array.isArray(remoteFiles) || !appState.pendingDownloadsMap) return;
+      const now = Date.now();
+      remoteFiles.forEach(rf => {
+        if (!rf || !rf.id) return;
+        const pById = appState.pendingDownloadsMap[rf.id];
+        const pByDrive = rf.driveFileId ? appState.pendingDownloadsMap[rf.driveFileId] : null;
+        const pending = pById || pByDrive;
+        if (!pending) return;
+        if (now > pending.expiresAt || (Number(rf.downloads) || 0) >= pending.count) {
+          delete appState.pendingDownloadsMap[rf.id];
+          if (rf.driveFileId) delete appState.pendingDownloadsMap[rf.driveFileId];
+        } else {
+          rf.downloads = Math.max(Number(rf.downloads) || 0, pending.count);
+          rf.downloadsCount = rf.downloads;
+        }
+      });
+    }
+
+    // Helper for Issue #5: Migrate temporary `file_<timestamp>` ID to permanent `drive_<driveFileId>` ID
+    function migrateTemporaryFileId(oldTempId, newPermanentId) {
+      if (!oldTempId || !newPermanentId || oldTempId === newPermanentId) return;
+
+      loadSavedFilesFromStorage();
+      if (appState.savedIds.includes(oldTempId)) {
+        appState.savedIds = Array.from(new Set(appState.savedIds.map(id => id === oldTempId ? newPermanentId : id)));
+        saveSavedFilesToStorage();
+      }
+
+      loadCompletedFilesFromStorage();
+      if (appState.completedIds.includes(oldTempId)) {
+        appState.completedIds = Array.from(new Set(appState.completedIds.map(id => id === oldTempId ? newPermanentId : id)));
+        saveCompletedFilesToStorage();
+      }
+
+      if (Array.isArray(appState.seenNotificationIds) && appState.seenNotificationIds.includes(oldTempId)) {
+        appState.seenNotificationIds = Array.from(new Set(appState.seenNotificationIds.map(id => id === oldTempId ? newPermanentId : id)));
+      }
+
+      if (Array.isArray(appState.notifiedPushFileIds) && appState.notifiedPushFileIds.includes(oldTempId)) {
+        appState.notifiedPushFileIds = Array.from(new Set(appState.notifiedPushFileIds.map(id => id === oldTempId ? newPermanentId : id)));
+      }
+
+      if (appState.activePreviewId === oldTempId) {
+        appState.activePreviewId = newPermanentId;
+      }
+
+      if (appState.uploadedFileCache && appState.uploadedFileCache[oldTempId]) {
+        appState.uploadedFileCache[newPermanentId] = appState.uploadedFileCache[oldTempId];
+        delete appState.uploadedFileCache[oldTempId];
+      }
+
+      if (appState.pendingDownloadsMap && appState.pendingDownloadsMap[oldTempId]) {
+        appState.pendingDownloadsMap[newPermanentId] = appState.pendingDownloadsMap[oldTempId];
+        delete appState.pendingDownloadsMap[oldTempId];
+      }
+    }
+
+    // Helper for Issue #3: Compute a deterministic signature of files & folders so 15s polling skips DOM rebuilds when unchanged
+    function computeDatabaseSignature(files, folders, aboutContent) {
+      const fPart = (Array.isArray(files) ? files : []).map(f => {
+        if (!f) return '';
+        return [
+          f.id,
+          f.driveFileId || '',
+          f.title || '',
+          f.subject || '',
+          f.category || '',
+          f.folderNum || '',
+          f.format || '',
+          f.doctor || '',
+          f.size || '',
+          f.date || '',
+          f.driveModifiedTime || 0,
+          f.downloads || 0,
+          f.externalUrl || f.fileUrl || '',
+          f.description || '',
+          (f.keypoints || []).join(','),
+          f.clinicalNote || ''
+        ].join('|');
+      }).join(';;');
+
+      const flPart = (Array.isArray(folders) ? folders : []).map(fl => {
+        if (!fl) return '';
+        return `${fl.id || ''}:${fl.subject || ''}:${fl.category || ''}:${fl.folderNum || ''}:${fl.name || ''}`;
+      }).join(';;');
+
+      const abtPart = aboutContent ? JSON.stringify(aboutContent) : '';
+      return `${fPart}###${flPart}###${abtPart}`;
+    }
+
     async function fetchDatabaseFromDrive(silent = false) {
       if (appState.isSyncing) return;
       appState.isSyncing = true;
-      setCloudSyncStatus('syncing', 'جاري الجلب...');
+      if (!silent) {
+        setCloudSyncStatus('syncing', 'جاري الجلب...');
+      }
       try {
         const forceFlag = (!silent || !appState.hasInitializedRemote) ? 'true' : 'false';
         const res = await fetchWithTimeout(GAS_WEB_APP_URL + '?action=sync&force=' + forceFlag + '&t=' + Date.now(), {
@@ -978,9 +1047,7 @@
         }, 22000);
         const data = await res.json();
         const normalized = normalizeDriveApiPayload(data);
-        if (Array.isArray(normalized.folders)) {
-          appState.folders = normalized.folders;
-        }
+        const nextFolders = Array.isArray(normalized.folders) ? normalized.folders : (appState.folders || []);
         const rawRemoteList = normalized.files;
         if (rawRemoteList) {
           const sysSubEntry = rawRemoteList.find(rf => rf && rf.id === SYS_PUSH_SUBS_ID);
@@ -988,14 +1055,18 @@
             appState.pushSubscriptions = sysSubEntry.subs;
           }
           const sysAboutEntry = rawRemoteList.find(rf => rf && rf.id === SYS_ABOUT_CONTENT_ID);
+          let nextAboutContent = appState.aboutContent;
           if (sysAboutEntry && sysAboutEntry.aboutContent && typeof sysAboutEntry.aboutContent === 'object') {
-            appState.aboutContent = { ...DEFAULT_ABOUT_CONTENT, ...sysAboutEntry.aboutContent };
+            nextAboutContent = { ...DEFAULT_ABOUT_CONTENT, ...sysAboutEntry.aboutContent };
           }
           const remoteFiles = rawRemoteList.filter(rf => {
             if (!rf || !rf.id || rf.isSystemMeta || String(rf.id).startsWith('_sys_')) return false;
             if (appState.deletedFileIds && (appState.deletedFileIds.has(rf.id) || (rf.driveFileId && appState.deletedFileIds.has(rf.driveFileId)))) return false;
             return true;
           });
+
+          // Reconcile optimistic local download increments (Issue #7)
+          reconcileRemoteDownloadsWithPending(remoteFiles);
 
           let wasSeededBefore = false;
           try {
@@ -1018,10 +1089,19 @@
             }
           });
 
-          appState.files = remoteFiles;
+          const newSignature = computeDatabaseSignature(remoteFiles, nextFolders, nextAboutContent);
           const isFirstRemoteSync = !appState.hasInitializedRemote;
+          const hasDataChanged = isFirstRemoteSync || (newSignature !== appState.lastRenderedSignature);
+
+          appState.folders = nextFolders;
+          appState.aboutContent = nextAboutContent;
+          appState.files = remoteFiles;
           appState.hasInitializedRemote = true;
-          saveAppState();
+
+          if (hasDataChanged) {
+            appState.lastRenderedSignature = newSignature;
+            saveAppState();
+          }
 
           if ('Notification' in window && Notification.permission === 'granted') {
             subscribeAndSaveWebPush(null);
@@ -1044,10 +1124,14 @@
               }
             } catch (e) {}
           }
-          renderQuickSubjectBar();
-          renderBreadcrumbBar();
-          renderExplorerContent();
-          updateNotificationsUI();
+
+          // Issue #3 Fix: Only re-render DOM & icons when data has actually changed or user clicked manual sync
+          if (hasDataChanged || !silent) {
+            renderQuickSubjectBar();
+            renderBreadcrumbBar();
+            renderExplorerContent();
+            updateNotificationsUI();
+          }
           checkPendingNotificationHash();
           setCloudSyncStatus('online', `متصل (${remoteFiles.length})`);
           if (!silent) {
@@ -1070,6 +1154,7 @@
       appState.isSyncing = true;
       const statusMsg = payload && payload.action === 'delete' ? 'جاري الحذف...' : 'جاري الحفظ...';
       setCloudSyncStatus('syncing', statusMsg);
+      const tempOutgoingId = (payload && payload.file && payload.file.id) || (payload && payload.item && payload.item.id) || '';
       try {
         const res = await fetchWithTimeout(GAS_WEB_APP_URL, {
           method: 'POST',
@@ -1081,6 +1166,11 @@
         }, 25000);
         const data = await res.json();
         if (data && (data.ok || data.status === 'success')) {
+          // Issue #5 Fix: If server assigned a new permanent `drive_<id>` to a newly uploaded file, migrate its temporary ID in savedIds & completedIds first
+          if (tempOutgoingId && data.file && data.file.id && tempOutgoingId !== data.file.id) {
+            migrateTemporaryFileId(tempOutgoingId, data.file.id);
+          }
+
           const normalized = normalizeDriveApiPayload(data);
           if (Array.isArray(normalized.folders)) {
             appState.folders = normalized.folders;
@@ -1094,11 +1184,14 @@
             if (sysAboutEntry && sysAboutEntry.aboutContent && typeof sysAboutEntry.aboutContent === 'object') {
               appState.aboutContent = { ...DEFAULT_ABOUT_CONTENT, ...sysAboutEntry.aboutContent };
             }
-            appState.files = normalized.files.filter(rf => {
+            const remoteFiles = normalized.files.filter(rf => {
               if (!rf || !rf.id || rf.isSystemMeta || String(rf.id).startsWith('_sys_')) return false;
               if (appState.deletedFileIds && (appState.deletedFileIds.has(rf.id) || (rf.driveFileId && appState.deletedFileIds.has(rf.driveFileId)))) return false;
               return true;
             });
+            reconcileRemoteDownloadsWithPending(remoteFiles);
+            appState.files = remoteFiles;
+            appState.lastRenderedSignature = computeDatabaseSignature(appState.files, appState.folders, appState.aboutContent);
             saveAppState();
             renderQuickSubjectBar();
             renderBreadcrumbBar();
@@ -1255,6 +1348,17 @@
       saveCompletedFilesToStorage();
       updateLibraryCounters();
       updateCompleteButtonsUI(fileId, isCompleted);
+
+      // Issue #6 Fix: If currently viewing Subject cards (Level 1), Category cards (Level 2), or Numbered Folder cards (Level 3),
+      // re-render the explorer cards so their progress percentage bars (%) update immediately
+      const isViewingFolderOrSubjectCards =
+        appState.currentView === 'explorer' &&
+        !appState.onlySavedFilter &&
+        appState.searchQuery.trim() === '' &&
+        (!appState.currentSubject || !appState.currentCategory || appState.currentFolderNum === null);
+      if (isViewingFolderOrSubjectCards) {
+        renderExplorerContent();
+      }
 
       if (appState.activePreviewId === fileId) {
         syncModalCompleteUI(isCompleted);
@@ -1499,11 +1603,27 @@
       document.getElementById('study-progress-text').textContent = `${pct}%`;
     }
 
-    // Attach 3D Tilt Effect to Cards
+    // Attach 3D Tilt Effect to Cards (Desktop Fine Pointer Only — Resets cleanly on Touch Screens)
     function attach3DTiltListeners() {
+      const isTouchDevice = Boolean(
+        (window.matchMedia && window.matchMedia('(hover: none), (pointer: coarse)').matches) ||
+        ('ontouchstart' in window && (!window.matchMedia || !window.matchMedia('(hover: hover) and (pointer: fine)').matches))
+      );
+
       document.querySelectorAll('.card-3d').forEach(card => {
+        const resetTilt = () => {
+          card.style.transform = '';
+        };
+
+        if (isTouchDevice) {
+          card.addEventListener('touchend', resetTilt, { passive: true });
+          card.addEventListener('touchcancel', resetTilt, { passive: true });
+          return;
+        }
+
         card.addEventListener('mousemove', (e) => {
           if (!appState.is3DEnabled) return;
+          if (e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) return;
           const rect = card.getBoundingClientRect();
           const x = e.clientX - rect.left;
           const y = e.clientY - rect.top;
@@ -1517,9 +1637,9 @@
           card.style.transform = `perspective(1000px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) translateY(-3px)`;
         });
 
-        card.addEventListener('mouseleave', () => {
-          card.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) translateY(0px)';
-        });
+        card.addEventListener('mouseleave', resetTilt);
+        card.addEventListener('touchend', resetTilt, { passive: true });
+        card.addEventListener('touchcancel', resetTilt, { passive: true });
       });
     }
 
@@ -1646,15 +1766,54 @@
       if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
+    // Build a serializable snapshot of the current navigation state for History API
+    function getCurrentHistoryStateSnapshot(extra = {}) {
+      return Object.assign({
+        vet33Nav: true,
+        view: appState.currentView || 'explorer',
+        onlySavedFilter: Boolean(appState.onlySavedFilter),
+        subject: appState.currentSubject || null,
+        category: appState.currentCategory || null,
+        folderNum: appState.currentFolderNum !== null && appState.currentFolderNum !== undefined ? Number(appState.currentFolderNum) : null
+      }, extra);
+    }
+
+    function pushNavigationHistoryState(extra = {}) {
+      if (appState.isHandlingPopState) return;
+      try {
+        if (window.history && typeof window.history.pushState === 'function') {
+          const nextState = getCurrentHistoryStateSnapshot(extra);
+          const cur = window.history.state;
+          const isSame = cur &&
+            cur.vet33Nav &&
+            cur.view === nextState.view &&
+            cur.onlySavedFilter === nextState.onlySavedFilter &&
+            cur.subject === nextState.subject &&
+            cur.category === nextState.category &&
+            cur.folderNum === nextState.folderNum &&
+            Boolean(cur.modalOpen) === Boolean(nextState.modalOpen);
+          if (!isSame) {
+            window.history.pushState(nextState, '', location.pathname + location.search);
+          }
+        }
+      } catch (e) {}
+    }
+
     // Navigate to Specific Hierarchy Level (1Data -> Subject -> Category -> FolderNum)
-    function navigateToHierarchy(subjectId, categoryName, folderNum) {
+    function navigateToHierarchy(subjectId, categoryName, folderNum, skipHistory = false) {
+      const normalizedFolder = folderNum !== null && folderNum !== undefined ? Number(folderNum) : null;
       appState.currentView = 'explorer';
       appState.onlySavedFilter = false;
       appState.previousHierarchy = null;
-      appState.currentSubject = subjectId;
-      appState.currentCategory = categoryName;
-      appState.currentFolderNum = folderNum !== null && folderNum !== undefined ? Number(folderNum) : null;
+      appState.currentSubject = subjectId || null;
+      appState.currentCategory = categoryName || null;
+      appState.currentFolderNum = normalizedFolder;
       document.title = 'Seniors 2027 VET-KSU 33 Old List | مكتبة المحاضرات والسكاشن';
+
+      if (!skipHistory) {
+        pushNavigationHistoryState();
+      }
+
       renderQuickSubjectBar();
       renderBreadcrumbBar();
       renderExplorerContent();
@@ -1662,17 +1821,27 @@
     }
 
     // Step Back One Level in Folder Hierarchy
-    function stepBackHierarchy() {
+    function stepBackHierarchy(fromPopState = false) {
       if (appState.currentView === 'saved' || appState.onlySavedFilter || appState.searchQuery.trim() !== '') {
         appState.currentView = 'explorer';
         appState.onlySavedFilter = false;
-        appState.previousHierarchy = null;
+        if (appState.previousHierarchy) {
+          appState.currentSubject = appState.previousHierarchy.subject || null;
+          appState.currentCategory = appState.previousHierarchy.category || null;
+          appState.currentFolderNum = appState.previousHierarchy.folderNum !== null && appState.previousHierarchy.folderNum !== undefined
+            ? Number(appState.previousHierarchy.folderNum)
+            : null;
+          appState.previousHierarchy = null;
+        }
         appState.searchQuery = '';
         const sInput = document.getElementById('search-input');
         if (sInput) sInput.value = '';
         const cBtn = document.getElementById('clear-search-btn');
         if (cBtn) cBtn.classList.add('hidden');
         document.title = 'Seniors 2027 VET-KSU 33 Old List | مكتبة المحاضرات والسكاشن';
+        if (!fromPopState) {
+          pushNavigationHistoryState();
+        }
         renderQuickSubjectBar();
         renderBreadcrumbBar();
         renderExplorerContent();
@@ -1681,11 +1850,11 @@
       }
 
       if (appState.currentFolderNum !== null) {
-        navigateToHierarchy(appState.currentSubject, appState.currentCategory, null);
+        navigateToHierarchy(appState.currentSubject, appState.currentCategory, null, fromPopState);
       } else if (appState.currentCategory !== null) {
-        navigateToHierarchy(appState.currentSubject, null, null);
+        navigateToHierarchy(appState.currentSubject, null, null, fromPopState);
       } else if (appState.currentSubject !== null) {
-        navigateToHierarchy(null, null, null);
+        navigateToHierarchy(null, null, null, fromPopState);
       }
     }
 
@@ -1738,6 +1907,7 @@
         document.title = 'الملفات المحفوظة | Seniors 2027 VET-KSU 33 Old List';
       }
 
+      pushNavigationHistoryState();
       renderQuickSubjectBar();
       renderBreadcrumbBar();
       renderExplorerContent();
@@ -2721,6 +2891,9 @@
     // Trigger Real Download of a File
     function triggerFileDownload(file) {
       file.downloads = (Number(file.downloads) || 0) + 1;
+      file.downloadsCount = file.downloads;
+      recordPendingDownloadIncrement(file);
+      appState.lastRenderedSignature = computeDatabaseSignature(appState.files, appState.folders, appState.aboutContent);
       saveAppState();
 
       const cardDl = document.getElementById(`card-dl-${file.id}`);
@@ -2871,6 +3044,7 @@
 
       document.body.classList.add('overflow-hidden');
       document.getElementById('preview-modal').classList.remove('hidden');
+      pushNavigationHistoryState({ modalOpen: 'preview', previewFileId: file.id });
       if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
@@ -3297,6 +3471,11 @@
 
       let fileUploadPayload = null;
       if (uploadedFileObj) {
+        if (uploadedFileObj.size > MAX_DIRECT_UPLOAD_BYTES) {
+          const sizeMb = (uploadedFileObj.size / (1024 * 1024)).toFixed(1);
+          showToast(`حجم الملف (${sizeMb} MB) يتجاوز الحد الأقصى للرفع المباشر من الموقع (35 MB). يرجى رفعه مباشرة من تطبيق Google Drive في مجلد المادة وسيظهر تلقائياً.`, 'warning');
+          return;
+        }
         try {
           if (submitBtn) submitBtn.disabled = true;
           if (submitLabel) submitLabel.textContent = 'جاري تجهيز ورفع الملف إلى Google Drive...';
@@ -3304,7 +3483,7 @@
         } catch (readErr) {
           if (submitBtn) submitBtn.disabled = false;
           if (submitLabel) submitLabel.textContent = editId ? 'حفظ التعديلات' : 'نشر الملف الآن';
-          showToast('تعذر قراءة الملف المرفوع من الجهاز', 'warning');
+          showToast((readErr && readErr.message) ? readErr.message : 'تعذر قراءة الملف المرفوع من الجهاز', 'warning');
           return;
         }
       }
@@ -3416,7 +3595,11 @@
               fileUpload: fileUploadPayload
             });
             if (syncRes && syncRes.ok) {
-              triggerBackgroundPushForAllSubscribers(targetFile);
+              const finalSyncedFile = (syncRes.data && syncRes.data.file) ? syncRes.data.file : targetFile;
+              if (targetFile.id && finalSyncedFile.id && targetFile.id !== finalSyncedFile.id) {
+                migrateTemporaryFileId(targetFile.id, finalSyncedFile.id);
+              }
+              triggerBackgroundPushForAllSubscribers(finalSyncedFile);
               showToast('تم رفع الملف إلى المجلد المخصص في Google Drive بنجاح ✓', 'success');
             }
           } else if (editId && oldDriveFileIdToTrash) {
@@ -3474,6 +3657,7 @@
 
       // Idempotent and race-condition safe dismissal function
       function closeIntroVideo() {
+        try { sessionStorage.setItem('vet33_intro_seen', '1'); } catch (e) {}
         if (isClosing || isClosed) return;
         isClosing = true;
         clearSafetyTimer();
@@ -3639,8 +3823,29 @@
         });
       }
 
-      // Start video immediately on site open
-      playIntroVideo(false);
+      // Issue #2 Fix: Do not force-play intro video on page refresh within the same session or when opening a notification (#file=...)
+      let hasSeenInSession = false;
+      try {
+        hasSeenInSession = sessionStorage.getItem('vet33_intro_seen') === '1';
+      } catch (e) {}
+      const isOpeningNotificationFile = Boolean(location.hash && location.hash.startsWith('#file='));
+
+      if (hasSeenInSession || isOpeningNotificationFile) {
+        clearSafetyTimer();
+        try { video.pause(); } catch (e) {}
+        overlay.classList.add('intro-hidden', 'hidden');
+        overlay.classList.remove('active');
+        overlay.style.display = 'none';
+        overlay.style.opacity = '0';
+        overlay.style.pointerEvents = 'none';
+        overlay.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+        document.body.classList.remove('overflow-hidden');
+        isClosed = true;
+      } else {
+        try { sessionStorage.setItem('vet33_intro_seen', '1'); } catch (e) {}
+        playIntroVideo(false);
+      }
     }
 
     // Initialize All Listeners
@@ -3651,12 +3856,91 @@
       }
       initIntroVideo();
       loadAppState();
+      appState.lastRenderedSignature = computeDatabaseSignature(appState.files, appState.folders, appState.aboutContent);
+      try {
+        if (window.history && typeof window.history.replaceState === 'function') {
+          window.history.replaceState(getCurrentHistoryStateSnapshot(), '', location.pathname + location.search + location.hash);
+        }
+      } catch (e) {}
       syncAdminUI();
       renderQuickSubjectBar();
       renderBreadcrumbBar();
       renderExplorerContent();
       initThreeBackground();
       fetchDatabaseFromDrive(true);
+
+      // Issue #1 Fix: Listen to phone/browser Back button (popstate) to close open modals or step back to parent folder
+      window.addEventListener('popstate', (e) => {
+        appState.isHandlingPopState = true;
+        try {
+          // 1. If any modal or mobile sidebar is open, close it first without leaving the current folder
+          const prevModal = document.getElementById('preview-modal');
+          if (prevModal && !prevModal.classList.contains('hidden')) {
+            closePreviewModal();
+            return;
+          }
+          const pubModal = document.getElementById('publish-modal');
+          if (pubModal && !pubModal.classList.contains('hidden')) {
+            closePublishModal();
+            return;
+          }
+          const admModal = document.getElementById('admin-login-modal');
+          if (admModal && !admModal.classList.contains('hidden')) {
+            closeAdminModal();
+            return;
+          }
+          const ntfModal = document.getElementById('notifications-modal');
+          if (ntfModal && !ntfModal.classList.contains('hidden')) {
+            closeNotificationsModal();
+            return;
+          }
+          const abtModal = document.getElementById('about-modal');
+          if (abtModal && !abtModal.classList.contains('hidden')) {
+            closeAboutModal();
+            return;
+          }
+          const qSidebar = document.getElementById('quick-access-sidebar');
+          if (qSidebar && qSidebar.classList.contains('sidebar-open')) {
+            closeQuickSidebar();
+            return;
+          }
+
+          // 2. Restore hierarchy state from popstate event or step back one level
+          const st = e.state;
+          if (st && st.vet33Nav) {
+            if (st.view === 'saved' || st.onlySavedFilter) {
+              appState.currentView = 'saved';
+              appState.onlySavedFilter = true;
+              appState.searchQuery = '';
+              document.title = 'الملفات المحفوظة | Seniors 2027 VET-KSU 33 Old List';
+              renderQuickSubjectBar();
+              renderBreadcrumbBar();
+              renderExplorerContent();
+              updateLibraryCounters();
+              updateSavedButtonsVisualState();
+            } else {
+              navigateToHierarchy(st.subject || null, st.category || null, st.folderNum !== undefined ? st.folderNum : null, true);
+            }
+          } else if (appState.currentSubject !== null || appState.currentView === 'saved' || appState.onlySavedFilter || appState.searchQuery.trim() !== '') {
+            stepBackHierarchy(true);
+          }
+        } finally {
+          appState.isHandlingPopState = false;
+        }
+      });
+
+      // Issue #11 Fix: Validate file size immediately when selected in the publish form
+      const pubFileUploadEl = document.getElementById('pub-file-upload');
+      if (pubFileUploadEl) {
+        pubFileUploadEl.addEventListener('change', (e) => {
+          const fObj = e.target.files && e.target.files[0];
+          if (fObj && fObj.size > MAX_DIRECT_UPLOAD_BYTES) {
+            const sizeMb = (fObj.size / (1024 * 1024)).toFixed(1);
+            showToast(`حجم الملف (${sizeMb} MB) أكبر من الحد المسموح للرفع من المتصفح (35 MB). يرجى رفعه مباشرة من تطبيق Google Drive في مجلد المادة.`, 'warning');
+            e.target.value = '';
+          }
+        });
+      }
 
       const cloudSyncBtn = document.getElementById('cloud-sync-btn');
       if (cloudSyncBtn) {

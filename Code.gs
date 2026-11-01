@@ -152,13 +152,26 @@ function doPost(e) {
 
   try {
     const rawBody = (e && e.postData && e.postData.contents) ? e.postData.contents : '{}';
+    if (rawBody.length > 48 * 1024 * 1024) {
+      return jsonResponse({
+        ok: false,
+        status: 'error',
+        error: 'حجم الملف يتجاوز الحد الأقصى المسموح به للرفع المباشر من الموقع (~35 ميجابايت). يرجى رفع الملفات الكبيرة مباشرة إلى مجلد المادة في تطبيق Google Drive وستظهر في الموقع تلقائياً.',
+        message: 'حجم الملف يتجاوز الحد الأقصى للرفع المباشر (35MB). ارفعه مباشرة في تطبيق Google Drive.'
+      });
+    }
     const payload = JSON.parse(rawBody);
     const action = String(payload.action || '').trim();
 
-    // أ) إرسال إشعارات Web Push للهواتف المشتركة
+    // أ) إرسال إشعارات Web Push للهواتف المشتركة وتنظيف الاشتراكات المنتهية (404 / 410)
     if (action === 'push_wakeup') {
-      const pushedCount = handlePushWakeup(payload.targets || []);
-      return jsonResponse({ ok: true, pushedCount: pushedCount });
+      const pushResult = handlePushWakeup(payload.targets || []);
+      return jsonResponse({
+        ok: true,
+        pushedCount: pushResult.pushedCount,
+        removedExpiredCount: pushResult.removedExpiredCount,
+        expiredEndpoints: pushResult.expiredEndpoints
+      });
     }
 
     // أ-2) التحقق من كود المسؤول عبر الخادم
@@ -977,8 +990,12 @@ function saveSystemMetaRecord(sysItem) {
 }
 
 function handlePushWakeup(targets) {
-  if (!Array.isArray(targets)) return 0;
+  if (!Array.isArray(targets)) {
+    return { pushedCount: 0, removedExpiredCount: 0, expiredEndpoints: [] };
+  }
   let successCount = 0;
+  const expiredEndpoints = [];
+
   targets.forEach(t => {
     if (!t || !t.endpoint) return;
     try {
@@ -997,10 +1014,49 @@ function handlePushWakeup(targets) {
         muteHttpExceptions: true
       });
       const code = res.getResponseCode();
-      if (code >= 200 && code < 300) successCount++;
+      if (code >= 200 && code < 300) {
+        successCount++;
+      } else if (code === 404 || code === 410) {
+        expiredEndpoints.push(t.endpoint);
+      }
     } catch (e) {}
   });
-  return successCount;
+
+  // حذف الاشتراكات المنتهية الصلاحية (404 أو 410 Gone) من سجل _sys_push_subs_v1 في vet_ksu_33_db.json
+  if (expiredEndpoints.length > 0) {
+    try {
+      const rootFolder = getRootFolder();
+      const dbState = readDatabaseState(rootFolder);
+      const files = Array.isArray(dbState.files) ? dbState.files : [];
+      let changed = false;
+
+      for (let i = 0; i < files.length; i++) {
+        const rec = files[i];
+        if (rec && rec.id === CONFIG.SYS_PUSH_SUBS_ID && Array.isArray(rec.subs)) {
+          const beforeLen = rec.subs.length;
+          rec.subs = rec.subs.filter(s => s && s.endpoint && expiredEndpoints.indexOf(s.endpoint) === -1);
+          if (rec.subs.length !== beforeLen) {
+            changed = true;
+          }
+        }
+      }
+
+      if (changed) {
+        writeDatabaseState(rootFolder, {
+          ok: true,
+          updatedAt: new Date().toISOString(),
+          files: files,
+          folders: dbState.folders || []
+        });
+      }
+    } catch (cleanErr) {}
+  }
+
+  return {
+    pushedCount: successCount,
+    removedExpiredCount: expiredEndpoints.length,
+    expiredEndpoints: expiredEndpoints
+  };
 }
 
 function jsonResponse(obj) {
