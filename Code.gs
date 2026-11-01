@@ -1110,20 +1110,24 @@ function hexToBytesServer(hex) {
 }
 
 function signP256EcdsaJwtServer(unsignedToken, dB64Url) {
+  const ZERO = BigInt(0);
+  const ONE = BigInt(1);
+  const TWO = BigInt(2);
+  const THREE = BigInt(3);
   const P = BigInt('0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff');
   const N = BigInt('0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551');
-  const A = P - 3n;
+  const A = P - THREE;
   const Gx = BigInt('0x6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296');
   const Gy = BigInt('0x4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5');
 
   function mod(a, m) {
     const r = a % m;
-    return r >= 0n ? r : r + m;
+    return r >= ZERO ? r : r + m;
   }
   function modInv(a, m) {
-    let t = 0n, newT = 1n;
+    let t = ZERO, newT = ONE;
     let r = m, newR = mod(a, m);
-    while (newR !== 0n) {
+    while (newR !== ZERO) {
       const q = r / newR;
       const tmpT = t - q * newT; t = newT; newT = tmpT;
       const tmpR = r - q * newR; r = newR; newR = tmpR;
@@ -1135,9 +1139,9 @@ function signP256EcdsaJwtServer(unsignedToken, dB64Url) {
     if (!p2) return p1;
     const x1 = p1[0], y1 = p1[1], x2 = p2[0], y2 = p2[1];
     if (x1 === x2) {
-      if (mod(y1 + y2, P) === 0n) return null;
-      const lam = mod((3n * x1 * x1 + A) * modInv(2n * y1, P), P);
-      const x3 = mod(lam * lam - 2n * x1, P);
+      if (mod(y1 + y2, P) === ZERO) return null;
+      const lam = mod((THREE * x1 * x1 + A) * modInv(TWO * y1, P), P);
+      const x3 = mod(lam * lam - TWO * x1, P);
       return [x3, mod(lam * (x1 - x3) - y1, P)];
     }
     const lam = mod((y2 - y1) * modInv(x2 - x1, P), P);
@@ -1146,10 +1150,10 @@ function signP256EcdsaJwtServer(unsignedToken, dB64Url) {
   }
   function ptMul(k) {
     let res = null, addend = [Gx, Gy], n = k;
-    while (n > 0n) {
-      if (n & 1n) res = ptAdd(res, addend);
+    while (n > ZERO) {
+      if ((n & ONE) === ONE) res = ptAdd(res, addend);
       addend = ptAdd(addend, addend);
-      n >>= 1n;
+      n = n >> ONE;
     }
     return res;
   }
@@ -1159,7 +1163,7 @@ function signP256EcdsaJwtServer(unsignedToken, dB64Url) {
   const zBytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, unsignedToken);
   const z = BigInt('0x' + bytesToHexServer(zBytes));
   const kBytes = Utilities.computeHmacSha256Signature(unsignedToken, dB64Url);
-  const k = (BigInt('0x' + bytesToHexServer(kBytes)) % (N - 1n)) + 1n;
+  const k = (BigInt('0x' + bytesToHexServer(kBytes)) % (N - ONE)) + ONE;
 
   const pt = ptMul(k);
   const r = mod(pt[0], N);
