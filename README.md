@@ -3,22 +3,22 @@
 [![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Live%20Demo-emerald?style=for-the-badge&logo=github)](https://samehzarara123456-eng.github.io/vet-ksu-33/)
 [![PWA Ready](https://img.shields.io/badge/PWA-Ready%20%26%20Installable-amber?style=for-the-badge&logo=pwa)](https://samehzarara123456-eng.github.io/vet-ksu-33/)
 [![Database](https://img.shields.io/badge/Database-Google%20Drive-blue?style=for-the-badge&logo=googledrive)](https://drive.google.com)
-منصة وتطبيق ويب تقدمي (PWA) مصمم خصيصاً لطلاب دفعة **Seniors 2027 (الفرقة الرابعة - اللائحة القديمة)** بكلية الطب البيطري - جامعة كفر الشيخ، لتنظيم وتصفح وتحميل المحاضرات والسكاشن والملخصات والخرائط الذهنية لجميع المقررات الدراسية الثمانية بسهولة وسرعة، مع دعم العمل بدون إنترنت (Offline Mode).
+منصة وتطبيق ويب تقدمي (PWA) مصمم خصيصاً لطلاب دفعة **Seniors 2027 (الفرقة الخامسة - اللائحة القديمة)** بكلية الطب البيطري - جامعة كفر الشيخ، لتنظيم وتصفح وتحميل المحاضرات والسكاشن والملخصات والخرائط الذهنية لجميع المقررات الدراسية الثمانية بسهولة وسرعة، مع دعم العمل بدون إنترنت (Offline Mode).
 ---
 ## 🌐 الرابط المباشر للمنصة (Live Website)
 **[https://samehzarara123456-eng.github.io/vet-ksu-33/](https://samehzarara123456-eng.github.io/vet-ksu-33/)**
 ---
 ## 📚 المقررات الدراسية الثمانية (Subjects)
 تم تنظيم المقررات بنفس الترتيب الأكاديمي المعتمد:
-1. **الأمراض الباطنة الإكلينيكية (Internal Medicine)** — قسم طب الحيوان (`batna`)
-2. **التوليد والتناسل والتلقيح الاصطناعي (Theriogenology)** — قسم التوليد والتناسل (`tawleed`)
-3. **الجراحة والتخدير والأشعة (Surgery & Radiology)** — قسم الجراحة والتخدير والأشعة (`geraha`)
-4. **أمراض الدواجن والأرانب (Poultry Diseases)** — قسم أمراض الدواجن (`dawagen`)
-5. **الصحة والطب الوقائي ورعاية الحيوان (Animal Hygiene)** — قسم الصحة والطب الوقائي (`seha`)
-6. **الرقابة الصحية على اللحوم ومنتجاتها (Meat Hygiene)** — قسم مراقبة الأغذية (`lahma`)
-7. **الأمراض المشتركة (Zoonoses)** — قسم الأمراض المشتركة (`moshtaraka`)
-8. **الأمراض المعدية والوبائية (Infectious Diseases)** — قسم الأمراض المعدية (`moadya`)
 ---
+1.باطنة
+2.توليد
+3.جراحة
+4.دواجن
+5.صحة
+6.لحوم
+7.مشتركة
+8.معدية
 ## ⚙️ بنية النظام وقاعدة البيانات (System Architecture)
 - **استضافة الواجهة**: مستودع GitHub عبر GitHub Pages.
 - **قاعدة البيانات السحابية**: مجلد Google Drive باسم `VET_KSU_33_Library` يحتوي على ملف قاعدة البيانات `vet33_database.json` ومجلدات الملفات المرفوعة.
