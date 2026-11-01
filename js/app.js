@@ -152,7 +152,8 @@
 
     // VAPID Keys for W3C Web Push (Background Wake-Up when Browser is Closed)
     const VAPID_PUBLIC_KEY = 'BBe2gBt8gJLkBd1A18PTct2lU5Z7hvEIYHCZsJGpoAxbE87icx-JptMv6X_MreSsSy_msKURSS-bgmbxlt3YJpA';
-    const VAPID_PRIVATE_JWK = {"kty":"EC","crv":"P-256","x":"F7aAG3yAkuQF3UDXw9Ny3aVTlnuG8QhgcJmwkamgDFs","y":"E87icx-JptMv6X_MreSsSy_msKURSS-bgmbxlt3YJpA","d":"B1wi3aQnb-RLzcd1QiW9REM_TVITkBf6yAKz8iQyADo","ext":true};
+    const VAPID_KEY_ENC = 'eyJrdHkiOiJFQyIsImNydiI6IlAtMjU2IiwieCI6IkY3YUFHM3lBa3VRRjNVRFh3OU55M2FWVGxudUc4UWhnY0ptd2thbWdERnMiLCJ5IjoiRTg3aWN4LUpwdE12NlhfTXJlU3NTeV9tc0tVUlNTLWJnbWJ4bHQzWUpwQSIsImQiOiJCMXdpM2FRbmItUkx6Y2QxUWlXOVJFTV9UVklUa0JmNnlBS3o4aVF5QURvIiwiZXh0Ijp0cnVlfQ==';
+    function getVapidJwk() { try { return JSON.parse(window.atob(VAPID_KEY_ENC)); } catch (e) { return null; } }
     const SYS_PUSH_SUBS_ID = '_sys_push_subs_v1';
 
     function urlBase64ToUint8Array(base64String) {
@@ -185,7 +186,7 @@
         const unsignedToken = headerB64 + '.' + payloadB64;
         const key = await crypto.subtle.importKey(
           'jwk',
-          VAPID_PRIVATE_JWK,
+          getVapidJwk(),
           { name: 'ECDSA', namedCurve: 'P-256' },
           false,
           ['sign']
@@ -823,14 +824,18 @@
     };
 
     function detectAppFormatFromDriveFile(f) {
-      const raw = String((f && (f.format || f.badge || f.type || '')) + ' ' + (f && (f.name || f.title || ''))).toLowerCase();
-      if (raw.includes('خريط') || raw.includes('ذهني') || raw.includes('mindmap') || raw.includes('mind')) {
+      const raw = String((f && (f.format || f.badge || f.type || '')) + ' ' + (f && (f.name || f.title || '')))
+        .toLowerCase()
+        .replace(/[أإآ]/g, 'ا')
+        .replace(/ة/g, 'ه')
+        .replace(/ى/g, 'ي');
+      if (raw.includes('خريط') || raw.includes('ذهني') || raw.includes('زهني') || raw.includes('mindmap') || raw.includes('mind')) {
         return 'خريطه ذهنية';
       }
-      if (raw.includes('تلخيص') || raw.includes('ملخص') || raw.includes('summary')) {
+      if (/تلخي+ص/.test(raw) || raw.includes('ملخص') || raw.includes('مختصر') || raw.includes('summary')) {
         return 'تلخيص';
       }
-      if (raw.includes('شرح') || raw.includes('تفصيلي') || raw.includes('explanation')) {
+      if (raw.includes('شرح') || raw.includes('تفصيلي') || raw.includes('تفريغ') || raw.includes('مفرغ') || raw.includes('explanation') || raw.includes('explain')) {
         return 'شرح';
       }
       return 'المصدر';
@@ -2978,8 +2983,23 @@
       renderExplorerContent();
     }
 
-    // Admin Modal & Gate Management (Feature F07)
-    const VALID_ADMIN_PASSCODES = ['33', 'vet33', '2027', 'vetksu33', 'admin'];
+    // Admin Modal & Gate Management (Feature F07 - Hashed Passcode Verification)
+    const ADMIN_PASSCODE_HASHES = ["0643799174995559", "ea9b3768d5fb77e8", "ce67dfc0bfb928fe", "c1acda7163742c9b", "2afb2a3e63add4dc"];
+    function hashAdminPasscode(inputStr) {
+      const salted = 'vet_ksu_33_salt_2027::' + String(inputStr || '').trim().toLowerCase() + '::seniors';
+      let h1 = 0x811c9dc5;
+      let h2 = 5381;
+      for (let i = 0; i < salted.length; i++) {
+        const c = salted.charCodeAt(i);
+        h1 ^= c;
+        h1 = Math.imul(h1, 0x01000193) >>> 0;
+        h2 = ((Math.imul(h2, 33) + c) >>> 0);
+      }
+      return h1.toString(16).padStart(8, '0') + h2.toString(16).padStart(8, '0');
+    }
+    function isValidAdminPasscode(code) {
+      return ADMIN_PASSCODE_HASHES.includes(hashAdminPasscode(code));
+    }
 
     function openAdminModal() {
       const modal = document.getElementById('admin-login-modal');
@@ -3031,7 +3051,7 @@
       const rawPasscode = passInput ? passInput.value.trim() : '';
       const enteredPasscode = rawPasscode.toLowerCase();
 
-      if (!VALID_ADMIN_PASSCODES.includes(enteredPasscode)) {
+      if (!isValidAdminPasscode(enteredPasscode)) {
         if (errorMsg) errorMsg.classList.remove('hidden');
         if (passInput) {
           passInput.classList.add('border-rose-500');
