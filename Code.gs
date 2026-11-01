@@ -20,7 +20,9 @@ var CONFIG = {
   ROOT_FOLDER_ID: '1MtIe4RbnJhA7tacObKWYD8nlRHz9QJtx',
   ROOT_FOLDER_NAME: 'VET_KSU_33_Library',
   DB_FILE_NAME: 'vet_ksu_33_db.json',
-  SYS_PUSH_SUBS_ID: '_sys_push_subs_v1'
+  SYS_PUSH_SUBS_ID: '_sys_push_subs_v1',
+  SYS_ABOUT_CONTENT_ID: '_sys_about_content_v1',
+  SYNC_THROTTLE_MS: 30000
 };
 
 /**
@@ -92,13 +94,42 @@ var SUBJECTS_CONFIG = [
  */
 function doGet(e) {
   try {
-    const syncResult = syncDriveWithDatabase();
+    const params = (e && e.parameter) ? e.parameter : {};
+    const forceScan = String(params.force || '') === 'true';
+    const props = PropertiesService.getScriptProperties();
+    const lastScanMs = Number(props.getProperty('LAST_DRIVE_SCAN_MS') || 0);
+    const nowMs = Date.now();
+
+    let syncResult = null;
+    if (!forceScan && (nowMs - lastScanMs < CONFIG.SYNC_THROTTLE_MS)) {
+      const rootFolder = getRootFolder();
+      const cachedDb = readDatabaseState(rootFolder);
+      if (Array.isArray(cachedDb.files) && cachedDb.files.length > 0) {
+        syncResult = cachedDb;
+      }
+    }
+
+    if (!syncResult) {
+      const lock = LockService.getScriptLock();
+      if (lock.tryLock(15000)) {
+        try {
+          syncResult = syncDriveWithDatabase();
+          props.setProperty('LAST_DRIVE_SCAN_MS', String(Date.now()));
+        } finally {
+          lock.releaseLock();
+        }
+      } else {
+        const rootFolder = getRootFolder();
+        syncResult = readDatabaseState(rootFolder);
+      }
+    }
+
     return jsonResponse({
       ok: true,
       status: 'success',
       syncedAt: new Date().toISOString(),
-      files: syncResult.files,
-      folders: syncResult.folders
+      files: syncResult.files || [],
+      folders: syncResult.folders || []
     });
   } catch (err) {
     return jsonResponse({
@@ -130,25 +161,35 @@ function doPost(e) {
       return jsonResponse({ ok: true, pushedCount: pushedCount });
     }
 
-    // ب) حفظ ملف جديد أو تعديل ملف حالي أو حفظ اشتراكات الإشعارات
-    // التحقق الاختياري من كود المسؤول عبر الخادم
+    // أ-2) التحقق من كود المسؤول عبر الخادم
     if (action === 'verify_admin') {
       const isOk = verifyAdminPasscodeServer(payload.passcode || '');
       return jsonResponse({ ok: isOk, status: isOk ? 'success' : 'unauthorized' });
     }
 
-    if (action === 'save' || action === 'upload' || action === 'uploadFile' || action === 'addFile' || action === 'updateFile') {
+    // أ-3) زيادة عداد التحميلات بشكل خفيف وآمن دون إعادة مسح شجرة Drive
+    if (action === 'increment_download') {
+      const updatedState = handleIncrementDownloadCount(payload.id || payload.fileId || '');
+      return jsonResponse({
+        ok: true,
+        status: 'success',
+        files: updatedState.files,
+        folders: updatedState.folders
+      });
+    }
+
+    // ب) حفظ ملف جديد أو تعديل ملف حالي أو حفظ سجلات النظام (_sys_push_subs_v1 / _sys_about_content_v1)
+    if (action === 'save' || action === 'upload' || action === 'uploadFile' || action === 'addFile' || action === 'updateFile' || action === 'save_about') {
       const incomingItem = payload.file || payload.item || {};
 
-      // حفظ سجل اشتراكات الإشعارات الخلفية (_sys_push_subs_v1)
-      if (incomingItem.id === CONFIG.SYS_PUSH_SUBS_ID || incomingItem.isSystemMeta) {
-        saveSystemMetaRecord(incomingItem);
-        const currentSync = syncDriveWithDatabase();
+      // حفظ سجلات النظام (اشتراكات الإشعارات أو محتوى قسم عن المنصة)
+      if (incomingItem.id === CONFIG.SYS_PUSH_SUBS_ID || incomingItem.id === CONFIG.SYS_ABOUT_CONTENT_ID || incomingItem.isSystemMeta || String(incomingItem.id || '').indexOf('_sys_') === 0) {
+        const updatedState = saveSystemMetaRecord(incomingItem);
         return jsonResponse({
           ok: true,
           status: 'success',
-          files: currentSync.files,
-          folders: currentSync.folders
+          files: updatedState.files,
+          folders: updatedState.folders
         });
       }
 
@@ -160,6 +201,7 @@ function doPost(e) {
       } : null);
       const savedFile = handleSaveStudyFileFromSite(incomingItem, uploadObj);
       const syncResult = syncDriveWithDatabase();
+      try { PropertiesService.getScriptProperties().setProperty('LAST_DRIVE_SCAN_MS', String(Date.now())); } catch (e) {}
       return jsonResponse({
         ok: true,
         status: 'success',
@@ -216,18 +258,19 @@ function syncDriveWithDatabase() {
   // الاحتفاظ بسجلات النظام (مثل اشتراكات إشعارات Web Push)
   const systemRecords = existingFiles.filter(f => f && (f.id === CONFIG.SYS_PUSH_SUBS_ID || f.isSystemMeta || String(f.id).indexOf('_sys_') === 0));
 
-  // فهرسة السجلات الحالية حسب driveFileId وحسب id
+  // فهرسة السجلات الحالية حسب driveFileId وحسب كونها ملفات خارجية مضافة من الموقع
   const dbByDriveId = {};
   const externalOnlyRecords = [];
 
   existingFiles.forEach(item => {
     if (!item || !item.id || item.isSystemMeta || String(item.id).indexOf('_sys_') === 0) return;
-    const dId = item.driveFileId || extractDriveIdFromRecord(item);
-    if (dId) {
+    const isManagedDriveRecord = String(item.id).indexOf('drive_') === 0 || Boolean(item.driveFileId);
+    const dId = item.driveFileId || (String(item.id).indexOf('drive_') === 0 ? extractDriveIdFromRecord(item) : '');
+    if (isManagedDriveRecord && dId) {
       item.driveFileId = dId;
       dbByDriveId[dId] = item;
-    } else if (item.externalUrl && (item.externalUrl.indexOf('t.me/') !== -1 || item.externalUrl.indexOf('telegram.') !== -1)) {
-      // روابط التيليجرام الخارجية التي ليس لها ملف مرفوع في Drive تبقى كما هي حتى يحذفها المسؤول من الموقع
+    } else {
+      // أي سجل أضافه المسؤول من الموقع كرابط خارجي (تيليجرام، درايف خارجي، يوتيوب...) أو بدون ملف مرفوع يبقى محفوظاً حتى يحذفه المسؤول
       externalOnlyRecords.push(item);
     }
   });
@@ -403,6 +446,7 @@ function scanEntireDriveTree(rootFolder) {
     });
   });
 
+  folders.sort((a, b) => (Number(a.folderNum) || 0) - (Number(b.folderNum) || 0));
   return {
     driveFiles: driveFiles,
     folders: folders
@@ -491,12 +535,17 @@ function handleSaveStudyFileFromSite(item, fileUpload) {
 
     const origName = String(fileUpload.fileName || fileUpload.name || 'file.pdf').trim();
     const ext = getFileExtension(origName) || 'pdf';
-    const finalDriveFileName = buildDriveFileName(item.title, origName, subConfig, categoryName, folderNum, format, ext);
+    let finalDriveFileName = buildDriveFileName(item.title, origName, subConfig, categoryName, folderNum, format, ext);
 
-    // حذف أي ملف بنفس الاسم داخل نفس مجلد المحاضرة لمنع التكرار
-    const dupIter = targetTopicFolder.getFilesByName(finalDriveFileName);
-    while (dupIter.hasNext()) {
-      dupIter.next().setTrashed(true);
+    // إذا كان رفعاً لملف جديد تماماً وكان هناك ملف بنفس الاسم في نفس المجلد، نضيف رقماً مميزاً بدلاً من حذف الملف السابق بالخطأ
+    if (!existingRecord) {
+      let counter = 2;
+      const baseNoExt = stripExtension(finalDriveFileName);
+      const cleanExt = String(ext || 'pdf').replace(/^\./, '');
+      while (targetTopicFolder.getFilesByName(finalDriveFileName).hasNext()) {
+        finalDriveFileName = baseNoExt + ' (' + counter + ').' + cleanExt;
+        counter++;
+      }
     }
 
     const cleanBase64 = String(fileUpload.base64).replace(/^data:[^;]+;base64,/, '');
@@ -748,6 +797,33 @@ function verifyAdminPasscodeServer(passcode) {
   return allowed.indexOf(clean) !== -1;
 }
 
+function handleIncrementDownloadCount(targetId) {
+  const rootFolder = getRootFolder();
+  const dbState = readDatabaseState(rootFolder);
+  const files = Array.isArray(dbState.files) ? dbState.files : [];
+  const cleanId = String(targetId || '').trim();
+  if (cleanId) {
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      if (f && (f.id === cleanId || f.driveFileId === cleanId)) {
+        f.downloads = (Number(f.downloads) || 0) + 1;
+        f.downloadsCount = f.downloads;
+        break;
+      }
+    }
+    writeDatabaseState(rootFolder, {
+      ok: true,
+      updatedAt: new Date().toISOString(),
+      files: files,
+      folders: dbState.folders || []
+    });
+  }
+  return {
+    files: files,
+    folders: dbState.folders || []
+  };
+}
+
 function getSubjectConfigById(subId) {
   for (let i = 0; i < SUBJECTS_CONFIG.length; i++) {
     if (SUBJECTS_CONFIG[i].id === subId) return SUBJECTS_CONFIG[i];
@@ -888,13 +964,16 @@ function saveSystemMetaRecord(sysItem) {
   const dbState = readDatabaseState(rootFolder);
   const files = Array.isArray(dbState.files) ? dbState.files : [];
   const filtered = files.filter(f => f && f.id !== sysItem.id);
+  sysItem.isSystemMeta = true;
   filtered.push(sysItem);
-  writeDatabaseState(rootFolder, {
+  const newState = {
     ok: true,
     updatedAt: new Date().toISOString(),
     files: filtered,
     folders: dbState.folders || []
-  });
+  };
+  writeDatabaseState(rootFolder, newState);
+  return newState;
 }
 
 function handlePushWakeup(targets) {

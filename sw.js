@@ -172,7 +172,7 @@ async function checkDriveInBackground(forceNotifyLatestIfUnseeded = false) {
   if (isCheckingDrive) return;
   isCheckingDrive = true;
   try {
-    const res = await fetchSwWithTimeout(GAS_URL + '?t=' + Date.now(), {
+    const res = await fetchSwWithTimeout(GAS_URL + '?force=' + (forceNotifyLatestIfUnseeded ? 'true' : 'false') + '&t=' + Date.now(), {
       method: 'GET',
       redirect: 'follow',
       cache: 'no-store'

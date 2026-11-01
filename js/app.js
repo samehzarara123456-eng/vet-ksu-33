@@ -155,6 +155,7 @@
     const VAPID_KEY_ENC = 'eyJrdHkiOiJFQyIsImNydiI6IlAtMjU2IiwieCI6IkY3YUFHM3lBa3VRRjNVRFh3OU55M2FWVGxudUc4UWhnY0ptd2thbWdERnMiLCJ5IjoiRTg3aWN4LUpwdE12NlhfTXJlU3NTeV9tc0tVUlNTLWJnbWJ4bHQzWUpwQSIsImQiOiJCMXdpM2FRbmItUkx6Y2QxUWlXOVJFTV9UVklUa0JmNnlBS3o4aVF5QURvIiwiZXh0Ijp0cnVlfQ==';
     function getVapidJwk() { try { return JSON.parse(window.atob(VAPID_KEY_ENC)); } catch (e) { return null; } }
     const SYS_PUSH_SUBS_ID = '_sys_push_subs_v1';
+    const SYS_ABOUT_CONTENT_ID = '_sys_about_content_v1';
 
     function urlBase64ToUint8Array(base64String) {
       const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -398,7 +399,7 @@
       }
 
       try {
-        let reg = await navigator.serviceWorker.register('./sw.js?v=34', {
+        let reg = await navigator.serviceWorker.register('./sw.js?v=37', {
           scope: './',
           updateViaCache: 'none'
         });
@@ -823,12 +824,20 @@
       'infectious': 'moadya', 'المعدية': 'moadya', 'معدية': 'moadya', 'معديه': 'moadya', 'moadya': 'moadya'
     };
 
-    function detectAppFormatFromDriveFile(f) {
-      const raw = String((f && (f.format || f.badge || f.type || '')) + ' ' + (f && (f.name || f.title || '')))
+    function normalizeArabicSearch(str) {
+      return String(str || '')
         .toLowerCase()
+        .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
         .replace(/[أإآ]/g, 'ا')
         .replace(/ة/g, 'ه')
-        .replace(/ى/g, 'ي');
+        .replace(/ى/g, 'ي')
+        .replace(/[\u064B-\u065F_\-]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function detectAppFormatFromDriveFile(f) {
+      const raw = normalizeArabicSearch((f && (f.format || f.badge || f.type || '')) + ' ' + (f && (f.name || f.title || '')));
       if (raw.includes('خريط') || raw.includes('ذهني') || raw.includes('زهني') || raw.includes('mindmap') || raw.includes('mind')) {
         return 'خريطه ذهنية';
       }
@@ -961,7 +970,8 @@
       appState.isSyncing = true;
       setCloudSyncStatus('syncing', 'جاري الجلب...');
       try {
-        const res = await fetchWithTimeout(GAS_WEB_APP_URL + '?action=sync&force=true&t=' + Date.now(), {
+        const forceFlag = (!silent || !appState.hasInitializedRemote) ? 'true' : 'false';
+        const res = await fetchWithTimeout(GAS_WEB_APP_URL + '?action=sync&force=' + forceFlag + '&t=' + Date.now(), {
           method: 'GET',
           redirect: 'follow',
           cache: 'no-store'
@@ -973,9 +983,13 @@
         }
         const rawRemoteList = normalized.files;
         if (rawRemoteList) {
-          const sysSubEntry = rawRemoteList.find(rf => rf && (rf.id === SYS_PUSH_SUBS_ID || rf.isSystemMeta));
+          const sysSubEntry = rawRemoteList.find(rf => rf && rf.id === SYS_PUSH_SUBS_ID);
           if (sysSubEntry && Array.isArray(sysSubEntry.subs)) {
             appState.pushSubscriptions = sysSubEntry.subs;
+          }
+          const sysAboutEntry = rawRemoteList.find(rf => rf && rf.id === SYS_ABOUT_CONTENT_ID);
+          if (sysAboutEntry && sysAboutEntry.aboutContent && typeof sysAboutEntry.aboutContent === 'object') {
+            appState.aboutContent = { ...DEFAULT_ABOUT_CONTENT, ...sysAboutEntry.aboutContent };
           }
           const remoteFiles = rawRemoteList.filter(rf => {
             if (!rf || !rf.id || rf.isSystemMeta || String(rf.id).startsWith('_sys_')) return false;
@@ -1072,9 +1086,13 @@
             appState.folders = normalized.folders;
           }
           if (Array.isArray(normalized.files)) {
-            const sysSubEntry = normalized.files.find(rf => rf && (rf.id === SYS_PUSH_SUBS_ID || rf.isSystemMeta));
+            const sysSubEntry = normalized.files.find(rf => rf && rf.id === SYS_PUSH_SUBS_ID);
             if (sysSubEntry && Array.isArray(sysSubEntry.subs)) {
               appState.pushSubscriptions = sysSubEntry.subs;
+            }
+            const sysAboutEntry = normalized.files.find(rf => rf && rf.id === SYS_ABOUT_CONTENT_ID);
+            if (sysAboutEntry && sysAboutEntry.aboutContent && typeof sysAboutEntry.aboutContent === 'object') {
+              appState.aboutContent = { ...DEFAULT_ABOUT_CONTENT, ...sysAboutEntry.aboutContent };
             }
             appState.files = normalized.files.filter(rf => {
               if (!rf || !rf.id || rf.isSystemMeta || String(rf.id).startsWith('_sys_')) return false;
@@ -2300,7 +2318,7 @@
 
     // Helper: Strip leading format prefix (e.g. "شرح: ", "تلخيص: ", "المصدر: ", "خريطه ذهنية: ") from file title
     function getCleanFileTitle(file) {
-      let t = String(file?.title || '').trim();
+      let t = String(file?.title || '').replace(/_+/g, ' ').replace(/\s+/g, ' ').trim();
       t = t.replace(/^(المصدر|شرح|تلخيص|خريطه ذهنية|خريطة ذهنية)\s*[:\-]\s*/i, '');
       return t || String(file?.title || '');
     }
@@ -2325,12 +2343,54 @@
       return { description, keypoints, clinicalNote };
     }
 
-    // Helper: Build File Card HTML inside Numbered Folder
+    // Helper: Build File Card HTML inside Numbered Folder (Supports both Grid & Compact List Modes)
     function buildFileCardHTML(file, showFullPath = false) {
       const sub = getSubjectObj(file.subject);
       const isSaved = appState.savedIds.includes(file.id);
       const isCompleted = appState.completedIds.includes(file.id);
       const fmt = getFormatVisuals(file.format);
+
+      if (appState.layoutMode === 'list') {
+        return `
+          <article class="card-3d glass-panel rounded-2xl p-3.5 sm:p-4 border ${isCompleted ? 'border-emerald-500/50' : 'border-slate-800'} flex flex-col md:flex-row md:items-center justify-between gap-3" data-file-id="${file.id}">
+            <div class="card-3d-inner flex items-start sm:items-center gap-3 min-w-0 flex-1">
+              <div class="w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${fmt.badgeClass}">
+                <i data-lucide="${fmt.icon}" class="w-5 h-5"></i>
+              </div>
+              <div class="min-w-0 flex-1 space-y-1">
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <span class="px-2 py-0.5 rounded-lg border text-[11px] font-extrabold ${fmt.badgeClass}">${fmt.label}</span>
+                  <span class="px-2 py-0.5 rounded-lg bg-slate-900 text-amber-300 border border-slate-700 text-[10.5px] font-extrabold">${showFullPath ? `${sub.displayName || sub.folderName} • ` : ''}${file.category} > مجلد ${file.folderNum}</span>
+                  <span class="text-[11px] text-cyan-300 font-bold" dir="ltr">${file.size} • <span id="card-dl-${file.id}">${file.downloads}</span> DL</span>
+                </div>
+                <h4 class="text-sm sm:text-base font-black text-white truncate hover:text-amber-300 transition cursor-pointer" data-file-action="preview" data-id="${escapeHTML(file.id)}" data-file-id="${escapeHTML(file.id)}">
+                  ${escapeHTML(getCleanFileTitle(file))}
+                </h4>
+              </div>
+            </div>
+            <div class="card-3d-inner flex flex-wrap items-center justify-end gap-1.5 shrink-0">
+              <button type="button" data-file-action="toggle-save" data-id="${file.id}" data-file-id="${file.id}" class="p-2 rounded-xl ${isSaved ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40' : 'bg-slate-800/80 text-slate-400 hover:text-amber-300 border border-slate-700'} transition" title="${isSaved ? 'إزالة من المحفوظات' : 'حفظ في مكتبتي'}">
+                <i data-lucide="bookmark" class="w-4 h-4 ${isSaved ? 'fill-current' : ''}"></i>
+              </button>
+              <button type="button" data-file-action="toggle-complete" data-id="${file.id}" data-file-id="${file.id}" class="p-2 rounded-xl ${isCompleted ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-slate-800/80 text-slate-400 hover:text-emerald-300 border border-slate-700'} transition" title="${isCompleted ? 'تمت المذاكرة' : 'تحديد كمذاكر'}">
+                <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+              </button>
+              <button type="button" data-file-action="preview" data-id="${file.id}" data-file-id="${file.id}" class="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 text-xs font-extrabold flex items-center gap-1.5 transition">
+                <i data-lucide="eye" class="w-4 h-4"></i>
+                <span>معاينة</span>
+              </button>
+              <button type="button" data-file-action="download" data-id="${file.id}" data-file-id="${file.id}" class="btn-3d py-2 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-extrabold flex items-center gap-1.5">
+                <i data-lucide="download-cloud" class="w-4 h-4"></i>
+                <span>تحميل</span>
+              </button>
+              ${appState.isAdmin ? `
+                <button type="button" data-file-action="edit" data-id="${file.id}" data-file-id="${file.id}" class="px-2.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/35 text-amber-300 border border-amber-500/40 text-[11px] font-bold">تعديل</button>
+                <button type="button" data-file-action="delete" data-id="${file.id}" data-file-id="${file.id}" class="px-2.5 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/35 text-rose-300 border border-rose-500/40 text-[11px] font-bold">حذف</button>
+              ` : ''}
+            </div>
+          </article>
+        `;
+      }
 
       return `
         <article class="card-3d glass-panel rounded-3xl p-4 sm:p-5 border ${isCompleted ? 'border-emerald-500/50' : 'border-slate-800'} flex flex-col justify-between gap-4 h-full" data-file-id="${file.id}">
@@ -2420,15 +2480,16 @@
 
       // CASE A: Global Search Mode or Saved Bookmarks Mode
       const isSavedMode = appState.currentView === 'saved' || appState.onlySavedFilter;
-      const q = appState.searchQuery.trim().toLowerCase();
+      const q = normalizeArabicSearch(appState.searchQuery);
       if (q !== '' || isSavedMode) {
         if (isSavedMode) loadSavedFilesFromStorage();
+        const qTokens = q.split(' ').filter(Boolean);
         const matchedFiles = appState.files.filter(f => {
           if (isSavedMode && !appState.savedIds.includes(f.id)) return false;
-          if (q) {
+          if (qTokens.length > 0) {
             const sub = getSubjectObj(f.subject);
-            const hay = `${sub.folderName} ${sub.fullName} ${f.category} ${f.folderNum} ${f.format} ${f.title} ${f.description} ${(f.keypoints || []).join(' ')}`.toLowerCase();
-            if (!hay.includes(q)) return false;
+            const hay = normalizeArabicSearch(`${sub.folderName} ${sub.displayName || ''} ${sub.fullName} ${f.category} ${f.folderNum} ${f.format} ${f.title} ${f.originalFileName || ''} ${f.description} ${(f.keypoints || []).join(' ')}`);
+            if (!qTokens.every(tok => hay.includes(tok))) return false;
           }
           return true;
         });
@@ -2672,7 +2733,7 @@
       // 1. Priority: Direct Google Drive URL or External Link (Telegram / Drive)
       const cloudUrl = resolveDriveUrl(file);
       if (cloudUrl) {
-        syncActionToDrive({ action: 'save', file: file, item: file });
+        fetch(GAS_WEB_APP_URL, { method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'increment_download', id: file.id }) }).catch(() => {});
         window.open(cloudUrl, '_blank', 'noopener');
         const isTelegram = cloudUrl.includes('t.me/') || cloudUrl.includes('telegram.');
         showToast(isTelegram ? 'جاري فتح رابط التيليجرام للملف الأصلي...' : 'جاري فتح وتحميل الملف الأصلي...', 'success');
@@ -3341,9 +3402,6 @@
           driveFileName = `${driveFileName}.${ext}`;
 
           if (fileUploadPayload) {
-            if (editId && oldDriveFileIdToTrash) {
-              await syncActionToDrive({ action: 'deleteFile', driveFileId: oldDriveFileIdToTrash, id: editId }).catch(() => {});
-            }
             const syncRes = await syncActionToDrive({
               action: 'uploadFile',
               subjectId: subject,
@@ -3505,6 +3563,14 @@
           }
         }
       }
+
+      // Clear the startup safety timer as soon as the video actually begins playing so it plays its full 5.83s duration
+      video.addEventListener('playing', () => {
+        clearSafetyTimer();
+      });
+      video.addEventListener('timeupdate', () => {
+        if (video.currentTime > 0.1) clearSafetyTimer();
+      });
 
       // Event 1: Normal completion
       video.addEventListener('ended', () => {
@@ -3756,7 +3822,16 @@
           fillAboutEditForm();
           toggleAboutEditMode(false);
           renderAboutView();
-          showToast('تمت استعادة النصوص الأصلية بنجاح!', 'info');
+          syncActionToDrive({
+            action: 'save_about',
+            item: {
+              id: SYS_ABOUT_CONTENT_ID,
+              isSystemMeta: true,
+              title: 'System About Content',
+              aboutContent: appState.aboutContent
+            }
+          }).catch(() => {});
+          showToast('تمت استعادة النصوص الأصلية ومزامنتها بنجاح!', 'info');
         });
       }
 
@@ -3783,7 +3858,16 @@
           saveAppState();
           toggleAboutEditMode(false);
           renderAboutView();
-          showToast('تم حفظ وتحديث محتوى قسم About بنجاح!', 'success');
+          syncActionToDrive({
+            action: 'save_about',
+            item: {
+              id: SYS_ABOUT_CONTENT_ID,
+              isSystemMeta: true,
+              title: 'System About Content',
+              aboutContent: appState.aboutContent
+            }
+          }).catch(() => {});
+          showToast('تم حفظ ومزامنة محتوى قسم About لجميع الطلاب بنجاح!', 'success');
         });
       }
 
@@ -3800,8 +3884,15 @@
         });
       }
       document.getElementById('close-notifications-modal-btn').addEventListener('click', () => {
-        notifModal.classList.add('hidden');
+        closeNotificationsModal();
       });
+      if (notifModal) {
+        notifModal.addEventListener('click', (e) => {
+          if (e.target === notifModal || !e.target.closest('.modal-card-scroll, .glass-panel')) {
+            closeNotificationsModal();
+          }
+        });
+      }
       document.getElementById('enable-browser-notif-btn').addEventListener('click', () => {
         requestBrowserNotificationPermission();
       });
@@ -4152,7 +4243,7 @@
           btn.addEventListener('click', (e) => {
             e.preventDefault();
             if (!appState.isAdmin) {
-              openAdminLoginModal();
+              openAdminModal();
               return;
             }
             openPublishModal();
