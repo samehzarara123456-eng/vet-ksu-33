@@ -168,9 +168,17 @@ async function showSwNotificationSafe(title, options) {
 }
 
 let isCheckingDrive = false;
+let lastSwCheckMs = 0;
+const SW_CHECK_COOLDOWN_MS = 60000; // Minimum 60s cooldown between background checks to protect GAS quotas
+
 async function checkDriveInBackground(forceNotifyLatestIfUnseeded = false) {
   if (isCheckingDrive) return;
+  const now = Date.now();
+  if (!forceNotifyLatestIfUnseeded && (now - lastSwCheckMs < SW_CHECK_COOLDOWN_MS)) {
+    return;
+  }
   isCheckingDrive = true;
+  lastSwCheckMs = now;
   try {
     const res = await fetchSwWithTimeout(GAS_URL + '?force=' + (forceNotifyLatestIfUnseeded ? 'true' : 'false') + '&t=' + Date.now(), {
       method: 'GET',
@@ -228,40 +236,13 @@ async function checkDriveInBackground(forceNotifyLatestIfUnseeded = false) {
   }
 }
 
-let activeLoopPromise = null;
+// Single lightweight background check helper (replaces infinite 12s polling loop to preserve Google Apps Script quotas)
 function scheduleNextSyncWakeup() {
-  setTimeout(async () => {
-    try {
-      if (self.registration && 'sync' in self.registration) {
-        await self.registration.sync.register('vet33-sync-' + Date.now());
-      }
-    } catch (e) {
-      runBackgroundKeepAliveLoop(10, 12000);
-    }
-  }, 250);
+  // Rely on Web Push and Periodic Background Sync events instead of recursive sync loops
 }
 
-function runBackgroundKeepAliveLoop(cycles = 11, intervalMs = 12000) {
-  if (activeLoopPromise) return activeLoopPromise;
-  const loopTask = () => new Promise((resolve) => {
-    let count = 0;
-    const timer = setInterval(async () => {
-      count++;
-      await checkDriveInBackground(false);
-      if (count >= cycles) {
-        clearInterval(timer);
-        activeLoopPromise = null;
-        scheduleNextSyncWakeup();
-        resolve();
-      }
-    }, intervalMs);
-  });
-  if (self.navigator && self.navigator.locks && typeof self.navigator.locks.request === 'function') {
-    activeLoopPromise = self.navigator.locks.request('vet33_sw_bg_lock', { mode: 'shared' }, loopTask).catch(() => loopTask());
-  } else {
-    activeLoopPromise = loopTask();
-  }
-  return activeLoopPromise;
+async function runBackgroundKeepAliveLoop() {
+  await checkDriveInBackground(false);
 }
 
 self.addEventListener('install', (event) => {

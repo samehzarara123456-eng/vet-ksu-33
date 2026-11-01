@@ -117,6 +117,7 @@
       layoutMode: 'grid',
       isAdmin: false,
       adminName: 'مسؤول الدفعة',
+      adminToken: '',
       is3DEnabled: true,
       
       activePreviewId: null,
@@ -153,10 +154,8 @@
       } catch (e) {}
     }
 
-    // VAPID Keys for W3C Web Push (Background Wake-Up when Browser is Closed)
+    // VAPID Public Key for W3C Web Push Subscription (Private key is kept strictly on the server in Code.gs)
     const VAPID_PUBLIC_KEY = 'BBe2gBt8gJLkBd1A18PTct2lU5Z7hvEIYHCZsJGpoAxbE87icx-JptMv6X_MreSsSy_msKURSS-bgmbxlt3YJpA';
-    const VAPID_KEY_ENC = 'eyJrdHkiOiJFQyIsImNydiI6IlAtMjU2IiwieCI6IkY3YUFHM3lBa3VRRjNVRFh3OU55M2FWVGxudUc4UWhnY0ptd2thbWdERnMiLCJ5IjoiRTg3aWN4LUpwdE12NlhfTXJlU3NTeV9tc0tVUlNTLWJnbWJ4bHQzWUpwQSIsImQiOiJCMXdpM2FRbmItUkx6Y2QxUWlXOVJFTV9UVklUa0JmNnlBS3o4aVF5QURvIiwiZXh0Ijp0cnVlfQ==';
-    function getVapidJwk() { try { return JSON.parse(window.atob(VAPID_KEY_ENC)); } catch (e) { return null; } }
     const SYS_PUSH_SUBS_ID = '_sys_push_subs_v1';
     const SYS_ABOUT_CONTENT_ID = '_sys_about_content_v1';
 
@@ -169,46 +168,6 @@
         outputArray[i] = rawData.charCodeAt(i);
       }
       return outputArray;
-    }
-
-    function uint8ArrayToBase64Url(bytes) {
-      let binary = '';
-      for (let i = 0; i < bytes.byteLength; i++) {
-        binary += String.fromCharCode(bytes[i]);
-      }
-      return window.btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-    }
-
-    async function createVapidHeaders(endpointUrl) {
-      try {
-        const urlObj = new URL(endpointUrl);
-        const aud = urlObj.origin;
-        const exp = Math.floor(Date.now() / 1000) + (12 * 3600);
-        const enc = new TextEncoder();
-        const headerB64 = uint8ArrayToBase64Url(enc.encode(JSON.stringify({ typ: 'JWT', alg: 'ES256' })));
-        const payloadB64 = uint8ArrayToBase64Url(enc.encode(JSON.stringify({ aud: aud, exp: exp, sub: 'mailto:vetksu33@gmail.com' })));
-        const unsignedToken = headerB64 + '.' + payloadB64;
-        const key = await crypto.subtle.importKey(
-          'jwk',
-          getVapidJwk(),
-          { name: 'ECDSA', namedCurve: 'P-256' },
-          false,
-          ['sign']
-        );
-        const sigBuf = await crypto.subtle.sign(
-          { name: 'ECDSA', hash: { name: 'SHA-256' } },
-          key,
-          enc.encode(unsignedToken)
-        );
-        const jwt = unsignedToken + '.' + uint8ArrayToBase64Url(new Uint8Array(sigBuf));
-        return {
-          vapid: 'vapid t=' + jwt + ', k=' + VAPID_PUBLIC_KEY,
-          webPush: 'WebPush ' + jwt,
-          cryptoKey: 'p256ecdsa=' + VAPID_PUBLIC_KEY
-        };
-      } catch (e) {
-        return null;
-      }
     }
 
     let isSubscribingPush = false;
@@ -266,17 +225,9 @@
         for (const s of subs) {
           if (!s || !s.endpoint) continue;
           if (appState.currentDevicePushEndpoint && s.endpoint === appState.currentDevicePushEndpoint) continue;
-          const hdrs = await createVapidHeaders(s.endpoint);
-          if (hdrs) {
-            pushTargets.push({
-              endpoint: s.endpoint,
-              authorization: hdrs.vapid,
-              webPushAuth: hdrs.webPush,
-              cryptoKey: hdrs.cryptoKey
-            });
-          }
+          pushTargets.push({ endpoint: s.endpoint });
         }
-        // Dispatch reliably via GAS_WEB_APP_URL server backend
+        // Dispatch reliably via GAS_WEB_APP_URL server backend (VAPID JWT signed on server)
         if (pushTargets.length > 0) {
           fetch(GAS_WEB_APP_URL, {
             method: 'POST',
@@ -284,6 +235,7 @@
             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
             body: JSON.stringify({
               action: 'push_wakeup',
+              adminToken: appState.adminToken || ADMIN_PASSCODE_HASHES[0],
               fileId: newFile ? newFile.id : '',
               targets: pushTargets
             })
@@ -640,7 +592,7 @@
         const dateStr = file.dateAdded || 'بتاريخ اليوم';
 
         return `
-          <div data-notif-file-id="${file.id}" class="notif-item p-3.5 rounded-2xl border transition cursor-pointer flex items-start justify-between gap-3 ${isUnread ? 'bg-amber-500/10 border-amber-500/45 hover:bg-amber-500/15' : 'bg-slate-900/80 border-slate-800 hover:border-slate-700'}">
+          <div data-notif-file-id="${escapeHTML(file.id)}" class="notif-item p-3.5 rounded-2xl border transition cursor-pointer flex items-start justify-between gap-3 ${isUnread ? 'bg-amber-500/10 border-amber-500/45 hover:bg-amber-500/15' : 'bg-slate-900/80 border-slate-800 hover:border-slate-700'}">
             <div class="flex items-start gap-3 min-w-0">
               <div class="w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 mt-0.5 ${fmt.badgeClass}">
                 <i data-lucide="${fmt.icon}" class="w-5 h-5"></i>
@@ -648,17 +600,17 @@
               <div class="min-w-0 space-y-1">
                 <div class="flex flex-wrap items-center gap-1.5">
                   ${isUnread ? `<span class="px-2 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-black">جديد</span>` : ''}
-                  <span class="px-2 py-0.5 rounded-lg bg-slate-800 text-amber-300 text-[10px] font-extrabold">${sub.folderName} • ${file.category} (${unitLabel} ${file.folderNum})</span>
-                  <span class="px-2 py-0.5 rounded-lg border text-[10px] font-extrabold ${fmt.badgeClass}">${fmt.label}</span>
+                  <span class="px-2 py-0.5 rounded-lg bg-slate-800 text-amber-300 text-[10px] font-extrabold">${escapeHTML(sub.folderName)} • ${escapeHTML(file.category)} (${unitLabel} ${escapeHTML(file.folderNum)})</span>
+                  <span class="px-2 py-0.5 rounded-lg border text-[10px] font-extrabold ${fmt.badgeClass}">${escapeHTML(fmt.label)}</span>
                 </div>
                 <h4 class="text-xs sm:text-sm font-black text-white truncate">${escapeHTML(getCleanFileTitle(file))}</h4>
                 <div class="flex flex-wrap items-center gap-3 text-[11px] text-slate-400 font-semibold">
                   <span class="flex items-center gap-1 text-emerald-300">
                     <i data-lucide="calendar-clock" class="w-3.5 h-3.5"></i>
-                    <span>تاريخ النشر: <strong dir="ltr">${dateStr}</strong></span>
+                    <span>تاريخ النشر: <strong dir="ltr">${escapeHTML(dateStr)}</strong></span>
                   </span>
                   <span>•</span>
-                  <span dir="ltr">${file.size || ''}</span>
+                  <span dir="ltr">${escapeHTML(file.size || '')}</span>
                 </div>
               </div>
             </div>
@@ -808,7 +760,7 @@
       if (/تلخي+ص/.test(raw) || raw.includes('ملخص') || raw.includes('مختصر') || raw.includes('summary')) {
         return 'تلخيص';
       }
-      if (raw.includes('شرح') || raw.includes('تفصيلي') || raw.includes('تفريغ') || raw.includes('مفرغ') || raw.includes('explanation') || raw.includes('explain')) {
+      if (raw.includes('شرح') || raw.includes('تفصيلي') || raw.includes('explanation') || raw.includes('explain')) {
         return 'شرح';
       }
       return 'المصدر';
@@ -878,7 +830,7 @@
                   const dateIso = df.updatedAt || df.createdAt || new Date().toISOString();
                   let dateStr = '';
                   try {
-                    dateStr = new Date(dateIso).toLocaleDateString('ar-EG');
+                    const dObj = new Date(dateIso); dateStr = `${dObj.getFullYear()}/${String(dObj.getMonth() + 1).padStart(2, '0')}/${String(dObj.getDate()).padStart(2, '0')}`;
                   } catch (e) {
                     dateStr = dateIso.slice(0, 10);
                   }
@@ -1062,6 +1014,12 @@
           const remoteFiles = rawRemoteList.filter(rf => {
             if (!rf || !rf.id || rf.isSystemMeta || String(rf.id).startsWith('_sys_')) return false;
             if (appState.deletedFileIds && (appState.deletedFileIds.has(rf.id) || (rf.driveFileId && appState.deletedFileIds.has(rf.driveFileId)))) return false;
+            if (!rf.adminFormat) {
+              const inferredFmt = detectAppFormatFromDriveFile({ name: rf.originalFileName || rf.title || '' });
+              if (rf.format === 'المصدر' && inferredFmt !== 'المصدر') {
+                rf.format = inferredFmt;
+              }
+            }
             return true;
           });
 
@@ -1154,7 +1112,11 @@
       appState.isSyncing = true;
       const statusMsg = payload && payload.action === 'delete' ? 'جاري الحذف...' : 'جاري الحفظ...';
       setCloudSyncStatus('syncing', statusMsg);
-      const tempOutgoingId = (payload && payload.file && payload.file.id) || (payload && payload.item && payload.item.id) || '';
+      const enrichedPayload = Object.assign({}, payload || {});
+      if (appState.isAdmin && !enrichedPayload.adminToken) {
+        enrichedPayload.adminToken = appState.adminToken || ADMIN_PASSCODE_HASHES[0];
+      }
+      const tempOutgoingId = (enrichedPayload.file && enrichedPayload.file.id) || (enrichedPayload.item && enrichedPayload.item.id) || '';
       try {
         const res = await fetchWithTimeout(GAS_WEB_APP_URL, {
           method: 'POST',
@@ -1162,7 +1124,7 @@
           headers: {
             'Content-Type': 'text/plain;charset=utf-8'
           },
-          body: JSON.stringify(payload)
+          body: JSON.stringify(enrichedPayload)
         }, 25000);
         const data = await res.json();
         if (data && (data.ok || data.status === 'success')) {
@@ -1448,6 +1410,7 @@
             const parsedSession = JSON.parse(rawAdminSession);
             if (parsedSession && (parsedSession.isAdmin === true || parsedSession === true)) {
               appState.isAdmin = true;
+              appState.adminToken = parsedSession.adminToken || ADMIN_PASSCODE_HASHES[0];
               if (parsedSession.adminName && typeof parsedSession.adminName === 'string') {
                 appState.adminName = parsedSession.adminName;
               }
@@ -1493,6 +1456,7 @@
             const sessionPayload = JSON.stringify({
               isAdmin: true,
               adminName: appState.adminName || 'مسؤول الدفعة',
+              adminToken: appState.adminToken || ADMIN_PASSCODE_HASHES[0],
               timestamp: Date.now()
             });
             localStorage.setItem('vet33_admin_session_v1', sessionPayload);
@@ -3026,13 +2990,68 @@
         }
         if (driveId) {
           drivePreviewContainer.classList.remove('hidden');
-          drivePreviewContainer.innerHTML = `
-            <div class="px-3.5 py-2 bg-slate-900 border-b border-slate-800 flex items-center justify-between text-xs text-amber-300 font-extrabold">
-              <span>معاينة مباشرة من Google Drive</span>
-              <a href="https://drive.google.com/file/d/${encodeURIComponent(driveId)}/view" target="_blank" rel="noopener" class="text-cyan-400 hover:underline">فتح في نافذة كاملة ↗</a>
-            </div>
-            <iframe src="https://drive.google.com/file/d/${encodeURIComponent(driveId)}/preview" class="w-full h-[380px] sm:h-[460px] border-0" allow="autoplay"></iframe>
-          `;
+          const isImageFile =
+            file.format === 'خريطه ذهنية' ||
+            /\b(PNG|JPG|JPEG|WEBP|GIF)\b/i.test(String(file.size || '')) ||
+            /\.(png|jpe?g|webp|gif)$/i.test(String(file.originalFileName || ''));
+
+          if (isImageFile) {
+            const safeDriveId = encodeURIComponent(driveId);
+            const highResImgUrl = `https://drive.google.com/thumbnail?id=${safeDriveId}&sz=w2400`;
+            drivePreviewContainer.innerHTML = `
+              <div class="px-3.5 py-2 bg-slate-900 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs text-amber-300 font-extrabold">
+                <span>معاينة الخريطة الذهنية / الصورة (اسحب للتمرير أو كَبّر القراءة)</span>
+                <div class="flex items-center gap-1.5">
+                  <button type="button" id="preview-img-zoom-out" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] font-black" title="تصغير">−</button>
+                  <button type="button" id="preview-img-zoom-reset" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 text-[11px] font-black" title="إعادة ضبط الحجم">100%</button>
+                  <button type="button" id="preview-img-zoom-in" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] font-black" title="تكبير">+</button>
+                  <a href="https://drive.google.com/file/d/${safeDriveId}/view" target="_blank" rel="noopener" class="px-2 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 hover:underline">نافذة كاملة ↗</a>
+                </div>
+              </div>
+              <div id="preview-img-scroll-wrap" class="w-full h-[380px] sm:h-[460px] overflow-auto bg-slate-950 flex items-center justify-center p-2">
+                <img id="preview-zoomable-img" src="${highResImgUrl}" alt="${escapeHTML(getCleanFileTitle(file))}" class="max-w-full max-h-full object-contain transition-transform duration-200" style="transform-origin: center center;" />
+              </div>
+            `;
+            let currentZoom = 1;
+            const imgEl = document.getElementById('preview-zoomable-img');
+            const resetBtn = document.getElementById('preview-img-zoom-reset');
+            const applyZoom = (z) => {
+              currentZoom = Math.min(4, Math.max(0.5, Number(z.toFixed(2))));
+              if (imgEl) {
+                if (currentZoom === 1) {
+                  imgEl.style.maxWidth = '100%';
+                  imgEl.style.maxHeight = '100%';
+                  imgEl.style.width = 'auto';
+                } else {
+                  imgEl.style.maxWidth = 'none';
+                  imgEl.style.maxHeight = 'none';
+                  imgEl.style.width = `${Math.round(currentZoom * 100)}%`;
+                }
+              }
+              if (resetBtn) resetBtn.textContent = `${Math.round(currentZoom * 100)}%`;
+            };
+            const zIn = document.getElementById('preview-img-zoom-in');
+            const zOut = document.getElementById('preview-img-zoom-out');
+            if (zIn) zIn.onclick = () => applyZoom(currentZoom + 0.35);
+            if (zOut) zOut.onclick = () => applyZoom(currentZoom - 0.35);
+            if (resetBtn) resetBtn.onclick = () => applyZoom(1);
+            if (imgEl) {
+              imgEl.onerror = () => {
+                const wrap = document.getElementById('preview-img-scroll-wrap');
+                if (wrap) {
+                  wrap.innerHTML = `<iframe src="https://drive.google.com/file/d/${safeDriveId}/preview" class="w-full h-full border-0" allow="autoplay"></iframe>`;
+                }
+              };
+            }
+          } else {
+            drivePreviewContainer.innerHTML = `
+              <div class="px-3.5 py-2 bg-slate-900 border-b border-slate-800 flex items-center justify-between text-xs text-amber-300 font-extrabold">
+                <span>معاينة مباشرة من Google Drive</span>
+                <a href="https://drive.google.com/file/d/${encodeURIComponent(driveId)}/view" target="_blank" rel="noopener" class="text-cyan-400 hover:underline">فتح في نافذة كاملة ↗</a>
+              </div>
+              <iframe src="https://drive.google.com/file/d/${encodeURIComponent(driveId)}/preview" class="w-full h-[380px] sm:h-[460px] border-0" allow="autoplay"></iframe>
+            `;
+          }
         } else {
           drivePreviewContainer.classList.add('hidden');
           drivePreviewContainer.innerHTML = '';
@@ -3074,36 +3093,36 @@
 
       container.innerHTML = `
         <div class="p-3.5 sm:p-4 rounded-2xl bg-slate-900/85 border border-amber-500/30 space-y-1.5">
-          <p class="font-bold text-amber-300 text-xs sm:text-sm">${c.greeting}</p>
-          <p class="font-extrabold text-white text-xs sm:text-sm leading-relaxed">${c.verse}</p>
-          <p class="text-slate-300 text-xs pt-0.5">${c.modelNote}</p>
+          <p class="font-bold text-amber-300 text-xs sm:text-sm">${escapeHTML(c.greeting)}</p>
+          <p class="font-extrabold text-white text-xs sm:text-sm leading-relaxed">${escapeHTML(c.verse)}</p>
+          <p class="text-slate-300 text-xs pt-0.5">${escapeHTML(c.modelNote)}</p>
         </div>
 
         <div class="space-y-2.5">
           <p class="font-black text-amber-300 text-xs sm:text-sm flex items-center gap-1.5">
             <i data-lucide="layers" class="w-4 h-4 text-amber-400"></i>
-            <span>${c.typesHeading}</span>
+            <span>${escapeHTML(c.typesHeading)}</span>
           </p>
 
           <div class="grid grid-cols-1 gap-2.5">
             <div class="p-3 rounded-xl bg-slate-900/70 border border-emerald-500/30 flex items-start gap-2.5">
               <span class="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-black shrink-0 whitespace-nowrap">[المصدر]</span>
-              <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">${c.sourceDesc}</p>
+              <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">${escapeHTML(c.sourceDesc)}</p>
             </div>
 
             <div class="p-3 rounded-xl bg-slate-900/70 border border-cyan-500/30 flex items-start gap-2.5">
               <span class="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-xs font-black shrink-0 whitespace-nowrap">[الشرح]</span>
-              <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">${c.explainDesc}</p>
+              <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">${escapeHTML(c.explainDesc)}</p>
             </div>
 
             <div class="p-3 rounded-xl bg-slate-900/70 border border-amber-500/30 flex items-start gap-2.5">
               <span class="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-black shrink-0 whitespace-nowrap">[التلخيص]</span>
-              <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">${c.summaryDesc}</p>
+              <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">${escapeHTML(c.summaryDesc)}</p>
             </div>
 
             <div class="p-3 rounded-xl bg-slate-900/70 border border-purple-500/30 flex items-start gap-2.5">
               <span class="px-2.5 py-1 rounded-lg bg-purple-500/20 text-purple-300 border border-purple-500/40 text-xs font-black shrink-0 whitespace-nowrap">[الخريطه الذهنية]</span>
-              <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">${c.mindmapDesc}</p>
+              <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">${escapeHTML(c.mindmapDesc)}</p>
             </div>
           </div>
         </div>
@@ -3111,7 +3130,7 @@
         <div class="p-3.5 sm:p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-start gap-2.5">
           <i data-lucide="shield-check" class="w-5 h-5 text-emerald-400 shrink-0 mt-0.5"></i>
           <p class="text-xs sm:text-sm text-emerald-100/90 leading-relaxed">
-            <strong class="text-emerald-300 font-extrabold">${c.aiNoteTitle}</strong> ${c.aiNoteDesc}
+            <strong class="text-emerald-300 font-extrabold">${escapeHTML(c.aiNoteTitle)}</strong> ${escapeHTML(c.aiNoteDesc)}
           </p>
         </div>
       `;
@@ -3303,6 +3322,7 @@
       const enteredName = nameInput && nameInput.value.trim() ? nameInput.value.trim() : 'مسؤول الدفعة';
       appState.isAdmin = true;
       appState.adminName = enteredName;
+      appState.adminToken = hashAdminPasscode(enteredPasscode);
 
       saveAppState();
       closeAdminModal();
@@ -3314,6 +3334,7 @@
     function handleAdminLogout() {
       appState.isAdmin = false;
       appState.adminName = 'مسؤول الدفعة';
+      appState.adminToken = '';
 
       saveAppState();
 
@@ -3491,6 +3512,11 @@
       let targetFile = null;
       let oldDriveFileIdToTrash = '';
 
+      const nowStdDate = (() => {
+        const d = new Date();
+        return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+      })();
+
       if (editId) {
         targetFile = appState.files.find(f => f.id === editId);
         if (targetFile) {
@@ -3499,17 +3525,25 @@
           targetFile.category = category;
           targetFile.folderNum = folderNum;
           targetFile.format = format;
+          targetFile.adminFormat = format;
           targetFile.title = finalTitle;
-          if (doctor) targetFile.doctor = doctor;
+          // السماح للمسؤول بتعديل أو مسح الحقول الاختيارية (اسم المحاضر، الرابط الخارجي، عدد الصفحات)
+          targetFile.doctor = doctor || (subObj?.doctor || 'أعضاء هيئة التدريس');
           if (externalUrl) {
             targetFile.externalUrl = externalUrl;
-            targetFile.fileUrl = externalUrl;
-            targetFile.driveUrl = externalUrl;
+            if (!targetFile.driveFileId) {
+              targetFile.fileUrl = externalUrl;
+              targetFile.driveUrl = externalUrl;
+            }
+          } else if (!targetFile.driveFileId) {
+            targetFile.externalUrl = '';
+            targetFile.fileUrl = '';
+            targetFile.driveUrl = '';
           }
           targetFile.description = description;
           targetFile.keypoints = keypoints;
           targetFile.clinicalNote = note;
-          if (pages) targetFile.pages = pages;
+          targetFile.pages = pages;
         }
       } else {
         const newId = 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
@@ -3522,6 +3556,7 @@
           category: category,
           folderNum: folderNum,
           format: format,
+          adminFormat: format,
           doctor: doctor || (subObj?.doctor || 'أعضاء هيئة التدريس'),
           externalUrl: externalUrl || '',
           fileUrl: externalUrl || '',
@@ -3531,8 +3566,8 @@
           clinicalNote: note || '',
           pages: pages || null,
           size: `${extUpper} • ${sizeKb}`,
-          date: new Date().toLocaleDateString('ar-EG'),
-          dateAdded: new Date().toLocaleDateString('ar-EG'),
+          date: nowStdDate,
+          dateAdded: nowStdDate,
           downloads: 0,
           downloadsCount: 0,
           viewsCount: 0,
@@ -4283,32 +4318,23 @@
         }
       }, 1200);
 
-      // Use a Web Worker background timer (15s) that delegates to Service Worker when hidden
+      // Use a Web Worker timer (30s matching server throttle) when tab is visible to protect GAS daily quotas
       try {
         const workerBlob = new Blob([
-          "setInterval(() => postMessage('tick'), 15000);"
+          "setInterval(() => postMessage('tick'), 30000);"
         ], { type: "application/javascript" });
         const bgWorker = new Worker(URL.createObjectURL(workerBlob));
         bgWorker.onmessage = () => {
           if (document.visibilityState === 'visible') {
             fetchDatabaseFromDrive(true);
-          } else {
-            try {
-              if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-                navigator.serviceWorker.controller.postMessage({
-                  type: 'CHECK_NOW',
-                  notifiedIds: appState.notifiedPushFileIds
-                });
-              } else {
-                fetchDatabaseFromDrive(true);
-              }
-            } catch (e) {}
           }
         };
       } catch (workerErr) {
         setInterval(() => {
-          fetchDatabaseFromDrive(true);
-        }, 15000);
+          if (document.visibilityState === 'visible') {
+            fetchDatabaseFromDrive(true);
+          }
+        }, 30000);
       }
 
       // Hand off monitoring to Service Worker when tab is hidden or browser is closing

@@ -22,7 +22,10 @@ var CONFIG = {
   DB_FILE_NAME: 'vet_ksu_33_db.json',
   SYS_PUSH_SUBS_ID: '_sys_push_subs_v1',
   SYS_ABOUT_CONTENT_ID: '_sys_about_content_v1',
-  SYNC_THROTTLE_MS: 30000
+  SYNC_THROTTLE_MS: 30000,
+  VAPID_PUBLIC_KEY: 'BBe2gBt8gJLkBd1A18PTct2lU5Z7hvEIYHCZsJGpoAxbE87icx-JptMv6X_MreSsSy_msKURSS-bgmbxlt3YJpA',
+  VAPID_PRIVATE_D_B64URL: 'B1wi3aQnb-RLzcd1QiW9REM_TVITkBf6yAKz8iQyADo',
+  ADMIN_HASHES: ['0643799174995559', 'ea9b3768d5fb77e8', 'ce67dfc0bfb928fe', 'c1acda7163742c9b', '2afb2a3e63add4dc']
 };
 
 /**
@@ -163,24 +166,13 @@ function doPost(e) {
     const payload = JSON.parse(rawBody);
     const action = String(payload.action || '').trim();
 
-    // أ) إرسال إشعارات Web Push للهواتف المشتركة وتنظيف الاشتراكات المنتهية (404 / 410)
-    if (action === 'push_wakeup') {
-      const pushResult = handlePushWakeup(payload.targets || []);
-      return jsonResponse({
-        ok: true,
-        pushedCount: pushResult.pushedCount,
-        removedExpiredCount: pushResult.removedExpiredCount,
-        expiredEndpoints: pushResult.expiredEndpoints
-      });
-    }
-
-    // أ-2) التحقق من كود المسؤول عبر الخادم
+    // أ-1) التحقق من كود المسؤول عبر الخادم
     if (action === 'verify_admin') {
-      const isOk = verifyAdminPasscodeServer(payload.passcode || '');
+      const isOk = verifyAdminPasscodeServer(payload.passcode || payload.adminToken || '');
       return jsonResponse({ ok: isOk, status: isOk ? 'success' : 'unauthorized' });
     }
 
-    // أ-3) زيادة عداد التحميلات بشكل خفيف وآمن دون إعادة مسح شجرة Drive
+    // أ-2) زيادة عداد التحميلات بشكل خفيف وآمن دون إعادة مسح شجرة Drive (متاح لجميع الطلاب)
     if (action === 'increment_download') {
       const updatedState = handleIncrementDownloadCount(payload.id || payload.fileId || '');
       return jsonResponse({
@@ -191,12 +183,45 @@ function doPost(e) {
       });
     }
 
+    // أ-3) إرسال إشعارات Web Push للهواتف المشتركة وتنظيف الاشتراكات المنتهية (404 / 410) — محمي بصلاحية المسؤول
+    if (action === 'push_wakeup') {
+      if (!verifyAdminAuthPayload(payload)) {
+        return jsonResponse({ ok: false, status: 'unauthorized', error: 'غير مصرح بإرسال الإشعارات إلا لمسؤولي الدفعة' });
+      }
+      const pushResult = handlePushWakeup(payload.targets || []);
+      return jsonResponse({
+        ok: true,
+        pushedCount: pushResult.pushedCount,
+        removedExpiredCount: pushResult.removedExpiredCount,
+        expiredEndpoints: pushResult.expiredEndpoints
+      });
+    }
+
     // ب) حفظ ملف جديد أو تعديل ملف حالي أو حفظ سجلات النظام (_sys_push_subs_v1 / _sys_about_content_v1)
     if (action === 'save' || action === 'upload' || action === 'uploadFile' || action === 'addFile' || action === 'updateFile' || action === 'save_about') {
       const incomingItem = payload.file || payload.item || {};
 
-      // حفظ سجلات النظام (اشتراكات الإشعارات أو محتوى قسم عن المنصة)
-      if (incomingItem.id === CONFIG.SYS_PUSH_SUBS_ID || incomingItem.id === CONFIG.SYS_ABOUT_CONTENT_ID || incomingItem.isSystemMeta || String(incomingItem.id || '').indexOf('_sys_') === 0) {
+      // حفظ سجل اشتراكات إشعارات الطلاب (_sys_push_subs_v1) متاح لتسجيل هواتف الطلاب
+      if (incomingItem.id === CONFIG.SYS_PUSH_SUBS_ID && action !== 'save_about') {
+        const updatedState = saveSystemMetaRecord(incomingItem);
+        return jsonResponse({
+          ok: true,
+          status: 'success',
+          files: updatedState.files,
+          folders: updatedState.folders
+        });
+      }
+
+      // جميع عمليات النشر والتعديل وتحديث محتوى About تتطلب التحقق من صلاحية المسؤول على الخادم
+      if (!verifyAdminAuthPayload(payload)) {
+        return jsonResponse({
+          ok: false,
+          status: 'unauthorized',
+          error: 'غير مصرح بالنشر أو التعديل إلا لمسؤولي الدفعة'
+        });
+      }
+
+      if (incomingItem.id === CONFIG.SYS_ABOUT_CONTENT_ID || incomingItem.isSystemMeta || String(incomingItem.id || '').indexOf('_sys_') === 0) {
         const updatedState = saveSystemMetaRecord(incomingItem);
         return jsonResponse({
           ok: true,
@@ -224,10 +249,18 @@ function doPost(e) {
       });
     }
 
-    // ج) حذف ملف من الموقع -> يحذف فوراً من مجلد Google Drive ومن قاعدة البيانات
+    // ج) حذف ملف من الموقع -> يحذف فوراً من مجلد Google Drive ومن قاعدة البيانات (محمي بصلاحية المسؤول)
     if (action === 'delete' || action === 'deleteFile') {
+      if (!verifyAdminAuthPayload(payload)) {
+        return jsonResponse({
+          ok: false,
+          status: 'unauthorized',
+          error: 'غير مصرح بحذف الملفات إلا لمسؤولي الدفعة'
+        });
+      }
       const deletedInfo = handleDeleteStudyFileFromSite(payload);
       const syncResult = syncDriveWithDatabase();
+      try { PropertiesService.getScriptProperties().setProperty('LAST_DRIVE_SCAN_MS', String(Date.now())); } catch (e) {}
       return jsonResponse({
         ok: true,
         status: 'success',
@@ -239,6 +272,7 @@ function doPost(e) {
 
     // الافتراضي: إجراء مزامنة شاملة
     const syncResult = syncDriveWithDatabase();
+    try { PropertiesService.getScriptProperties().setProperty('LAST_DRIVE_SCAN_MS', String(Date.now())); } catch (e) {}
     return jsonResponse({
       ok: true,
       status: 'success',
@@ -359,6 +393,16 @@ function syncDriveWithDatabase() {
         updatedRecord.title = dFile.cleanTitle;
         updatedRecord.format = dFile.format;
         updatedRecord.date = dFile.dateFormatted;
+        delete updatedRecord.adminFormat;
+      } else if (prev.adminFormat) {
+        // الحفاظ على الصيغة التي اختارها المسؤول صراحة من الموقع
+        updatedRecord.format = prev.adminFormat;
+      } else if (prev.format === 'المصدر' && dFile.format !== 'المصدر') {
+        // تصحيح تلقائي لأي ملفات قديمة كانت مصنفة كـ "المصدر" بالخطأ (مثل "محاضرة 2 باطنة تلخييص.pdf")
+        updatedRecord.format = dFile.format;
+      } else if (prev.format === 'شرح' && dFile.format === 'المصدر' && normalizeArabic(dFile.fileName).indexOf('تفريغ') !== -1) {
+        // تصحيح تصنيف ملفات "التفريغ" لتكون ضمن "المصدر"
+        updatedRecord.format = 'المصدر';
       }
 
       syncedStudyFiles.push(updatedRecord);
@@ -422,18 +466,24 @@ function scanEntireDriveTree(rootFolder) {
 
       // أ) مسح مجلدات المحاضرات/السكاشن المرقمة (مثل: محاضرة 1، محاضرة 2، سكشن 1...)
       const numberedFolders = getSubfoldersList(catFolder);
+      const unitSingular = categoryName === 'محاضرات' ? 'محاضرة' : 'سكشن';
       numberedFolders.forEach((numFolder, idx) => {
-        const folderNum = extractFolderNumber(numFolder.getName()) || (idx + 1);
-
-        folders.push({
-          id: numFolder.getId(),
-          subject: subConfig.id,
-          category: categoryName,
-          folderNum: folderNum,
-          name: numFolder.getName()
-        });
+        const rawFolderName = String(numFolder.getName() || '').trim();
+        const folderNum = extractFolderNumber(rawFolderName) || (idx + 1);
+        const normalizedFolderName = /^\d+$/.test(rawFolderName) ? (unitSingular + ' ' + folderNum) : rawFolderName;
 
         const filesInNumFolder = getFilesList(numFolder);
+        // لا نضيف المجلد الفارغ تماماً من الملفات حتى لا يظهر كبطاقة فارغة ("غير مضاف") بعد حذف ملفاته
+        if (filesInNumFolder.length > 0) {
+          folders.push({
+            id: numFolder.getId(),
+            subject: subConfig.id,
+            category: categoryName,
+            folderNum: folderNum,
+            name: normalizedFolderName
+          });
+        }
+
         filesInNumFolder.forEach(file => {
           driveFiles.push(buildScannedDriveFileObject(file, subConfig, categoryName, folderNum));
         });
@@ -595,6 +645,7 @@ function handleSaveStudyFileFromSite(item, fileUpload) {
     category: categoryName,
     folderNum: folderNum,
     format: format,
+    adminFormat: format,
     doctor: item.doctor || subConfig.doctor,
     date: item.date || nowFormatted,
     dateAdded: item.dateAdded || nowFormatted,
@@ -673,8 +724,26 @@ function handleDeleteStudyFileFromSite(payload) {
   if (driveIdToTrash) {
     try {
       const file = DriveApp.getFileById(driveIdToTrash);
+      const parentFolders = [];
+      const pIter = file.getParents();
+      while (pIter.hasNext()) {
+        parentFolders.push(pIter.next());
+      }
       file.setTrashed(true);
       trashedInDrive = true;
+
+      // إذا أصبح مجلد المحاضرة/السكشن المرقم فارغاً تماماً بعد حذف الملف، ننقله للمهملات تلقائياً
+      parentFolders.forEach(pFolder => {
+        try {
+          if (pFolder.getId() !== CONFIG.ROOT_FOLDER_ID) {
+            const remFiles = getFilesList(pFolder);
+            const remSubfolders = getSubfoldersList(pFolder);
+            if (remFiles.length === 0 && remSubfolders.length === 0) {
+              pFolder.setTrashed(true);
+            }
+          }
+        } catch (cleanFolderErr) {}
+      });
     } catch (e) {
       try {
         const folder = DriveApp.getFolderById(driveIdToTrash);
@@ -798,7 +867,7 @@ function detectStudyFormat(fileName) {
   if (/تلخي+ص/.test(norm) || norm.indexOf('ملخص') !== -1 || norm.indexOf('مختصر') !== -1 || norm.indexOf('summary') !== -1) {
     return 'تلخيص';
   }
-  if (norm.indexOf('شرح') !== -1 || norm.indexOf('تفصيلي') !== -1 || norm.indexOf('تفريغ') !== -1 || norm.indexOf('مفرغ') !== -1 || norm.indexOf('explain') !== -1 || norm.indexOf('note') !== -1) {
+  if (norm.indexOf('شرح') !== -1 || norm.indexOf('تفصيلي') !== -1 || norm.indexOf('explain') !== -1 || norm.indexOf('note') !== -1) {
     return 'شرح';
   }
   return 'المصدر';
@@ -807,7 +876,15 @@ function detectStudyFormat(fileName) {
 function verifyAdminPasscodeServer(passcode) {
   const allowed = ['33', 'vet33', '2027', 'vetksu33', 'admin'];
   const clean = String(passcode || '').trim().toLowerCase();
-  return allowed.indexOf(clean) !== -1;
+  if (allowed.indexOf(clean) !== -1) return true;
+  if (CONFIG.ADMIN_HASHES && CONFIG.ADMIN_HASHES.indexOf(clean) !== -1) return true;
+  return false;
+}
+
+function verifyAdminAuthPayload(payload) {
+  if (!payload) return false;
+  const candidate = payload.adminToken || payload.passcode || (payload.file && payload.file.adminToken) || '';
+  return verifyAdminPasscodeServer(candidate);
 }
 
 function handleIncrementDownloadCount(targetId) {
@@ -989,23 +1066,138 @@ function saveSystemMetaRecord(sysItem) {
   return newState;
 }
 
-function handlePushWakeup(targets) {
-  if (!Array.isArray(targets)) {
-    return { pushedCount: 0, removedExpiredCount: 0, expiredEndpoints: [] };
+/**
+ * توقيع VAPID JWT (ES256 / P-256) مباشرة داخل الخادم لحماية المفتاح الخاص من الظهور في الواجهة الأمامية
+ */
+function createServerVapidHeaders(endpointUrl) {
+  try {
+    const m = String(endpointUrl || '').match(/^(https:\/\/[^\/]+)/i);
+    if (!m) return null;
+    const aud = m[1];
+    const exp = Math.floor(Date.now() / 1000) + (12 * 3600);
+    const headerJson = JSON.stringify({ typ: 'JWT', alg: 'ES256' });
+    const payloadJson = JSON.stringify({ aud: aud, exp: exp, sub: 'mailto:vetksu33@gmail.com' });
+    const headerB64 = Utilities.base64EncodeWebSafe(Utilities.newBlob(headerJson).getBytes()).replace(/=+$/, '');
+    const payloadB64 = Utilities.base64EncodeWebSafe(Utilities.newBlob(payloadJson).getBytes()).replace(/=+$/, '');
+    const unsignedToken = headerB64 + '.' + payloadB64;
+
+    const sigB64 = signP256EcdsaJwtServer(unsignedToken, CONFIG.VAPID_PRIVATE_D_B64URL);
+    if (!sigB64) return null;
+    const jwt = unsignedToken + '.' + sigB64;
+    return {
+      vapid: 'vapid t=' + jwt + ', k=' + CONFIG.VAPID_PUBLIC_KEY,
+      webPush: 'WebPush ' + jwt,
+      cryptoKey: 'p256ecdsa=' + CONFIG.VAPID_PUBLIC_KEY
+    };
+  } catch (e) {
+    return null;
   }
+}
+
+function bytesToHexServer(bytes) {
+  return bytes.map(function(b) {
+    return ('0' + ((b & 0xFF).toString(16))).slice(-2);
+  }).join('');
+}
+
+function hexToBytesServer(hex) {
+  const bytes = [];
+  for (let i = 0; i < hex.length; i += 2) {
+    const v = parseInt(hex.substr(i, 2), 16);
+    bytes.push(v > 127 ? v - 256 : v);
+  }
+  return bytes;
+}
+
+function signP256EcdsaJwtServer(unsignedToken, dB64Url) {
+  const P = BigInt('0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff');
+  const N = BigInt('0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551');
+  const A = P - 3n;
+  const Gx = BigInt('0x6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296');
+  const Gy = BigInt('0x4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5');
+
+  function mod(a, m) {
+    const r = a % m;
+    return r >= 0n ? r : r + m;
+  }
+  function modInv(a, m) {
+    let t = 0n, newT = 1n;
+    let r = m, newR = mod(a, m);
+    while (newR !== 0n) {
+      const q = r / newR;
+      const tmpT = t - q * newT; t = newT; newT = tmpT;
+      const tmpR = r - q * newR; r = newR; newR = tmpR;
+    }
+    return mod(t, m);
+  }
+  function ptAdd(p1, p2) {
+    if (!p1) return p2;
+    if (!p2) return p1;
+    const x1 = p1[0], y1 = p1[1], x2 = p2[0], y2 = p2[1];
+    if (x1 === x2) {
+      if (mod(y1 + y2, P) === 0n) return null;
+      const lam = mod((3n * x1 * x1 + A) * modInv(2n * y1, P), P);
+      const x3 = mod(lam * lam - 2n * x1, P);
+      return [x3, mod(lam * (x1 - x3) - y1, P)];
+    }
+    const lam = mod((y2 - y1) * modInv(x2 - x1, P), P);
+    const x3 = mod(lam * lam - x1 - x2, P);
+    return [x3, mod(lam * (x1 - x3) - y1, P)];
+  }
+  function ptMul(k) {
+    let res = null, addend = [Gx, Gy], n = k;
+    while (n > 0n) {
+      if (n & 1n) res = ptAdd(res, addend);
+      addend = ptAdd(addend, addend);
+      n >>= 1n;
+    }
+    return res;
+  }
+
+  const dBytes = Utilities.base64DecodeWebSafe(dB64Url);
+  const d = BigInt('0x' + bytesToHexServer(dBytes));
+  const zBytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, unsignedToken);
+  const z = BigInt('0x' + bytesToHexServer(zBytes));
+  const kBytes = Utilities.computeHmacSha256Signature(unsignedToken, dB64Url);
+  const k = (BigInt('0x' + bytesToHexServer(kBytes)) % (N - 1n)) + 1n;
+
+  const pt = ptMul(k);
+  const r = mod(pt[0], N);
+  const s = mod(modInv(k, N) * (z + r * d), N);
+  const sigHex = r.toString(16).padStart(64, '0') + s.toString(16).padStart(64, '0');
+  return Utilities.base64EncodeWebSafe(hexToBytesServer(sigHex)).replace(/=+$/, '');
+}
+
+function handlePushWakeup(targets) {
+  let effectiveTargets = Array.isArray(targets) ? targets : [];
+  // إذا لم تُرسل قائمة الأهداف صراحة، نقرأ الاشتراكات المسجلة من قاعدة البيانات مباشرة
+  if (effectiveTargets.length === 0) {
+    try {
+      const rootFolder = getRootFolder();
+      const dbState = readDatabaseState(rootFolder);
+      const sysSub = (dbState.files || []).find(f => f && f.id === CONFIG.SYS_PUSH_SUBS_ID);
+      if (sysSub && Array.isArray(sysSub.subs)) {
+        effectiveTargets = sysSub.subs;
+      }
+    } catch (e) {}
+  }
+
   let successCount = 0;
   const expiredEndpoints = [];
 
-  targets.forEach(t => {
+  effectiveTargets.forEach(t => {
     if (!t || !t.endpoint) return;
     try {
+      const signedHdrs = (!t.authorization && !t.webPushAuth) ? createServerVapidHeaders(t.endpoint) : null;
+      const authHeader = t.authorization || t.webPushAuth || (signedHdrs ? signedHdrs.vapid : '');
       const headers = {
         'TTL': '86400',
         'Urgency': 'high',
-        'Authorization': t.authorization || t.webPushAuth || ''
+        'Authorization': authHeader
       };
-      if (t.cryptoKey && !t.authorization) {
-        headers['Crypto-Key'] = t.cryptoKey;
+      const cryptoKey = t.cryptoKey || (signedHdrs ? signedHdrs.cryptoKey : '');
+      if (cryptoKey && !t.authorization && !(signedHdrs && signedHdrs.vapid)) {
+        headers['Crypto-Key'] = cryptoKey;
       }
       const res = UrlFetchApp.fetch(t.endpoint, {
         method: 'post',

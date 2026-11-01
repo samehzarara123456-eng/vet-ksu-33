@@ -571,6 +571,12 @@ img, video { max-width: 100%; height: auto; }
   .2xl\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
+
+.max-w-full { max-width: 100%; }
+.max-h-full { max-height: 100%; }
+.overflow-auto { overflow: auto; }
+.duration-200 { transition-duration: 200ms; }
+
 /* === Project Custom Styles === */
 :root {
       --bg-primary: #050914;
