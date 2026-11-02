@@ -150,9 +150,7 @@ function doGet(e) {
  * ============================================================================
  */
 function doPost(e) {
-  const lock = LockService.getScriptLock();
-  lock.waitLock(30000);
-
+  let lock = null;
   try {
     const rawBody = (e && e.postData && e.postData.contents) ? e.postData.contents : '{}';
     if (rawBody.length > 48 * 1024 * 1024) {
@@ -166,24 +164,13 @@ function doPost(e) {
     const payload = JSON.parse(rawBody);
     const action = String(payload.action || '').trim();
 
-    // أ-1) التحقق من كود المسؤول عبر الخادم
+    // أ-1) التحقق من كود المسؤول عبر الخادم (لا يحتاج لقفل)
     if (action === 'verify_admin') {
       const isOk = verifyAdminPasscodeServer(payload.passcode || payload.adminToken || '');
       return jsonResponse({ ok: isOk, status: isOk ? 'success' : 'unauthorized' });
     }
 
-    // أ-2) زيادة عداد التحميلات بشكل خفيف وآمن دون إعادة مسح شجرة Drive (متاح لجميع الطلاب)
-    if (action === 'increment_download') {
-      const updatedState = handleIncrementDownloadCount(payload.id || payload.fileId || '');
-      return jsonResponse({
-        ok: true,
-        status: 'success',
-        files: updatedState.files,
-        folders: updatedState.folders
-      });
-    }
-
-    // أ-3) إرسال إشعارات Web Push للهواتف المشتركة وتنظيف الاشتراكات المنتهية (404 / 410) — محمي بصلاحية المسؤول
+    // أ-3) إرسال إشعارات Web Push بالتوازي دون حجز قفل القراءة (حتى تستجيب الهواتف المستيقظة فوراً عبر doGet)
     if (action === 'push_wakeup') {
       if (!verifyAdminAuthPayload(payload)) {
         return jsonResponse({ ok: false, status: 'unauthorized', error: 'غير مصرح بإرسال الإشعارات إلا لمسؤولي الدفعة' });
@@ -194,6 +181,21 @@ function doPost(e) {
         pushedCount: pushResult.pushedCount,
         removedExpiredCount: pushResult.removedExpiredCount,
         expiredEndpoints: pushResult.expiredEndpoints
+      });
+    }
+
+    // باقي العمليات تعدل ملف قاعدة البيانات لذا نستخدم قفل السكربت بأمان
+    lock = LockService.getScriptLock();
+    lock.waitLock(30000);
+
+    // أ-2) زيادة عداد التحميلات بشكل خفيف وآمن دون إعادة مسح شجرة Drive (متاح لجميع الطلاب)
+    if (action === 'increment_download') {
+      const updatedState = handleIncrementDownloadCount(payload.id || payload.fileId || '');
+      return jsonResponse({
+        ok: true,
+        status: 'success',
+        files: updatedState.files,
+        folders: updatedState.folders
       });
     }
 
@@ -286,7 +288,9 @@ function doPost(e) {
       message: err.toString()
     });
   } finally {
-    lock.releaseLock();
+    if (lock) {
+      try { lock.releaseLock(); } catch (e) {}
+    }
   }
 }
 
@@ -326,6 +330,8 @@ function syncDriveWithDatabase() {
   const discoveredFolders = scanOutput.folders;       // كل مجلدات المحاضرات/السكاشن الموجودة فعلياً
 
   const syncedStudyFiles = [];
+  const newlyAddedInDrive = [];
+  const hadPreviousStudyFiles = Object.keys(dbByDriveId).length > 0 || externalOnlyRecords.length > 0;
   const seenDriveIds = {};
 
   discoveredDriveFiles.forEach(dFile => {
@@ -334,7 +340,7 @@ function syncDriveWithDatabase() {
 
     if (!prev) {
       // 1) ملف جديد أُضيف في مجلد Google Drive -> يضاف تلقائياً للموقع في نفس مكانه المخصص
-      syncedStudyFiles.push({
+      const newDriveRecord = {
         id: 'drive_' + dFile.driveFileId,
         driveFileId: dFile.driveFileId,
         title: dFile.cleanTitle,
@@ -362,7 +368,11 @@ function syncDriveWithDatabase() {
         clinicalNote: '',
         pages: null,
         term: 'الترم الاول'
-      });
+      };
+      syncedStudyFiles.push(newDriveRecord);
+      if (hadPreviousStudyFiles) {
+        newlyAddedInDrive.push(newDriveRecord);
+      }
     } else {
       // 2) ملف موجود مسبقاً: نتحقق هل تم تعديله أو تغيير اسمه أو نقله داخل Google Drive
       const nameChangedInDrive = (prev.driveObservedName && prev.driveObservedName !== dFile.fileName) ||
@@ -429,6 +439,13 @@ function syncDriveWithDatabase() {
     files: finalFilesArray,
     folders: discoveredFolders
   });
+
+  // إذا اكتُشف ملف جديد أُضيف مباشرة داخل Google Drive، نرسل إشعار Web Push تلقائياً لجميع المشتركين
+  if (newlyAddedInDrive.length > 0) {
+    try {
+      handlePushWakeup([]);
+    } catch (pushErr) {}
+  }
 
   return {
     files: finalFilesArray,
@@ -647,6 +664,7 @@ function handleSaveStudyFileFromSite(item, fileUpload) {
     doctor: item.doctor || subConfig.doctor,
     date: item.date || nowFormatted,
     dateAdded: item.dateAdded || nowFormatted,
+    driveModifiedTime: (existingRecord && existingRecord.driveModifiedTime) ? existingRecord.driveModifiedTime : Date.now(),
     term: 'الترم الاول'
   });
 
@@ -1221,74 +1239,136 @@ function signP256EcdsaJwtServer(unsignedToken, dB64Url) {
 
 function handlePushWakeup(targets) {
   let effectiveTargets = Array.isArray(targets) ? targets : [];
-  // إذا لم تُرسل قائمة الأهداف صراحة، نقرأ الاشتراكات المسجلة من قاعدة البيانات مباشرة
+  // دمج الأهداف المرسلة مع الاشتراكات المحفوظة في قاعدة البيانات لضمان عدم تفويت أي هاتف مشترك
+  try {
+    const rootFolder = getRootFolder();
+    const dbState = readDatabaseState(rootFolder);
+    const sysSub = (dbState.files || []).find(f => f && f.id === CONFIG.SYS_PUSH_SUBS_ID);
+    if (sysSub && Array.isArray(sysSub.subs)) {
+      const byEp = {};
+      sysSub.subs.forEach(s => { if (s && s.endpoint) byEp[s.endpoint] = s; });
+      effectiveTargets.forEach(t => { if (t && t.endpoint) byEp[t.endpoint] = Object.assign({}, byEp[t.endpoint] || {}, t); });
+      effectiveTargets = Object.keys(byEp).map(k => byEp[k]);
+    }
+  } catch (e) {}
+
   if (effectiveTargets.length === 0) {
-    try {
-      const rootFolder = getRootFolder();
-      const dbState = readDatabaseState(rootFolder);
-      const sysSub = (dbState.files || []).find(f => f && f.id === CONFIG.SYS_PUSH_SUBS_ID);
-      if (sysSub && Array.isArray(sysSub.subs)) {
-        effectiveTargets = sysSub.subs;
-      }
-    } catch (e) {}
+    return { pushedCount: 0, removedExpiredCount: 0, expiredEndpoints: [] };
   }
 
   let successCount = 0;
   const expiredEndpoints = [];
+  const preparedTargets = [];
+  const batchRequests1 = [];
 
   effectiveTargets.forEach(t => {
     if (!t || !t.endpoint) return;
-    try {
-      const signedHdrs = (!t.authorization && !t.webPushAuth) ? createServerVapidHeaders(t.endpoint) : null;
-      const vapidAuth = t.authorization || (signedHdrs ? signedHdrs.vapid : '');
-      const webPushAuth = t.webPushAuth || (signedHdrs ? signedHdrs.webPush : '');
-      const cryptoKey = t.cryptoKey || (signedHdrs ? signedHdrs.cryptoKey : '');
+    const signedHdrs = (!t.authorization && !t.webPushAuth) ? createServerVapidHeaders(t.endpoint) : null;
+    const vapidAuth = t.authorization || (signedHdrs ? signedHdrs.vapid : '');
+    const webPushAuth = t.webPushAuth || (signedHdrs ? signedHdrs.webPush : '');
+    const cryptoKey = t.cryptoKey || (signedHdrs ? signedHdrs.cryptoKey : '');
+    const isLegacyFcm = String(t.endpoint).indexOf('/fcm/send/') !== -1;
 
-      // المحاولة 1: معيار VAPID الحديث (RFC 8292)
-      const headers1 = {
+    const headers1 = {
+      'TTL': '86400',
+      'Urgency': 'high'
+    };
+    if (isLegacyFcm && webPushAuth && cryptoKey) {
+      headers1['Authorization'] = webPushAuth;
+      headers1['Crypto-Key'] = cryptoKey;
+    } else if (vapidAuth) {
+      headers1['Authorization'] = vapidAuth;
+    } else if (webPushAuth) {
+      headers1['Authorization'] = webPushAuth;
+      if (cryptoKey) headers1['Crypto-Key'] = cryptoKey;
+    }
+
+    preparedTargets.push({
+      endpoint: t.endpoint,
+      vapidAuth: vapidAuth,
+      webPushAuth: webPushAuth,
+      cryptoKey: cryptoKey,
+      usedLegacyFirst: Boolean(isLegacyFcm && webPushAuth && cryptoKey)
+    });
+
+    batchRequests1.push({
+      url: t.endpoint,
+      method: 'post',
+      headers: headers1,
+      payload: '',
+      muteHttpExceptions: true
+    });
+  });
+
+  // إرسال الدفعة الأولى بالتوازي لجميع الهواتف في وقت واحد (أسرع بـ 20 مرة من الإرسال التسلسلي)
+  let responses1 = [];
+  try {
+    responses1 = UrlFetchApp.fetchAll(batchRequests1);
+  } catch (batchErr) {
+    responses1 = batchRequests1.map(req => {
+      try { return UrlFetchApp.fetch(req.url, req); } catch (e) { return null; }
+    });
+  }
+
+  const retryTargets = [];
+  const retryRequests = [];
+
+  for (let i = 0; i < preparedTargets.length; i++) {
+    const pt = preparedTargets[i];
+    const res = responses1[i];
+    const code = res ? res.getResponseCode() : 0;
+
+    if (code >= 200 && code < 300) {
+      successCount++;
+    } else if (code === 404 || code === 410) {
+      expiredEndpoints.push(pt.endpoint);
+    } else {
+      // تجهيز محاولة بديلة فورية بالصيغة الثانية لترويسة VAPID
+      const altHeaders = {
         'TTL': '86400',
         'Urgency': 'high'
       };
-      if (vapidAuth) {
-        headers1['Authorization'] = vapidAuth;
-      } else if (webPushAuth) {
-        headers1['Authorization'] = webPushAuth;
-        if (cryptoKey) headers1['Crypto-Key'] = cryptoKey;
-      }
-
-      let res = UrlFetchApp.fetch(t.endpoint, {
-        method: 'post',
-        contentType: 'application/octet-stream',
-        headers: headers1,
-        payload: Utilities.newBlob([]).getBytes(),
-        muteHttpExceptions: true
-      });
-      let code = res.getResponseCode();
-
-      // المحاولة 2 (احتياطية لنقاط نهاية Chrome FCM /fcm/send/ التي تتطلب WebPush + Crypto-Key)
-      if ((code < 200 || code >= 300) && code !== 404 && code !== 410 && webPushAuth && cryptoKey) {
-        res = UrlFetchApp.fetch(t.endpoint, {
+      if (pt.usedLegacyFirst && pt.vapidAuth) {
+        altHeaders['Authorization'] = pt.vapidAuth;
+        retryTargets.push(pt);
+        retryRequests.push({
+          url: pt.endpoint,
           method: 'post',
-          contentType: 'application/octet-stream',
-          headers: {
-            'TTL': '86400',
-            'Urgency': 'high',
-            'Authorization': webPushAuth,
-            'Crypto-Key': cryptoKey
-          },
-          payload: Utilities.newBlob([]).getBytes(),
+          headers: altHeaders,
+          payload: '',
           muteHttpExceptions: true
         });
-        code = res.getResponseCode();
+      } else if (!pt.usedLegacyFirst && pt.webPushAuth && pt.cryptoKey) {
+        altHeaders['Authorization'] = pt.webPushAuth;
+        altHeaders['Crypto-Key'] = pt.cryptoKey;
+        retryTargets.push(pt);
+        retryRequests.push({
+          url: pt.endpoint,
+          method: 'post',
+          headers: altHeaders,
+          payload: '',
+          muteHttpExceptions: true
+        });
       }
+    }
+  }
 
-      if (code >= 200 && code < 300) {
-        successCount++;
-      } else if (code === 404 || code === 410) {
-        expiredEndpoints.push(t.endpoint);
+  if (retryRequests.length > 0) {
+    try {
+      const responses2 = UrlFetchApp.fetchAll(retryRequests);
+      for (let j = 0; j < retryTargets.length; j++) {
+        const r2 = responses2[j];
+        const c2 = r2 ? r2.getResponseCode() : 0;
+        if (c2 >= 200 && c2 < 300) {
+          successCount++;
+        } else if (c2 === 404 || c2 === 410) {
+          if (expiredEndpoints.indexOf(retryTargets[j].endpoint) === -1) {
+            expiredEndpoints.push(retryTargets[j].endpoint);
+          }
+        }
       }
-    } catch (e) {}
-  });
+    } catch (retryErr) {}
+  }
 
   // حذف الاشتراكات المنتهية الصلاحية (404 أو 410 Gone) من سجل _sys_push_subs_v1 في vet_ksu_33_db.json
   if (expiredEndpoints.length > 0) {

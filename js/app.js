@@ -212,9 +212,24 @@
       }
     }
 
+    // Helper for Issue #4: Reliably post message to active Service Worker even on first visit when controller is null
+    async function postMessageToServiceWorker(msg) {
+      try {
+        if (!('serviceWorker' in navigator)) return;
+        if (navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage(msg);
+          return;
+        }
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (reg && reg.active) {
+          reg.active.postMessage(msg);
+        }
+      } catch (e) {}
+    }
+
     let isSubscribingPush = false;
-    async function subscribeAndSaveWebPush(reg) {
-      if (isSubscribingPush) return null;
+    async function subscribeAndSaveWebPush(reg, forceSync = false) {
+      if (isSubscribingPush && !forceSync) return null;
       if (!('serviceWorker' in navigator)) return null;
       isSubscribingPush = true;
       try {
@@ -246,8 +261,13 @@
           if (subJson && subJson.endpoint) {
             appState.currentDevicePushEndpoint = subJson.endpoint;
             const existingEndpoints = Array.isArray(appState.pushSubscriptions) ? appState.pushSubscriptions : [];
-            if (!existingEndpoints.some(s => s && s.endpoint === subJson.endpoint)) {
-              const merged = [...existingEndpoints, {
+            const alreadyInList = existingEndpoints.some(s => s && s.endpoint === subJson.endpoint);
+            let lastSyncedEp = '';
+            try { lastSyncedEp = localStorage.getItem('vet33_push_sub_synced_ep') || ''; } catch (e) {}
+
+            if (forceSync || !alreadyInList || lastSyncedEp !== subJson.endpoint) {
+              const filtered = existingEndpoints.filter(s => s && s.endpoint && s.endpoint !== subJson.endpoint);
+              const merged = [...filtered, {
                 endpoint: subJson.endpoint,
                 keys: subJson.keys || {},
                 updatedAt: Date.now()
@@ -259,13 +279,19 @@
                 title: 'System Push Subscriptions',
                 subs: merged
               };
-              // Save subscription quietly in background without blocking UI or setting isSyncing
               fetch(GAS_WEB_APP_URL, {
                 method: 'POST',
                 redirect: 'follow',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                 body: JSON.stringify({ action: 'save', item: sysRecord, file: sysRecord })
-              }).catch(() => {});
+              })
+                .then(r => r.json())
+                .then(d => {
+                  if (d && (d.ok || d.status === 'success')) {
+                    try { localStorage.setItem('vet33_push_sub_synced_ep', subJson.endpoint); } catch (e) {}
+                  }
+                })
+                .catch(() => {});
             }
           }
         }
@@ -388,7 +414,7 @@
       }
 
       try {
-        let reg = await navigator.serviceWorker.register('./sw.js?v=38', {
+        let reg = await navigator.serviceWorker.register('./sw.js?v=39', {
           scope: './',
           updateViaCache: 'none'
         });
@@ -442,14 +468,10 @@
         saveAppState();
       }
       appState.knownFileIdsOnLoad.add(fileId);
-      try {
-        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-          navigator.serviceWorker.controller.postMessage({
-            type: 'INIT_SW',
-            notifiedIds: appState.notifiedPushFileIds
-          });
-        }
-      } catch (e) {}
+      postMessageToServiceWorker({
+        type: 'INIT_SW',
+        notifiedIds: appState.notifiedPushFileIds
+      });
     }
 
     // Show a real notification in the phone's system status bar (Android & iOS / Desktop)
@@ -458,11 +480,16 @@
         return false;
       }
 
+      const notifTag = file && file.id ? `vet33-file-${file.id}` : `vet33-test-${Date.now()}`;
       const notifOptions = {
         body: body,
         dir: 'rtl',
         lang: 'ar',
-        tag: file ? `vet33-file-${file.id}` : `vet33-test-${Date.now()}`,
+        icon: './assets/icons/icon-192.png',
+        badge: './assets/icons/favicon.png',
+        tag: notifTag,
+        renotify: true,
+        requireInteraction: true,
         vibrate: [300, 100, 300, 100, 400],
         data: file ? {
           fileId: file.id,
@@ -540,17 +567,23 @@
         return;
       }
       if (!('Notification' in window)) {
-        showToast('متصفحك الحالي لا يدعم إشعارات الهاتف الخارجية (افتح الرابط في متصفح Chrome أو أضف الموقع للشاشة الرئيسية).', 'warning');
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent || '');
+        if (isIOS) {
+          showToast('على أجهزة iPhone: لتفعيل الإشعارات اضغط على زر المشاركة (Share) في Safari ثم اختر "إضافة إلى الصفحة الرئيسية / Add to Home Screen" وافتح التطبيق منها.', 'warning');
+        } else {
+          showToast('متصفحك الحالي لا يدعم إشعارات الهاتف الخارجية (افتح الرابط في متصفح Chrome أو أضف الموقع للشاشة الرئيسية).', 'warning');
+        }
         return;
       }
       try {
         // MUST be called first synchronously inside user tap on mobile browsers
         const perm = await Notification.requestPermission();
         startMobileBackgroundKeepAlive();
-        await registerBackgroundServiceWorker();
+        const reg = await registerBackgroundServiceWorker();
         syncBrowserNotifButton();
 
         if (perm === 'granted') {
+          await subscribeAndSaveWebPush(reg, true);
           const pendingFiles = (appState.files || []).filter(f => f && f.id && !appState.notifiedPushFileIds.includes(f.id));
           let pushedAny = false;
           if (pendingFiles.length > 0) {
@@ -1144,14 +1177,10 @@
               sendUserNotificationForFile(nf, false);
             });
           } else if (isFirstRemoteSync && appState.notifiedPushFileIds.length > 0) {
-            try {
-              if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-                navigator.serviceWorker.controller.postMessage({
-                  type: 'INIT_SW',
-                  notifiedIds: appState.notifiedPushFileIds
-                });
-              }
-            } catch (e) {}
+            postMessageToServiceWorker({
+              type: 'INIT_SW',
+              notifiedIds: appState.notifiedPushFileIds
+            });
           }
 
           // Issue #3 Fix: Only re-render DOM & icons when data has actually changed or user clicked manual sync
@@ -3641,6 +3670,7 @@
           size: `${extUpper} • ${sizeKb}`,
           date: nowStdDate,
           dateAdded: nowStdDate,
+          driveModifiedTime: Date.now(),
           downloads: 0,
           downloadsCount: 0,
           viewsCount: 0,

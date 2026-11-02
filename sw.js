@@ -1,7 +1,7 @@
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbxjlsN__9eXZvIuGLMJW0rCcpCiggFIdzdatlVXKuAy-34wGQN4b0k2iNSkP1SBI8S54A/exec';
 const DB_NAME = 'vet33_bg_sw_db_v10';
 const STORE_NAME = 'state';
-const CACHE_NAME = 'vet33-pwa-cache-v38';
+const CACHE_NAME = 'vet33-pwa-cache-v39';
 const APP_SHELL = [
   './',
   './index.html',
@@ -139,15 +139,17 @@ async function mergeSwNotifiedIds(newIds) {
 }
 
 async function showSwNotificationSafe(title, options) {
+  const safeTag = (options && options.tag) ? String(options.tag) : ('vet33-notif-' + Date.now());
   const fullOptions = Object.assign({
     dir: 'rtl',
     lang: 'ar',
-    icon: ICON_SVG,
-    badge: ICON_SVG,
+    icon: './assets/icons/icon-192.png',
+    badge: './assets/icons/favicon.png',
+    tag: safeTag,
     renotify: true,
     requireInteraction: true,
     vibrate: [300, 100, 300, 100, 400]
-  }, options || {});
+  }, options || {}, { tag: safeTag });
   try {
     await self.registration.showNotification(title, fullOptions);
     return true;
@@ -157,7 +159,8 @@ async function showSwNotificationSafe(title, options) {
         body: fullOptions.body || '',
         dir: 'rtl',
         lang: 'ar',
-        tag: fullOptions.tag || ('vet33-' + Date.now()),
+        icon: './assets/icons/icon-192.png',
+        tag: safeTag,
         data: fullOptions.data || {}
       });
       return true;
@@ -213,7 +216,9 @@ async function checkDriveInBackground(isFromPushWakeup = false) {
     let notifiedIds = await getSwNotifiedIds();
 
     if (!notifiedIds) {
-      if (isFromPushWakeup && remoteFiles.length > 0) {
+      const newestFile = remoteFiles[0];
+      const isNewestVeryRecent = newestFile && newestFile.driveModifiedTime && (Date.now() - Number(newestFile.driveModifiedTime) < 15 * 60 * 1000);
+      if ((isFromPushWakeup || isNewestVeryRecent) && remoteFiles.length > 0) {
         notifiedIds = remoteFiles.slice(1).map(f => f.id);
       } else {
         await setSwNotifiedIds(remoteFiles.map(f => f.id));
