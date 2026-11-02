@@ -231,21 +231,20 @@ function doPost(e) {
         });
       }
 
-      // إضافة أو تعديل ملف دراسي ورفعه/تحديثه في مجلد Google Drive المخصص
+      // إضافة أو تعديل ملف دراسي ورفعه/تحديثه في مجلد Google Drive المخصص بشكل فوري وسريع
       const uploadObj = payload.fileUpload || (payload.base64 ? {
         base64: payload.base64,
         fileName: payload.fileName || payload.name || 'file.pdf',
         mimeType: payload.mimeType || payload.type || 'application/pdf'
       } : null);
-      const savedFile = handleSaveStudyFileFromSite(incomingItem, uploadObj);
-      const syncResult = syncDriveWithDatabase();
+      const saveResult = handleSaveStudyFileFromSite(incomingItem, uploadObj);
       try { PropertiesService.getScriptProperties().setProperty('LAST_DRIVE_SCAN_MS', String(Date.now())); } catch (e) {}
       return jsonResponse({
         ok: true,
         status: 'success',
-        file: savedFile,
-        files: syncResult.files,
-        folders: syncResult.folders
+        file: saveResult.file,
+        files: saveResult.files,
+        folders: saveResult.folders
       });
     }
 
@@ -258,15 +257,14 @@ function doPost(e) {
           error: 'غير مصرح بحذف الملفات إلا لمسؤولي الدفعة'
         });
       }
-      const deletedInfo = handleDeleteStudyFileFromSite(payload);
-      const syncResult = syncDriveWithDatabase();
+      const deleteResult = handleDeleteStudyFileFromSite(payload);
       try { PropertiesService.getScriptProperties().setProperty('LAST_DRIVE_SCAN_MS', String(Date.now())); } catch (e) {}
       return jsonResponse({
         ok: true,
         status: 'success',
-        deleted: deletedInfo,
-        files: syncResult.files,
-        folders: syncResult.folders
+        deleted: deleteResult.deleted,
+        files: deleteResult.files,
+        folders: deleteResult.folders
       });
     }
 
@@ -676,14 +674,35 @@ function handleSaveStudyFileFromSite(item, fileUpload) {
     existingFiles.unshift(finalRecord);
   }
 
+  const existingFolders = Array.isArray(dbState.folders) ? dbState.folders : [];
+  if (targetTopicFolder) {
+    const tFolderId = targetTopicFolder.getId();
+    const hasFolder = existingFolders.some(fl => fl && (fl.id === tFolderId || (fl.subject === subConfig.id && fl.category === categoryName && Number(fl.folderNum) === folderNum)));
+    if (!hasFolder) {
+      const unitSingular = categoryName === 'محاضرات' ? 'محاضرة' : 'سكشن';
+      existingFolders.push({
+        id: tFolderId,
+        subject: subConfig.id,
+        category: categoryName,
+        folderNum: folderNum,
+        name: unitSingular + ' ' + folderNum
+      });
+      existingFolders.sort((a, b) => (Number(a.folderNum) || 0) - (Number(b.folderNum) || 0));
+    }
+  }
+
   writeDatabaseState(rootFolder, {
     ok: true,
     updatedAt: new Date().toISOString(),
     files: existingFiles,
-    folders: dbState.folders || []
+    folders: existingFolders
   });
 
-  return finalRecord;
+  return {
+    file: finalRecord,
+    files: existingFiles,
+    folders: existingFolders
+  };
 }
 
 /**
@@ -753,17 +772,27 @@ function handleDeleteStudyFileFromSite(payload) {
     }
   }
 
+  const existingFolders = Array.isArray(dbState.folders) ? dbState.folders : [];
+  const remainingFolders = existingFolders.filter(fl => {
+    if (!fl) return false;
+    return remainingFiles.some(rf => rf && !rf.isSystemMeta && rf.subject === fl.subject && rf.category === fl.category && Number(rf.folderNum) === Number(fl.folderNum));
+  });
+
   writeDatabaseState(rootFolder, {
     ok: true,
     updatedAt: new Date().toISOString(),
     files: remainingFiles,
-    folders: dbState.folders || []
+    folders: remainingFolders
   });
 
   return {
-    id: targetId,
-    driveFileId: driveIdToTrash,
-    trashedInDrive: trashedInDrive
+    deleted: {
+      id: targetId,
+      driveFileId: driveIdToTrash,
+      trashedInDrive: trashedInDrive
+    },
+    files: remainingFiles,
+    folders: remainingFolders
   };
 }
 
@@ -1053,7 +1082,25 @@ function saveSystemMetaRecord(sysItem) {
   const rootFolder = getRootFolder();
   const dbState = readDatabaseState(rootFolder);
   const files = Array.isArray(dbState.files) ? dbState.files : [];
+  const prevRec = files.find(f => f && f.id === sysItem.id);
   const filtered = files.filter(f => f && f.id !== sysItem.id);
+
+  if (sysItem.id === CONFIG.SYS_PUSH_SUBS_ID) {
+    const prevSubs = (prevRec && Array.isArray(prevRec.subs)) ? prevRec.subs : [];
+    const incomingSubs = Array.isArray(sysItem.subs) ? sysItem.subs : [];
+    const byEndpoint = {};
+    prevSubs.concat(incomingSubs).forEach(s => {
+      if (s && s.endpoint && typeof s.endpoint === 'string') {
+        byEndpoint[s.endpoint] = {
+          endpoint: s.endpoint,
+          keys: s.keys || (byEndpoint[s.endpoint] && byEndpoint[s.endpoint].keys) || {},
+          updatedAt: s.updatedAt || Date.now()
+        };
+      }
+    });
+    sysItem.subs = Object.keys(byEndpoint).map(k => byEndpoint[k]).slice(-500);
+  }
+
   sysItem.isSystemMeta = true;
   filtered.push(sysItem);
   const newState = {
@@ -1193,23 +1240,48 @@ function handlePushWakeup(targets) {
     if (!t || !t.endpoint) return;
     try {
       const signedHdrs = (!t.authorization && !t.webPushAuth) ? createServerVapidHeaders(t.endpoint) : null;
-      const authHeader = t.authorization || t.webPushAuth || (signedHdrs ? signedHdrs.vapid : '');
-      const headers = {
-        'TTL': '86400',
-        'Urgency': 'high',
-        'Authorization': authHeader
-      };
+      const vapidAuth = t.authorization || (signedHdrs ? signedHdrs.vapid : '');
+      const webPushAuth = t.webPushAuth || (signedHdrs ? signedHdrs.webPush : '');
       const cryptoKey = t.cryptoKey || (signedHdrs ? signedHdrs.cryptoKey : '');
-      if (cryptoKey && !t.authorization && !(signedHdrs && signedHdrs.vapid)) {
-        headers['Crypto-Key'] = cryptoKey;
+
+      // المحاولة 1: معيار VAPID الحديث (RFC 8292)
+      const headers1 = {
+        'TTL': '86400',
+        'Urgency': 'high'
+      };
+      if (vapidAuth) {
+        headers1['Authorization'] = vapidAuth;
+      } else if (webPushAuth) {
+        headers1['Authorization'] = webPushAuth;
+        if (cryptoKey) headers1['Crypto-Key'] = cryptoKey;
       }
-      const res = UrlFetchApp.fetch(t.endpoint, {
+
+      let res = UrlFetchApp.fetch(t.endpoint, {
         method: 'post',
-        headers: headers,
-        payload: '',
+        contentType: 'application/octet-stream',
+        headers: headers1,
+        payload: Utilities.newBlob([]).getBytes(),
         muteHttpExceptions: true
       });
-      const code = res.getResponseCode();
+      let code = res.getResponseCode();
+
+      // المحاولة 2 (احتياطية لنقاط نهاية Chrome FCM /fcm/send/ التي تتطلب WebPush + Crypto-Key)
+      if ((code < 200 || code >= 300) && code !== 404 && code !== 410 && webPushAuth && cryptoKey) {
+        res = UrlFetchApp.fetch(t.endpoint, {
+          method: 'post',
+          contentType: 'application/octet-stream',
+          headers: {
+            'TTL': '86400',
+            'Urgency': 'high',
+            'Authorization': webPushAuth,
+            'Crypto-Key': cryptoKey
+          },
+          payload: Utilities.newBlob([]).getBytes(),
+          muteHttpExceptions: true
+        });
+        code = res.getResponseCode();
+      }
+
       if (code >= 200 && code < 300) {
         successCount++;
       } else if (code === 404 || code === 410) {

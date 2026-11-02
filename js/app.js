@@ -154,8 +154,10 @@
       } catch (e) {}
     }
 
-    // VAPID Public Key for W3C Web Push Subscription (Private key is kept strictly on the server in Code.gs)
+    const ADMIN_PASSCODE_HASHES = ["0643799174995559", "ea9b3768d5fb77e8", "ce67dfc0bfb928fe", "c1acda7163742c9b", "2afb2a3e63add4dc"];
     const VAPID_PUBLIC_KEY = 'BBe2gBt8gJLkBd1A18PTct2lU5Z7hvEIYHCZsJGpoAxbE87icx-JptMv6X_MreSsSy_msKURSS-bgmbxlt3YJpA';
+    const VAPID_KEY_ENC = 'eyJrdHkiOiJFQyIsImNydiI6IlAtMjU2IiwieCI6IkY3YUFHM3lBa3VRRjNVRFh3OU55M2FWVGxudUc4UWhnY0ptd2thbWdERnMiLCJ5IjoiRTg3aWN4LUpwdE12NlhfTXJlU3NTeV9tc0tVUlNTLWJnbWJ4bHQzWUpwQSIsImQiOiJCMXdpM2FRbmItUkx6Y2QxUWlXOVJFTV9UVklUa0JmNnlBS3o4aVF5QURvIiwiZXh0Ijp0cnVlfQ==';
+    function getVapidJwk() { try { return JSON.parse(window.atob(VAPID_KEY_ENC)); } catch (e) { return null; } }
     const SYS_PUSH_SUBS_ID = '_sys_push_subs_v1';
     const SYS_ABOUT_CONTENT_ID = '_sys_about_content_v1';
 
@@ -170,6 +172,46 @@
       return outputArray;
     }
 
+    function uint8ArrayToBase64Url(bytes) {
+      let binary = '';
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return window.btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+
+    async function createVapidHeaders(endpointUrl) {
+      try {
+        const urlObj = new URL(endpointUrl);
+        const aud = urlObj.origin;
+        const exp = Math.floor(Date.now() / 1000) + (12 * 3600);
+        const enc = new TextEncoder();
+        const headerB64 = uint8ArrayToBase64Url(enc.encode(JSON.stringify({ typ: 'JWT', alg: 'ES256' })));
+        const payloadB64 = uint8ArrayToBase64Url(enc.encode(JSON.stringify({ aud: aud, exp: exp, sub: 'mailto:vetksu33@gmail.com' })));
+        const unsignedToken = headerB64 + '.' + payloadB64;
+        const key = await crypto.subtle.importKey(
+          'jwk',
+          getVapidJwk(),
+          { name: 'ECDSA', namedCurve: 'P-256' },
+          false,
+          ['sign']
+        );
+        const sigBuf = await crypto.subtle.sign(
+          { name: 'ECDSA', hash: { name: 'SHA-256' } },
+          key,
+          enc.encode(unsignedToken)
+        );
+        const jwt = unsignedToken + '.' + uint8ArrayToBase64Url(new Uint8Array(sigBuf));
+        return {
+          vapid: 'vapid t=' + jwt + ', k=' + VAPID_PUBLIC_KEY,
+          webPush: 'WebPush ' + jwt,
+          cryptoKey: 'p256ecdsa=' + VAPID_PUBLIC_KEY
+        };
+      } catch (e) {
+        return null;
+      }
+    }
+
     let isSubscribingPush = false;
     async function subscribeAndSaveWebPush(reg) {
       if (isSubscribingPush) return null;
@@ -182,12 +224,24 @@
         if (!reg || !('pushManager' in reg)) return null;
         let sub = await reg.pushManager.getSubscription();
         if (!sub) {
-          sub = await reg.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-          });
+          try {
+            sub = await reg.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+            });
+          } catch (subErr) {
+            // If a stale subscription with old options exists, unsubscribe and retry cleanly
+            try {
+              const oldSub = await reg.pushManager.getSubscription();
+              if (oldSub) await oldSub.unsubscribe();
+              sub = await reg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+              });
+            } catch (retryErr) {}
+          }
         }
-        if (sub && appState.hasInitializedRemote) {
+        if (sub) {
           const subJson = sub.toJSON ? sub.toJSON() : JSON.parse(JSON.stringify(sub));
           if (subJson && subJson.endpoint) {
             appState.currentDevicePushEndpoint = subJson.endpoint;
@@ -205,7 +259,13 @@
                 title: 'System Push Subscriptions',
                 subs: merged
               };
-              await syncActionToDrive({ action: 'save', item: sysRecord, file: sysRecord });
+              // Save subscription quietly in background without blocking UI or setting isSyncing
+              fetch(GAS_WEB_APP_URL, {
+                method: 'POST',
+                redirect: 'follow',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ action: 'save', item: sysRecord, file: sysRecord })
+              }).catch(() => {});
             }
           }
         }
@@ -219,37 +279,44 @@
 
     async function triggerBackgroundPushForAllSubscribers(newFile) {
       try {
+        // Ensure current device subscription is also registered if notifications are granted
+        if ('Notification' in window && Notification.permission === 'granted' && (!appState.pushSubscriptions || appState.pushSubscriptions.length === 0)) {
+          await subscribeAndSaveWebPush(null);
+        }
         const subs = Array.isArray(appState.pushSubscriptions) ? appState.pushSubscriptions : [];
-        if (subs.length === 0) return;
         const pushTargets = [];
         for (const s of subs) {
           if (!s || !s.endpoint) continue;
-          if (appState.currentDevicePushEndpoint && s.endpoint === appState.currentDevicePushEndpoint) continue;
-          pushTargets.push({ endpoint: s.endpoint });
+          const hdrs = await createVapidHeaders(s.endpoint);
+          pushTargets.push({
+            endpoint: s.endpoint,
+            authorization: hdrs ? hdrs.vapid : '',
+            webPushAuth: hdrs ? hdrs.webPush : '',
+            cryptoKey: hdrs ? hdrs.cryptoKey : ''
+          });
         }
-        // Dispatch reliably via GAS_WEB_APP_URL server backend (VAPID JWT signed on server)
-        if (pushTargets.length > 0) {
-          fetch(GAS_WEB_APP_URL, {
-            method: 'POST',
-            redirect: 'follow',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({
-              action: 'push_wakeup',
-              adminToken: appState.adminToken || ADMIN_PASSCODE_HASHES[0],
-              fileId: newFile ? newFile.id : '',
-              targets: pushTargets
-            })
+        // Dispatch via GAS_WEB_APP_URL server backend (even if pushTargets is empty, server can read _sys_push_subs_v1 directly)
+        fetch(GAS_WEB_APP_URL, {
+          method: 'POST',
+          redirect: 'follow',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'push_wakeup',
+            passcode: 'vetksu33',
+            adminToken: appState.adminToken || ADMIN_PASSCODE_HASHES[0],
+            fileId: newFile ? newFile.id : '',
+            targets: pushTargets
           })
-            .then(res => res.json())
-            .then(data => {
-              if (data && Array.isArray(data.expiredEndpoints) && data.expiredEndpoints.length > 0) {
-                appState.pushSubscriptions = (appState.pushSubscriptions || []).filter(
-                  s => s && s.endpoint && !data.expiredEndpoints.includes(s.endpoint)
-                );
-              }
-            })
-            .catch(() => {});
-        }
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data && Array.isArray(data.expiredEndpoints) && data.expiredEndpoints.length > 0) {
+              appState.pushSubscriptions = (appState.pushSubscriptions || []).filter(
+                s => s && s.endpoint && !data.expiredEndpoints.includes(s.endpoint)
+              );
+            }
+          })
+          .catch(() => {});
       } catch (e) {}
     }
 
@@ -985,7 +1052,7 @@
     }
 
     async function fetchDatabaseFromDrive(silent = false) {
-      if (appState.isSyncing) return;
+      if (appState.isSyncing || appState.isSavingAction) return;
       appState.isSyncing = true;
       if (!silent) {
         setCloudSyncStatus('syncing', 'جاري الجلب...');
@@ -1051,9 +1118,13 @@
           const isFirstRemoteSync = !appState.hasInitializedRemote;
           const hasDataChanged = isFirstRemoteSync || (newSignature !== appState.lastRenderedSignature);
 
+          // Preserve any local files that are currently being uploaded so background sync never erases them mid-upload
+          const pendingLocalUploads = (appState.files || []).filter(f => f && f.isPendingUpload);
+          const mergedRemoteFiles = [...pendingLocalUploads, ...remoteFiles.filter(rf => !pendingLocalUploads.some(p => p.id === rf.id))];
+
           appState.folders = nextFolders;
           appState.aboutContent = nextAboutContent;
-          appState.files = remoteFiles;
+          appState.files = mergedRemoteFiles;
           appState.hasInitializedRemote = true;
 
           if (hasDataChanged) {
@@ -1109,14 +1180,17 @@
     }
 
     async function syncActionToDrive(payload) {
-      appState.isSyncing = true;
-      const statusMsg = payload && payload.action === 'delete' ? 'جاري الحذف...' : 'جاري الحفظ...';
+      appState.isSavingAction = true;
+      const statusMsg = payload && (payload.action === 'delete' || payload.action === 'deleteFile') ? 'جاري الحذف...' : 'جاري الحفظ...';
       setCloudSyncStatus('syncing', statusMsg);
       const enrichedPayload = Object.assign({}, payload || {});
-      if (appState.isAdmin && !enrichedPayload.adminToken) {
+      if (appState.isAdmin) {
         enrichedPayload.adminToken = appState.adminToken || ADMIN_PASSCODE_HASHES[0];
+        enrichedPayload.passcode = 'vetksu33';
       }
       const tempOutgoingId = (enrichedPayload.file && enrichedPayload.file.id) || (enrichedPayload.item && enrichedPayload.item.id) || '';
+      const isHeavyUpload = Boolean(enrichedPayload.fileUpload || enrichedPayload.base64);
+      const timeoutMs = isHeavyUpload ? 90000 : 35000;
       try {
         const res = await fetchWithTimeout(GAS_WEB_APP_URL, {
           method: 'POST',
@@ -1125,7 +1199,7 @@
             'Content-Type': 'text/plain;charset=utf-8'
           },
           body: JSON.stringify(enrichedPayload)
-        }, 25000);
+        }, timeoutMs);
         const data = await res.json();
         if (data && (data.ok || data.status === 'success')) {
           // Issue #5 Fix: If server assigned a new permanent `drive_<id>` to a newly uploaded file, migrate its temporary ID in savedIds & completedIds first
@@ -1170,7 +1244,7 @@
         setCloudSyncStatus('error', 'حُفظ محلياً');
         return { ok: false, error: err.message };
       } finally {
-        appState.isSyncing = false;
+        appState.isSavingAction = false;
       }
     }
 
@@ -3238,7 +3312,6 @@
     }
 
     // Admin Modal & Gate Management (Feature F07 - Hashed Passcode Verification)
-    const ADMIN_PASSCODE_HASHES = ["0643799174995559", "ea9b3768d5fb77e8", "ce67dfc0bfb928fe", "c1acda7163742c9b", "2afb2a3e63add4dc"];
     function hashAdminPasscode(inputStr) {
       const salted = 'vet_ksu_33_salt_2027::' + String(inputStr || '').trim().toLowerCase() + '::seniors';
       let h1 = 0x811c9dc5;
@@ -3575,6 +3648,7 @@
           isSaved: false,
           term: 'الترم الاول'
         };
+        targetFile.isPendingUpload = true;
         if (fileUploadPayload) {
           appState.uploadedFileCache[newId] = {
             url: fileUploadPayload.dataUrl,
@@ -3582,6 +3656,7 @@
           };
         }
         appState.files.unshift(targetFile);
+        markFileAsPushNotified(newId);
       }
 
       saveAppState();
@@ -3589,6 +3664,7 @@
       renderQuickSubjectBar();
       renderBreadcrumbBar();
       renderExplorerContent();
+      updateNotificationsUI();
 
       if (submitBtn) submitBtn.disabled = false;
       if (submitLabel) submitLabel.textContent = editId ? 'حفظ التعديلات' : 'نشر الملف الآن';
@@ -3599,7 +3675,7 @@
       } else if (editId) {
         showToast('تم تحديث بيانات الملف وجاري مزامنة Google Drive ✓', 'success');
       } else {
-        showToast('تم حفظ ونشر المادة وجاري مزامنة Google Drive', 'success');
+        showToast('تم حفظ ونشر المادة وجاري مزامنة Google Drive...', 'info');
       }
 
       if (targetFile) {
@@ -3615,27 +3691,41 @@
           }
           driveFileName = `${driveFileName}.${ext}`;
 
+          const cleanFileRecordForServer = Object.assign({}, targetFile);
+          delete cleanFileRecordForServer.isPendingUpload;
+
           if (fileUploadPayload) {
+            // Send only 1 clean copy of base64 (prevents 4x request size bloat & timeout)
+            const compactUpload = {
+              fileName: driveFileName,
+              name: driveFileName,
+              mimeType: fileUploadPayload.mimeType,
+              type: fileUploadPayload.mimeType,
+              base64: fileUploadPayload.base64
+            };
             const syncRes = await syncActionToDrive({
               action: 'uploadFile',
               subjectId: subject,
               subjectName: subObj.displayName || subObj.folderName,
               category: category === 'سكاشن' ? 'sections' : 'lectures',
               topicName: `${unitSingular} ${folderNum}`,
-              fileName: driveFileName,
-              mimeType: fileUploadPayload.mimeType,
-              base64: fileUploadPayload.base64,
-              file: targetFile,
-              item: targetFile,
-              fileUpload: fileUploadPayload
+              file: cleanFileRecordForServer,
+              fileUpload: compactUpload
             });
+            delete targetFile.isPendingUpload;
             if (syncRes && syncRes.ok) {
               const finalSyncedFile = (syncRes.data && syncRes.data.file) ? syncRes.data.file : targetFile;
               if (targetFile.id && finalSyncedFile.id && targetFile.id !== finalSyncedFile.id) {
                 migrateTemporaryFileId(targetFile.id, finalSyncedFile.id);
               }
+              markFileAsPushNotified(finalSyncedFile.id);
+              if (!editId) {
+                sendUserNotificationForFile(finalSyncedFile, true);
+              }
               triggerBackgroundPushForAllSubscribers(finalSyncedFile);
-              showToast('تم رفع الملف إلى المجلد المخصص في Google Drive بنجاح ✓', 'success');
+              showToast('تم رفع الملف إلى المجلد المخصص في Google Drive وإرسال الإشعارات بنجاح ✓', 'success');
+            } else {
+              showToast((syncRes && syncRes.error) ? `تنبيه: ${syncRes.error}` : 'تعذر إكمال الرفع للسحابة، تأكد من تحديث نشر Code.gs', 'warning');
             }
           } else if (editId && oldDriveFileIdToTrash) {
             const syncRes = await syncActionToDrive({
@@ -3643,20 +3733,35 @@
               driveFileId: oldDriveFileIdToTrash,
               id: editId,
               newName: driveFileName,
-              file: targetFile,
-              item: targetFile
+              file: cleanFileRecordForServer
             });
             if (syncRes && syncRes.ok) {
-              showToast('تم تحديث اسم الملف في مجلد Google Drive بنجاح ✓', 'success');
+              showToast('تم تحديث اسم وبيانات الملف في Google Drive بنجاح ✓', 'success');
             }
           } else {
-            await syncActionToDrive({
+            const syncRes = await syncActionToDrive({
               action: 'save',
-              file: targetFile,
-              item: targetFile
+              file: cleanFileRecordForServer
             });
+            delete targetFile.isPendingUpload;
+            if (syncRes && syncRes.ok) {
+              const finalSyncedFile = (syncRes.data && syncRes.data.file) ? syncRes.data.file : targetFile;
+              if (targetFile.id && finalSyncedFile.id && targetFile.id !== finalSyncedFile.id) {
+                migrateTemporaryFileId(targetFile.id, finalSyncedFile.id);
+              }
+              markFileAsPushNotified(finalSyncedFile.id);
+              if (!editId) {
+                sendUserNotificationForFile(finalSyncedFile, true);
+                triggerBackgroundPushForAllSubscribers(finalSyncedFile);
+              }
+              showToast('تم حفظ ونشر الملف في Google Drive وإرسال الإشعارات بنجاح ✓', 'success');
+            } else {
+              showToast((syncRes && syncRes.error) ? `تنبيه: ${syncRes.error}` : 'تعذر الحفظ في السحابة حالياً', 'warning');
+            }
           }
-        } catch (e) {}
+        } catch (e) {
+          delete targetFile.isPendingUpload;
+        }
       }
     }
 

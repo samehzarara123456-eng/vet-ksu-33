@@ -169,22 +169,42 @@ async function showSwNotificationSafe(title, options) {
 
 let isCheckingDrive = false;
 let lastSwCheckMs = 0;
-const SW_CHECK_COOLDOWN_MS = 60000; // Minimum 60s cooldown between background checks to protect GAS quotas
+const SW_CHECK_COOLDOWN_MS = 25000; // 25s cooldown for routine background checks
 
-async function checkDriveInBackground(forceNotifyLatestIfUnseeded = false) {
-  if (isCheckingDrive) return;
+async function notifyForStudyFileSw(file) {
+  if (!file) return false;
+  const subName = SUBJECT_NAMES[file.subject] || file.subject || 'المقررات';
+  const unitName = file.category === 'محاضرات' ? 'محاضرة' : 'سكشن';
+  const pubDate = file.dateAdded || 'الآن';
+  const cleanTitle = String(file.title || '').replace(/^(المصدر|شرح|تلخيص|خريطه ذهنية|خريطة ذهنية)\s*[:\-]\s*/i, '');
+  const title = '🔔 تم نشر (' + (file.format || 'ملف') + ') جديد — ' + subName;
+  const body = cleanTitle + NL + 'المسار: ' + subName + ' > ' + file.category + ' > ' + unitName + ' ' + file.folderNum + NL + 'تاريخ النشر: ' + pubDate;
+  return await showSwNotificationSafe(title, {
+    body: body,
+    tag: 'vet33-file-' + file.id,
+    data: {
+      fileId: file.id,
+      subject: file.subject,
+      category: file.category,
+      folderNum: file.folderNum
+    }
+  });
+}
+
+async function checkDriveInBackground(isFromPushWakeup = false) {
   const now = Date.now();
-  if (!forceNotifyLatestIfUnseeded && (now - lastSwCheckMs < SW_CHECK_COOLDOWN_MS)) {
-    return;
+  if (!isFromPushWakeup) {
+    if (isCheckingDrive) return;
+    if (now - lastSwCheckMs < SW_CHECK_COOLDOWN_MS) return;
   }
   isCheckingDrive = true;
   lastSwCheckMs = now;
   try {
-    const res = await fetchSwWithTimeout(GAS_URL + '?force=' + (forceNotifyLatestIfUnseeded ? 'true' : 'false') + '&t=' + Date.now(), {
+    const res = await fetchSwWithTimeout(GAS_URL + '?force=false&t=' + Date.now(), {
       method: 'GET',
       redirect: 'follow',
       cache: 'no-store'
-    }, 12000);
+    }, 14000);
     const data = await res.json();
     const rawFiles = Array.isArray(data) ? data : (Array.isArray(data.files) ? data.files : null);
     if (!Array.isArray(rawFiles)) return;
@@ -193,7 +213,7 @@ async function checkDriveInBackground(forceNotifyLatestIfUnseeded = false) {
     let notifiedIds = await getSwNotifiedIds();
 
     if (!notifiedIds) {
-      if (forceNotifyLatestIfUnseeded && remoteFiles.length > 0) {
+      if (isFromPushWakeup && remoteFiles.length > 0) {
         notifiedIds = remoteFiles.slice(1).map(f => f.id);
       } else {
         await setSwNotifiedIds(remoteFiles.map(f => f.id));
@@ -207,27 +227,20 @@ async function checkDriveInBackground(forceNotifyLatestIfUnseeded = false) {
       await setSwNotifiedIds(updated);
 
       for (const file of newFiles.slice(0, 3).reverse()) {
-        const subName = SUBJECT_NAMES[file.subject] || file.subject || 'المقررات';
-        const unitName = file.category === 'محاضرات' ? 'محاضرة' : 'سكشن';
-        const pubDate = file.dateAdded || 'الآن';
-        const cleanTitle = String(file.title || '').replace(/^(المصدر|شرح|تلخيص|خريطه ذهنية|خريطة ذهنية)\s*[:\-]\s*/i, '');
-        const title = '🔔 تم نشر (' + (file.format || 'ملف') + ') جديد — ' + subName;
-        const body = cleanTitle + NL + 'المسار: ' + subName + ' > ' + file.category + ' > ' + unitName + ' ' + file.folderNum + NL + 'تاريخ النشر: ' + pubDate;
-        await showSwNotificationSafe(title, {
-          body: body,
-          tag: 'vet33-file-' + file.id,
-          data: {
-            fileId: file.id,
-            subject: file.subject,
-            category: file.category,
-            folderNum: file.folderNum
-          }
-        });
+        await notifyForStudyFileSw(file);
       }
 
       const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
       for (const client of clientsList) {
         client.postMessage({ type: 'SW_DETECTED_NEW_FILES', notifiedIds: updated });
+      }
+    } else if (isFromPushWakeup && remoteFiles.length > 0) {
+      // If woken up by a real Web Push event while app is closed/backgrounded and the latest file was already recorded on the same device,
+      // ensure userVisibleOnly push requirement is satisfied when no visible window is active
+      const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      const anyVisible = clientsList.some(c => c.visibilityState === 'visible');
+      if (!anyVisible) {
+        await notifyForStudyFileSw(remoteFiles[0]);
       }
     }
   } catch (err) {
