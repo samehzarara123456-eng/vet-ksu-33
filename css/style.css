@@ -864,21 +864,70 @@ img, video { max-width: 100%; height: auto; }
       font-family: 'Cairo', sans-serif;
     }
 
-    /* Quick Access Sidebar at Extreme Far Right (اقصى اليمين مع إمكانية الإظهار والإخفاء) */
+.min-h-0 { min-height: 0px !important; }
+.w-3 { width: 0.75rem; }
+.h-3 { height: 0.75rem; }
+.border-amber-400 { border-color: #fbbf24 !important; }
+.border-emerald-400 { border-color: #34d399 !important; }
+.border-emerald-500\/35 { border-color: rgba(16, 185, 129, 0.35) !important; }
+.border-amber-500\/45 { border-color: rgba(245, 158, 11, 0.45) !important; }
+.bg-slate-900\/80 { background-color: rgba(15, 23, 42, 0.8) !important; }
+.bg-slate-900\/85 { background-color: rgba(15, 23, 42, 0.85) !important; }
+.bg-slate-950\/20 { background-color: rgba(2, 6, 23, 0.2) !important; }
+.bg-white\/20 { background-color: rgba(255, 255, 255, 0.2) !important; }
+.bg-emerald-950\/35 { background-color: rgba(2, 44, 34, 0.35) !important; }
+.bg-slate-800\/70 { background-color: rgba(30, 41, 59, 0.7) !important; }
+.hover\:bg-emerald-900\/50:hover { background-color: rgba(6, 78, 59, 0.5) !important; }
+.p-0\.5 { padding: 0.125rem; }
+.pb-2\.5 { padding-bottom: 0.625rem; }
+.pt-2\.5 { padding-top: 0.625rem; }
+.z-\[140\] { z-index: 140; }
+.z-\[150\] { z-index: 150; }
+
+html, body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+#phone-notif-banner {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+#sidebar-backdrop {
+  z-index: 140 !important;
+}
+
+#preview-modal,
+#publish-modal,
+#admin-login-modal,
+#notifications-modal,
+#about-modal {
+  z-index: 160 !important;
+}
+
+/* Quick Access Sidebar at Extreme Far Right (اقصى اليمين مع إمكانية الإظهار والإخفاء) */
 #quick-access-sidebar {
   position: fixed !important;
   top: 0 !important;
   bottom: 0 !important;
   right: 0 !important;
   width: 20.5rem !important;
-  max-width: 88vw !important;
+  max-width: 86vw !important;
   height: 100vh !important;
+  height: 100dvh !important;
   max-height: 100vh !important;
-  z-index: 100 !important;
-  transform: translateX(100%);
-  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  max-height: 100dvh !important;
+  padding-top: max(0.875rem, env(safe-area-inset-top)) !important;
+  padding-bottom: max(0.875rem, env(safe-area-inset-bottom)) !important;
+  z-index: 150 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  transform: translateX(105%) !important;
+  transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1) !important;
   box-shadow: -12px 0 40px rgba(0, 0, 0, 0.88) !important;
-  background: rgba(5, 9, 20, 0.96) !important;
+  background: rgba(5, 9, 20, 0.98) !important;
   backdrop-filter: blur(24px) !important;
   -webkit-backdrop-filter: blur(24px) !important;
   border-left: 1px solid rgba(245, 158, 11, 0.35) !important;
@@ -892,7 +941,7 @@ img, video { max-width: 100%; height: auto; }
   transform: translateX(0) !important;
 }
 
-/* Floating Edge Tab docked to the extreme right edge of the screen */
+/* Floating Edge Tab docked to the extreme right edge of the screen on Desktop */
 #sidebar-edge-tab {
   position: fixed;
   right: 0;
@@ -908,9 +957,17 @@ img, video { max-width: 100%; height: auto; }
   transform: translateY(-50%) translateX(100%);
 }
 
+/* On mobile/tablet (< 1024px), hide the floating right-edge tab so it never covers subject titles ("الباطنة") or hero text, since #sidebar-toggle-btn ("الوصول السريع") is already pinned in the sticky navigation bar */
+@media (max-width: 1023px) {
+  #sidebar-edge-tab {
+    display: none !important;
+  }
+}
+
 .writing-mode-vertical {
   writing-mode: vertical-rl;
   text-orientation: mixed;
+  letter-spacing: 0 !important;
 }
 
 

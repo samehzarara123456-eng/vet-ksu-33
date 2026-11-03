@@ -90,8 +90,1980 @@
       }
     ];
 
+    const INITIAL_FILES_SNAPSHOT = [
+      {
+            "id": "file_1793610702359_56s2s82n1",
+            "title": "محاضرة 5 باطنه المصدر",
+            "subject": "batna",
+            "category": "محاضرات",
+            "folderNum": 5,
+            "format": "المصدر",
+            "adminFormat": "المصدر",
+            "doctor": "قسم طب الحيوان (باطنه)",
+            "externalUrl": "https://t.me/c/4313130172/26",
+            "fileUrl": "https://t.me/c/4313130172/26",
+            "driveUrl": "https://t.me/c/4313130172/26",
+            "description": "ملف (المصدر) خاص بـ المحاضرة رقم (5) في مقرر الأمراض الباطنة الإكلينيكية (Internal Medicine).",
+            "keypoints": [
+                  "المصدر معتمد لـ المحاضرة رقم (5)"
+            ],
+            "clinicalNote": "",
+            "pages": null,
+            "size": "PDF • جديد",
+            "date": "2026/11/02",
+            "dateAdded": "2026/11/02",
+            "driveModifiedTime": 1793610704955,
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "isCompleted": false,
+            "isSaved": false,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1arTB0ufyAY2K7u9-0jkDvH6u8koh-gaf",
+            "title": "محاضرة 5 باطنة تفريغ",
+            "subject": "batna",
+            "category": "محاضرات",
+            "folderNum": 5,
+            "format": "المصدر",
+            "adminFormat": "المصدر",
+            "doctor": "قسم طب الحيوان (باطنه)",
+            "externalUrl": "https://drive.google.com/file/d/1arTB0ufyAY2K7u9-0jkDvH6u8koh-gaf/view",
+            "fileUrl": "https://drive.google.com/file/d/1arTB0ufyAY2K7u9-0jkDvH6u8koh-gaf/view",
+            "driveUrl": "https://drive.google.com/file/d/1arTB0ufyAY2K7u9-0jkDvH6u8koh-gaf/view",
+            "description": "ملف (المصدر) خاص بـ المحاضرة رقم (5) في مقرر الأمراض الباطنة الإكلينيكية (Internal Medicine).",
+            "keypoints": [
+                  "المصدر معتمد لـ المحاضرة رقم (5)"
+            ],
+            "clinicalNote": "",
+            "pages": null,
+            "size": "PDF • 785.5 KB",
+            "date": "2026/11/02",
+            "dateAdded": "2026/11/02",
+            "driveModifiedTime": 1793610394084,
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "isCompleted": false,
+            "isSaved": false,
+            "term": "الترم الاول",
+            "driveFileId": "1arTB0ufyAY2K7u9-0jkDvH6u8koh-gaf",
+            "originalFileName": "محاضرة 5 باطنة تفريغ.pdf",
+            "driveObservedName": "محاضرة 5 باطنة تفريغ.pdf",
+            "previewUrl": "https://drive.google.com/file/d/1arTB0ufyAY2K7u9-0jkDvH6u8koh-gaf/preview",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1arTB0ufyAY2K7u9-0jkDvH6u8koh-gaf"
+      },
+      {
+            "id": "drive_1NlGzNUCxkVehgb1u4dJQnRpsSYjWQJoQ",
+            "title": "محاضة 4 باطنة تفريغ",
+            "subject": "batna",
+            "category": "محاضرات",
+            "folderNum": 4,
+            "format": "المصدر",
+            "adminFormat": "المصدر",
+            "doctor": "قسم طب الحيوان (باطنه)",
+            "externalUrl": "https://drive.google.com/file/d/1NlGzNUCxkVehgb1u4dJQnRpsSYjWQJoQ/view",
+            "fileUrl": "https://drive.google.com/file/d/1NlGzNUCxkVehgb1u4dJQnRpsSYjWQJoQ/view",
+            "driveUrl": "https://drive.google.com/file/d/1NlGzNUCxkVehgb1u4dJQnRpsSYjWQJoQ/view",
+            "description": "ملف (المصدر) خاص بـ المحاضرة رقم (4) في مقرر الأمراض الباطنة الإكلينيكية (Internal Medicine).",
+            "keypoints": [
+                  "المصدر معتمد لـ المحاضرة رقم (4)"
+            ],
+            "clinicalNote": "",
+            "pages": null,
+            "size": "PDF • 732 KB",
+            "date": "2026/11/02",
+            "dateAdded": "2026/11/02",
+            "driveModifiedTime": 1793610325919,
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "isCompleted": false,
+            "isSaved": false,
+            "term": "الترم الاول",
+            "driveFileId": "1NlGzNUCxkVehgb1u4dJQnRpsSYjWQJoQ",
+            "originalFileName": "محاضة 4 باطنة تفريغ.pdf",
+            "driveObservedName": "محاضة 4 باطنة تفريغ.pdf",
+            "previewUrl": "https://drive.google.com/file/d/1NlGzNUCxkVehgb1u4dJQnRpsSYjWQJoQ/preview",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1NlGzNUCxkVehgb1u4dJQnRpsSYjWQJoQ"
+      },
+      {
+            "id": "file_1793609428381_pp8jjmlz0",
+            "title": "محاضرة 4 باطنه المصدر",
+            "subject": "batna",
+            "category": "محاضرات",
+            "folderNum": 4,
+            "format": "المصدر",
+            "adminFormat": "المصدر",
+            "doctor": "قسم طب الحيوان (باطنه)",
+            "externalUrl": "https://t.me/c/4313130172/22",
+            "fileUrl": "https://t.me/c/4313130172/22",
+            "driveUrl": "https://t.me/c/4313130172/22",
+            "description": "ملف (المصدر) خاص بـ المحاضرة رقم (4) في مقرر الأمراض الباطنة الإكلينيكية (Internal Medicine).",
+            "keypoints": [
+                  "المصدر معتمد لـ المحاضرة رقم (4)"
+            ],
+            "clinicalNote": "",
+            "pages": null,
+            "size": "PDF • جديد",
+            "date": "2026/11/02",
+            "dateAdded": "2026/11/02",
+            "driveModifiedTime": 1793609432199,
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "isCompleted": false,
+            "isSaved": false,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1EKcknahbR9hZfP8222ONKxaHIV2iPS0_",
+            "driveFileId": "1EKcknahbR9hZfP8222ONKxaHIV2iPS0_",
+            "title": "محاضرة 1 صحة تلخيص",
+            "originalFileName": "محاضرة 1 صحة تلخيص.pdf",
+            "driveObservedName": "محاضرة 1 صحة تلخيص.pdf",
+            "driveModifiedTime": 1793531770076,
+            "subject": "seha",
+            "category": "محاضرات",
+            "folderNum": 1,
+            "format": "تلخيص",
+            "doctor": "قسم الصحة والطب الوقائي",
+            "externalUrl": "https://drive.google.com/file/d/1EKcknahbR9hZfP8222ONKxaHIV2iPS0_/view",
+            "fileUrl": "https://drive.google.com/file/d/1EKcknahbR9hZfP8222ONKxaHIV2iPS0_/view",
+            "driveUrl": "https://drive.google.com/file/d/1EKcknahbR9hZfP8222ONKxaHIV2iPS0_/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1EKcknahbR9hZfP8222ONKxaHIV2iPS0_",
+            "previewUrl": "https://drive.google.com/file/d/1EKcknahbR9hZfP8222ONKxaHIV2iPS0_/preview",
+            "size": "PDF • 306.5 KB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1neaU9I3RehfYZXfN47M7DAdU1VWP6QH5",
+            "driveFileId": "1neaU9I3RehfYZXfN47M7DAdU1VWP6QH5",
+            "title": "محاضرة 4 صحة تفريغ",
+            "originalFileName": "محاضرة 4 صحة تفريغ.pdf",
+            "driveObservedName": "محاضرة 4 صحة تفريغ.pdf",
+            "driveModifiedTime": 1793529162312,
+            "subject": "seha",
+            "category": "محاضرات",
+            "folderNum": 4,
+            "format": "المصدر",
+            "doctor": "قسم الصحة والطب الوقائي",
+            "externalUrl": "https://drive.google.com/file/d/1neaU9I3RehfYZXfN47M7DAdU1VWP6QH5/view",
+            "fileUrl": "https://drive.google.com/file/d/1neaU9I3RehfYZXfN47M7DAdU1VWP6QH5/view",
+            "driveUrl": "https://drive.google.com/file/d/1neaU9I3RehfYZXfN47M7DAdU1VWP6QH5/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1neaU9I3RehfYZXfN47M7DAdU1VWP6QH5",
+            "previewUrl": "https://drive.google.com/file/d/1neaU9I3RehfYZXfN47M7DAdU1VWP6QH5/preview",
+            "size": "PDF • 750 KB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1eF3LtCh2cfyJthAgnAyb7BmGLny-6fXh",
+            "driveFileId": "1eF3LtCh2cfyJthAgnAyb7BmGLny-6fXh",
+            "title": "محاضرة 1 لحمة خريطة ذهنية",
+            "originalFileName": "محاضرة 1 لحمة خريطة ذهنية.png",
+            "driveObservedName": "محاضرة 1 لحمة خريطة ذهنية.png",
+            "driveModifiedTime": 1793528441692,
+            "subject": "lahma",
+            "category": "محاضرات",
+            "folderNum": 1,
+            "format": "خريطه ذهنية",
+            "doctor": "قسم مراقبة الأغذية (اللحوم)",
+            "externalUrl": "https://drive.google.com/file/d/1eF3LtCh2cfyJthAgnAyb7BmGLny-6fXh/view",
+            "fileUrl": "https://drive.google.com/file/d/1eF3LtCh2cfyJthAgnAyb7BmGLny-6fXh/view",
+            "driveUrl": "https://drive.google.com/file/d/1eF3LtCh2cfyJthAgnAyb7BmGLny-6fXh/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1eF3LtCh2cfyJthAgnAyb7BmGLny-6fXh",
+            "previewUrl": "https://drive.google.com/file/d/1eF3LtCh2cfyJthAgnAyb7BmGLny-6fXh/preview",
+            "size": "PNG • 2.5 MB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1aHCQHdTcDWK_6MTAzp6TcjO81f3MYl1_",
+            "driveFileId": "1aHCQHdTcDWK_6MTAzp6TcjO81f3MYl1_",
+            "title": "محاضرة 2 صحة تلخيص",
+            "originalFileName": "محاضرة 2 صحة تلخيص.pdf",
+            "driveObservedName": "محاضرة 2 صحة تلخيص.pdf",
+            "driveModifiedTime": 1793526208863,
+            "subject": "seha",
+            "category": "محاضرات",
+            "folderNum": 2,
+            "format": "تلخيص",
+            "doctor": "قسم الصحة والطب الوقائي",
+            "externalUrl": "https://drive.google.com/file/d/1aHCQHdTcDWK_6MTAzp6TcjO81f3MYl1_/view",
+            "fileUrl": "https://drive.google.com/file/d/1aHCQHdTcDWK_6MTAzp6TcjO81f3MYl1_/view",
+            "driveUrl": "https://drive.google.com/file/d/1aHCQHdTcDWK_6MTAzp6TcjO81f3MYl1_/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1aHCQHdTcDWK_6MTAzp6TcjO81f3MYl1_",
+            "previewUrl": "https://drive.google.com/file/d/1aHCQHdTcDWK_6MTAzp6TcjO81f3MYl1_/preview",
+            "size": "PDF • 333 KB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1HRC7eh7BDgNlScGY90RnlPMakgr5nQJi",
+            "driveFileId": "1HRC7eh7BDgNlScGY90RnlPMakgr5nQJi",
+            "title": "محاضرة 3 صحة تلخيص",
+            "originalFileName": "محاضرة 3 صحة تلخيص.pdf",
+            "driveObservedName": "محاضرة 3 صحة تلخيص.pdf",
+            "driveModifiedTime": 1793526207781,
+            "subject": "seha",
+            "category": "محاضرات",
+            "folderNum": 3,
+            "format": "تلخيص",
+            "doctor": "قسم الصحة والطب الوقائي",
+            "externalUrl": "https://drive.google.com/file/d/1HRC7eh7BDgNlScGY90RnlPMakgr5nQJi/view",
+            "fileUrl": "https://drive.google.com/file/d/1HRC7eh7BDgNlScGY90RnlPMakgr5nQJi/view",
+            "driveUrl": "https://drive.google.com/file/d/1HRC7eh7BDgNlScGY90RnlPMakgr5nQJi/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1HRC7eh7BDgNlScGY90RnlPMakgr5nQJi",
+            "previewUrl": "https://drive.google.com/file/d/1HRC7eh7BDgNlScGY90RnlPMakgr5nQJi/preview",
+            "size": "PDF • 221.2 KB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1bRgDSp36Wzdwj82dfW4rzK4y1N9EviHi",
+            "driveFileId": "1bRgDSp36Wzdwj82dfW4rzK4y1N9EviHi",
+            "title": "محاضرة 3 صحة خريطة ذهنية",
+            "originalFileName": "محاضرة 3 صحة خريطة ذهنية.png",
+            "driveObservedName": "محاضرة 3 صحة خريطة ذهنية.png",
+            "driveModifiedTime": 1793526206792,
+            "subject": "seha",
+            "category": "محاضرات",
+            "folderNum": 3,
+            "format": "خريطه ذهنية",
+            "doctor": "قسم الصحة والطب الوقائي",
+            "externalUrl": "https://drive.google.com/file/d/1bRgDSp36Wzdwj82dfW4rzK4y1N9EviHi/view",
+            "fileUrl": "https://drive.google.com/file/d/1bRgDSp36Wzdwj82dfW4rzK4y1N9EviHi/view",
+            "driveUrl": "https://drive.google.com/file/d/1bRgDSp36Wzdwj82dfW4rzK4y1N9EviHi/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1bRgDSp36Wzdwj82dfW4rzK4y1N9EviHi",
+            "previewUrl": "https://drive.google.com/file/d/1bRgDSp36Wzdwj82dfW4rzK4y1N9EviHi/preview",
+            "size": "PNG • 4.1 MB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_18EZOZL8uskyb6GjnIsNUcKzO64hcuUNa",
+            "driveFileId": "18EZOZL8uskyb6GjnIsNUcKzO64hcuUNa",
+            "title": "محاضرة 2 صحة خريطة زهنية",
+            "originalFileName": "محاضرة 2 صحة خريطة زهنية.png",
+            "driveObservedName": "محاضرة 2 صحة خريطة زهنية.png",
+            "driveModifiedTime": 1793526205759,
+            "subject": "seha",
+            "category": "محاضرات",
+            "folderNum": 2,
+            "format": "خريطه ذهنية",
+            "doctor": "قسم الصحة والطب الوقائي",
+            "externalUrl": "https://drive.google.com/file/d/18EZOZL8uskyb6GjnIsNUcKzO64hcuUNa/view",
+            "fileUrl": "https://drive.google.com/file/d/18EZOZL8uskyb6GjnIsNUcKzO64hcuUNa/view",
+            "driveUrl": "https://drive.google.com/file/d/18EZOZL8uskyb6GjnIsNUcKzO64hcuUNa/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=18EZOZL8uskyb6GjnIsNUcKzO64hcuUNa",
+            "previewUrl": "https://drive.google.com/file/d/18EZOZL8uskyb6GjnIsNUcKzO64hcuUNa/preview",
+            "size": "PNG • 4.5 MB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1YN1XMDON8uGW0UufUEk3eD1l4ueDyUr2",
+            "driveFileId": "1YN1XMDON8uGW0UufUEk3eD1l4ueDyUr2",
+            "title": "محاضرة 1 صحة خريطة ذهنية",
+            "originalFileName": "محاضرة 1 صحة خريطة ذهنية.png",
+            "driveObservedName": "محاضرة 1 صحة خريطة ذهنية.png",
+            "driveModifiedTime": 1793526204706,
+            "subject": "seha",
+            "category": "محاضرات",
+            "folderNum": 1,
+            "format": "خريطه ذهنية",
+            "doctor": "قسم الصحة والطب الوقائي",
+            "externalUrl": "https://drive.google.com/file/d/1YN1XMDON8uGW0UufUEk3eD1l4ueDyUr2/view",
+            "fileUrl": "https://drive.google.com/file/d/1YN1XMDON8uGW0UufUEk3eD1l4ueDyUr2/view",
+            "driveUrl": "https://drive.google.com/file/d/1YN1XMDON8uGW0UufUEk3eD1l4ueDyUr2/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1YN1XMDON8uGW0UufUEk3eD1l4ueDyUr2",
+            "previewUrl": "https://drive.google.com/file/d/1YN1XMDON8uGW0UufUEk3eD1l4ueDyUr2/preview",
+            "size": "PNG • 6 MB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_138l5lP1nplUgLmuGrTRlosgZy5tBBXVn",
+            "driveFileId": "138l5lP1nplUgLmuGrTRlosgZy5tBBXVn",
+            "title": "محاضرة 2 لحمة خريطة ذهنية",
+            "originalFileName": "محاضرة 2 لحمة خريطة ذهنية.png",
+            "driveObservedName": "محاضرة 2 لحمة خريطة ذهنية.png",
+            "driveModifiedTime": 1793526203676,
+            "subject": "lahma",
+            "category": "محاضرات",
+            "folderNum": 2,
+            "format": "خريطه ذهنية",
+            "doctor": "قسم مراقبة الأغذية (اللحوم)",
+            "externalUrl": "https://drive.google.com/file/d/138l5lP1nplUgLmuGrTRlosgZy5tBBXVn/view",
+            "fileUrl": "https://drive.google.com/file/d/138l5lP1nplUgLmuGrTRlosgZy5tBBXVn/view",
+            "driveUrl": "https://drive.google.com/file/d/138l5lP1nplUgLmuGrTRlosgZy5tBBXVn/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=138l5lP1nplUgLmuGrTRlosgZy5tBBXVn",
+            "previewUrl": "https://drive.google.com/file/d/138l5lP1nplUgLmuGrTRlosgZy5tBBXVn/preview",
+            "size": "PNG • 1.7 MB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1PAoXwz0I8_4PF3ivNm-68_Lr6yVDJ6wm",
+            "driveFileId": "1PAoXwz0I8_4PF3ivNm-68_Lr6yVDJ6wm",
+            "title": "محاضرة 4 صحة خريطة ذهنية",
+            "originalFileName": "محاضرة 4 صحة خريطة ذهنية.png",
+            "driveObservedName": "محاضرة 4 صحة خريطة ذهنية.png",
+            "driveModifiedTime": 1793526201441,
+            "subject": "seha",
+            "category": "محاضرات",
+            "folderNum": 4,
+            "format": "خريطه ذهنية",
+            "doctor": "قسم الصحة والطب الوقائي",
+            "externalUrl": "https://drive.google.com/file/d/1PAoXwz0I8_4PF3ivNm-68_Lr6yVDJ6wm/view",
+            "fileUrl": "https://drive.google.com/file/d/1PAoXwz0I8_4PF3ivNm-68_Lr6yVDJ6wm/view",
+            "driveUrl": "https://drive.google.com/file/d/1PAoXwz0I8_4PF3ivNm-68_Lr6yVDJ6wm/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1PAoXwz0I8_4PF3ivNm-68_Lr6yVDJ6wm",
+            "previewUrl": "https://drive.google.com/file/d/1PAoXwz0I8_4PF3ivNm-68_Lr6yVDJ6wm/preview",
+            "size": "PNG • 5.6 MB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1y7EUBY6IEGotmsvzEtArkxOcItpshc71",
+            "driveFileId": "1y7EUBY6IEGotmsvzEtArkxOcItpshc71",
+            "title": "محاضرة 4 لحمة خريطة ذهنية",
+            "originalFileName": "محاضرة 4 لحمة خريطة ذهنية.png",
+            "driveObservedName": "محاضرة 4 لحمة خريطة ذهنية.png",
+            "driveModifiedTime": 1793526200433,
+            "subject": "lahma",
+            "category": "محاضرات",
+            "folderNum": 4,
+            "format": "خريطه ذهنية",
+            "doctor": "قسم مراقبة الأغذية (اللحوم)",
+            "externalUrl": "https://drive.google.com/file/d/1y7EUBY6IEGotmsvzEtArkxOcItpshc71/view",
+            "fileUrl": "https://drive.google.com/file/d/1y7EUBY6IEGotmsvzEtArkxOcItpshc71/view",
+            "driveUrl": "https://drive.google.com/file/d/1y7EUBY6IEGotmsvzEtArkxOcItpshc71/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1y7EUBY6IEGotmsvzEtArkxOcItpshc71",
+            "previewUrl": "https://drive.google.com/file/d/1y7EUBY6IEGotmsvzEtArkxOcItpshc71/preview",
+            "size": "PNG • 7.1 MB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1rOCOOi8hgAYKR__4M9wIezcaVBA8J9oY",
+            "driveFileId": "1rOCOOi8hgAYKR__4M9wIezcaVBA8J9oY",
+            "title": "محاضرة 3 لحمة خريطة ذهنية",
+            "originalFileName": "محاضرة 3 لحمة خريطة ذهنية.png",
+            "driveObservedName": "محاضرة 3 لحمة خريطة ذهنية.png",
+            "driveModifiedTime": 1793526199344,
+            "subject": "lahma",
+            "category": "محاضرات",
+            "folderNum": 3,
+            "format": "خريطه ذهنية",
+            "doctor": "قسم مراقبة الأغذية (اللحوم)",
+            "externalUrl": "https://drive.google.com/file/d/1rOCOOi8hgAYKR__4M9wIezcaVBA8J9oY/view",
+            "fileUrl": "https://drive.google.com/file/d/1rOCOOi8hgAYKR__4M9wIezcaVBA8J9oY/view",
+            "driveUrl": "https://drive.google.com/file/d/1rOCOOi8hgAYKR__4M9wIezcaVBA8J9oY/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1rOCOOi8hgAYKR__4M9wIezcaVBA8J9oY",
+            "previewUrl": "https://drive.google.com/file/d/1rOCOOi8hgAYKR__4M9wIezcaVBA8J9oY/preview",
+            "size": "PNG • 2.2 MB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1mieCvb8sthZc7hVOJfcd0kpEd4q1R-Gk",
+            "driveFileId": "1mieCvb8sthZc7hVOJfcd0kpEd4q1R-Gk",
+            "title": "محاضرة 1 باطنة خريطة ذهنية",
+            "originalFileName": "محاضرة 1 باطنة خريطة ذهنية.png",
+            "driveObservedName": "محاضرة 1 باطنة خريطة ذهنية.png",
+            "driveModifiedTime": 1793526177127,
+            "subject": "batna",
+            "category": "محاضرات",
+            "folderNum": 1,
+            "format": "خريطه ذهنية",
+            "doctor": "قسم طب الحيوان (باطنه)",
+            "externalUrl": "https://drive.google.com/file/d/1mieCvb8sthZc7hVOJfcd0kpEd4q1R-Gk/view",
+            "fileUrl": "https://drive.google.com/file/d/1mieCvb8sthZc7hVOJfcd0kpEd4q1R-Gk/view",
+            "driveUrl": "https://drive.google.com/file/d/1mieCvb8sthZc7hVOJfcd0kpEd4q1R-Gk/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1mieCvb8sthZc7hVOJfcd0kpEd4q1R-Gk",
+            "previewUrl": "https://drive.google.com/file/d/1mieCvb8sthZc7hVOJfcd0kpEd4q1R-Gk/preview",
+            "size": "PNG • 7.4 MB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1MYhyc7SjEzNU_V9Ca581MVvv18UNpOMc",
+            "driveFileId": "1MYhyc7SjEzNU_V9Ca581MVvv18UNpOMc",
+            "title": "محاضرة 2 باطنة خريطة ذهنية",
+            "originalFileName": "محاضرة 2 باطنة خريطة ذهنية.png",
+            "driveObservedName": "محاضرة 2 باطنة خريطة ذهنية.png",
+            "driveModifiedTime": 1793526176067,
+            "subject": "batna",
+            "category": "محاضرات",
+            "folderNum": 2,
+            "format": "خريطه ذهنية",
+            "doctor": "قسم طب الحيوان (باطنه)",
+            "externalUrl": "https://drive.google.com/file/d/1MYhyc7SjEzNU_V9Ca581MVvv18UNpOMc/view",
+            "fileUrl": "https://drive.google.com/file/d/1MYhyc7SjEzNU_V9Ca581MVvv18UNpOMc/view",
+            "driveUrl": "https://drive.google.com/file/d/1MYhyc7SjEzNU_V9Ca581MVvv18UNpOMc/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1MYhyc7SjEzNU_V9Ca581MVvv18UNpOMc",
+            "previewUrl": "https://drive.google.com/file/d/1MYhyc7SjEzNU_V9Ca581MVvv18UNpOMc/preview",
+            "size": "PNG • 7.2 MB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1b8njhdV2ak22ewY0PEDQHxGV3WUOg3gl",
+            "driveFileId": "1b8njhdV2ak22ewY0PEDQHxGV3WUOg3gl",
+            "title": "محاضرة 3 باطنة خريطة ذهنية",
+            "originalFileName": "محاضرة 3 باطنة خريطة ذهنية.png",
+            "driveObservedName": "محاضرة 3 باطنة خريطة ذهنية.png",
+            "driveModifiedTime": 1793526175042,
+            "subject": "batna",
+            "category": "محاضرات",
+            "folderNum": 3,
+            "format": "خريطه ذهنية",
+            "doctor": "قسم طب الحيوان (باطنه)",
+            "externalUrl": "https://drive.google.com/file/d/1b8njhdV2ak22ewY0PEDQHxGV3WUOg3gl/view",
+            "fileUrl": "https://drive.google.com/file/d/1b8njhdV2ak22ewY0PEDQHxGV3WUOg3gl/view",
+            "driveUrl": "https://drive.google.com/file/d/1b8njhdV2ak22ewY0PEDQHxGV3WUOg3gl/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1b8njhdV2ak22ewY0PEDQHxGV3WUOg3gl",
+            "previewUrl": "https://drive.google.com/file/d/1b8njhdV2ak22ewY0PEDQHxGV3WUOg3gl/preview",
+            "size": "PNG • 9.6 MB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1Ht1ELHgipGP6oC8ps-O7H4I1dc-VBRV4",
+            "driveFileId": "1Ht1ELHgipGP6oC8ps-O7H4I1dc-VBRV4",
+            "title": "محاضرة 1 توليد خريطة ذهنية",
+            "originalFileName": "محاضرة 1 توليد خريطة ذهنية.png",
+            "driveObservedName": "محاضرة 1 توليد خريطة ذهنية.png",
+            "driveModifiedTime": 1793526103064,
+            "subject": "tawleed",
+            "category": "محاضرات",
+            "folderNum": 1,
+            "format": "خريطه ذهنية",
+            "doctor": "قسم التوليد والتناسل",
+            "externalUrl": "https://drive.google.com/file/d/1Ht1ELHgipGP6oC8ps-O7H4I1dc-VBRV4/view",
+            "fileUrl": "https://drive.google.com/file/d/1Ht1ELHgipGP6oC8ps-O7H4I1dc-VBRV4/view",
+            "driveUrl": "https://drive.google.com/file/d/1Ht1ELHgipGP6oC8ps-O7H4I1dc-VBRV4/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1Ht1ELHgipGP6oC8ps-O7H4I1dc-VBRV4",
+            "previewUrl": "https://drive.google.com/file/d/1Ht1ELHgipGP6oC8ps-O7H4I1dc-VBRV4/preview",
+            "size": "PNG • 6.7 MB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1XI1yBwZZ5lwB6ZzwsGjf3vJDYuKXjqwC",
+            "driveFileId": "1XI1yBwZZ5lwB6ZzwsGjf3vJDYuKXjqwC",
+            "title": "محاضرة 1 جراحة خريطة ذهنية",
+            "originalFileName": "محاضرة 1 جراحة خريطة ذهنية.png",
+            "driveObservedName": "محاضرة 1 جراحة خريطة ذهنية.png",
+            "driveModifiedTime": 1793524292372,
+            "subject": "geraha",
+            "category": "محاضرات",
+            "folderNum": 1,
+            "format": "خريطه ذهنية",
+            "doctor": "قسم الجراحة والتخدير والأشعة",
+            "externalUrl": "https://drive.google.com/file/d/1XI1yBwZZ5lwB6ZzwsGjf3vJDYuKXjqwC/view",
+            "fileUrl": "https://drive.google.com/file/d/1XI1yBwZZ5lwB6ZzwsGjf3vJDYuKXjqwC/view",
+            "driveUrl": "https://drive.google.com/file/d/1XI1yBwZZ5lwB6ZzwsGjf3vJDYuKXjqwC/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1XI1yBwZZ5lwB6ZzwsGjf3vJDYuKXjqwC",
+            "previewUrl": "https://drive.google.com/file/d/1XI1yBwZZ5lwB6ZzwsGjf3vJDYuKXjqwC/preview",
+            "size": "PNG • 6.3 MB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_10OgozUaTkRGcNmCHVpyEERVF87_O4jgj",
+            "driveFileId": "10OgozUaTkRGcNmCHVpyEERVF87_O4jgj",
+            "title": "محاضرة 1 دواجن شرح",
+            "originalFileName": "محاضرة 1 دواجن شرح.pdf",
+            "driveObservedName": "محاضرة 1 دواجن شرح.pdf",
+            "driveModifiedTime": 1793523047474,
+            "subject": "dawagen",
+            "category": "محاضرات",
+            "folderNum": 1,
+            "format": "شرح",
+            "doctor": "قسم أمراض الدواجن",
+            "externalUrl": "https://drive.google.com/file/d/10OgozUaTkRGcNmCHVpyEERVF87_O4jgj/view",
+            "fileUrl": "https://drive.google.com/file/d/10OgozUaTkRGcNmCHVpyEERVF87_O4jgj/view",
+            "driveUrl": "https://drive.google.com/file/d/10OgozUaTkRGcNmCHVpyEERVF87_O4jgj/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=10OgozUaTkRGcNmCHVpyEERVF87_O4jgj",
+            "previewUrl": "https://drive.google.com/file/d/10OgozUaTkRGcNmCHVpyEERVF87_O4jgj/preview",
+            "size": "PDF • 665.4 KB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1qdsRhfyeLxxQtnEr-3D0uiB0rF17JaIY",
+            "driveFileId": "1qdsRhfyeLxxQtnEr-3D0uiB0rF17JaIY",
+            "title": "محاضرة 1 دواجن تلخيص",
+            "originalFileName": "محاضرة 1 دواجن تلخيص.pdf",
+            "driveObservedName": "محاضرة 1 دواجن تلخيص.pdf",
+            "driveModifiedTime": 1793523046750,
+            "subject": "dawagen",
+            "category": "محاضرات",
+            "folderNum": 1,
+            "format": "تلخيص",
+            "doctor": "قسم أمراض الدواجن",
+            "externalUrl": "https://drive.google.com/file/d/1qdsRhfyeLxxQtnEr-3D0uiB0rF17JaIY/view",
+            "fileUrl": "https://drive.google.com/file/d/1qdsRhfyeLxxQtnEr-3D0uiB0rF17JaIY/view",
+            "driveUrl": "https://drive.google.com/file/d/1qdsRhfyeLxxQtnEr-3D0uiB0rF17JaIY/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1qdsRhfyeLxxQtnEr-3D0uiB0rF17JaIY",
+            "previewUrl": "https://drive.google.com/file/d/1qdsRhfyeLxxQtnEr-3D0uiB0rF17JaIY/preview",
+            "size": "PDF • 300.1 KB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1YGc3kzEwifotOxMH0u94HIn_zMG27cPy",
+            "driveFileId": "1YGc3kzEwifotOxMH0u94HIn_zMG27cPy",
+            "title": "محاضرة 1 صحة شرح",
+            "originalFileName": "محاضرة 1 صحة شرح.pdf",
+            "driveObservedName": "محاضرة 1 صحة شرح.pdf",
+            "driveModifiedTime": 1793523044478,
+            "subject": "seha",
+            "category": "محاضرات",
+            "folderNum": 1,
+            "format": "شرح",
+            "doctor": "قسم الصحة والطب الوقائي",
+            "externalUrl": "https://drive.google.com/file/d/1YGc3kzEwifotOxMH0u94HIn_zMG27cPy/view",
+            "fileUrl": "https://drive.google.com/file/d/1YGc3kzEwifotOxMH0u94HIn_zMG27cPy/view",
+            "driveUrl": "https://drive.google.com/file/d/1YGc3kzEwifotOxMH0u94HIn_zMG27cPy/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1YGc3kzEwifotOxMH0u94HIn_zMG27cPy",
+            "previewUrl": "https://drive.google.com/file/d/1YGc3kzEwifotOxMH0u94HIn_zMG27cPy/preview",
+            "size": "PDF • 16.6 MB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1Rfg5NMNlXB8tmQ9I-uxWLoYMtL_wCNb2",
+            "driveFileId": "1Rfg5NMNlXB8tmQ9I-uxWLoYMtL_wCNb2",
+            "title": "محاضرة 2 صحة شرح",
+            "originalFileName": "محاضرة 2 صحة شرح.pdf",
+            "driveObservedName": "محاضرة 2 صحة شرح.pdf",
+            "driveModifiedTime": 1793523041513,
+            "subject": "seha",
+            "category": "محاضرات",
+            "folderNum": 2,
+            "format": "شرح",
+            "doctor": "قسم الصحة والطب الوقائي",
+            "externalUrl": "https://drive.google.com/file/d/1Rfg5NMNlXB8tmQ9I-uxWLoYMtL_wCNb2/view",
+            "fileUrl": "https://drive.google.com/file/d/1Rfg5NMNlXB8tmQ9I-uxWLoYMtL_wCNb2/view",
+            "driveUrl": "https://drive.google.com/file/d/1Rfg5NMNlXB8tmQ9I-uxWLoYMtL_wCNb2/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1Rfg5NMNlXB8tmQ9I-uxWLoYMtL_wCNb2",
+            "previewUrl": "https://drive.google.com/file/d/1Rfg5NMNlXB8tmQ9I-uxWLoYMtL_wCNb2/preview",
+            "size": "PDF • 12.5 MB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1tOqeDcI4QeZGbac6v8LzA53vMi0i3IqB",
+            "driveFileId": "1tOqeDcI4QeZGbac6v8LzA53vMi0i3IqB",
+            "title": "محاضرة 3 صحة شرح",
+            "originalFileName": "محاضرة 3 صحة شرح.pdf",
+            "driveObservedName": "محاضرة 3 صحة شرح.pdf",
+            "driveModifiedTime": 1793523038171,
+            "subject": "seha",
+            "category": "محاضرات",
+            "folderNum": 3,
+            "format": "شرح",
+            "doctor": "قسم الصحة والطب الوقائي",
+            "externalUrl": "https://drive.google.com/file/d/1tOqeDcI4QeZGbac6v8LzA53vMi0i3IqB/view",
+            "fileUrl": "https://drive.google.com/file/d/1tOqeDcI4QeZGbac6v8LzA53vMi0i3IqB/view",
+            "driveUrl": "https://drive.google.com/file/d/1tOqeDcI4QeZGbac6v8LzA53vMi0i3IqB/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1tOqeDcI4QeZGbac6v8LzA53vMi0i3IqB",
+            "previewUrl": "https://drive.google.com/file/d/1tOqeDcI4QeZGbac6v8LzA53vMi0i3IqB/preview",
+            "size": "PDF • 14.1 MB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_13dn4tqEdMkUW3aqE2Vx-lOwOBhWPUpfu",
+            "driveFileId": "13dn4tqEdMkUW3aqE2Vx-lOwOBhWPUpfu",
+            "title": "محاضره 1 لحمه شرح",
+            "originalFileName": "محاضره 1 لحمه شرح.pdf",
+            "driveObservedName": "محاضره 1 لحمه شرح.pdf",
+            "driveModifiedTime": 1793523034221,
+            "subject": "lahma",
+            "category": "محاضرات",
+            "folderNum": 1,
+            "format": "شرح",
+            "doctor": "قسم مراقبة الأغذية (اللحوم)",
+            "externalUrl": "https://drive.google.com/file/d/13dn4tqEdMkUW3aqE2Vx-lOwOBhWPUpfu/view",
+            "fileUrl": "https://drive.google.com/file/d/13dn4tqEdMkUW3aqE2Vx-lOwOBhWPUpfu/view",
+            "driveUrl": "https://drive.google.com/file/d/13dn4tqEdMkUW3aqE2Vx-lOwOBhWPUpfu/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=13dn4tqEdMkUW3aqE2Vx-lOwOBhWPUpfu",
+            "previewUrl": "https://drive.google.com/file/d/13dn4tqEdMkUW3aqE2Vx-lOwOBhWPUpfu/preview",
+            "size": "PDF • 2 MB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1eGQ6orZfX8g2EkgxhpdpemeFpk6di1xe",
+            "driveFileId": "1eGQ6orZfX8g2EkgxhpdpemeFpk6di1xe",
+            "title": "محاضره 1 جراحه شرح",
+            "originalFileName": "محاضره 1 جراحه شرح.pdf",
+            "driveObservedName": "محاضره 1 جراحه شرح.pdf",
+            "driveModifiedTime": 1793523031902,
+            "subject": "geraha",
+            "category": "محاضرات",
+            "folderNum": 1,
+            "format": "شرح",
+            "doctor": "قسم الجراحة والتخدير والأشعة",
+            "externalUrl": "https://drive.google.com/file/d/1eGQ6orZfX8g2EkgxhpdpemeFpk6di1xe/view",
+            "fileUrl": "https://drive.google.com/file/d/1eGQ6orZfX8g2EkgxhpdpemeFpk6di1xe/view",
+            "driveUrl": "https://drive.google.com/file/d/1eGQ6orZfX8g2EkgxhpdpemeFpk6di1xe/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1eGQ6orZfX8g2EkgxhpdpemeFpk6di1xe",
+            "previewUrl": "https://drive.google.com/file/d/1eGQ6orZfX8g2EkgxhpdpemeFpk6di1xe/preview",
+            "size": "PDF • 12 MB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1E1xNTPQQzwtpkf3zgYOCjb2N7PFFlKBF",
+            "driveFileId": "1E1xNTPQQzwtpkf3zgYOCjb2N7PFFlKBF",
+            "title": "محاضره 1 جراحه تلخيص",
+            "originalFileName": "محاضره 1 جراحه تلخيص.pdf",
+            "driveObservedName": "محاضره 1 جراحه تلخيص.pdf",
+            "driveModifiedTime": 1793523031146,
+            "subject": "geraha",
+            "category": "محاضرات",
+            "folderNum": 1,
+            "format": "تلخيص",
+            "doctor": "قسم الجراحة والتخدير والأشعة",
+            "externalUrl": "https://drive.google.com/file/d/1E1xNTPQQzwtpkf3zgYOCjb2N7PFFlKBF/view",
+            "fileUrl": "https://drive.google.com/file/d/1E1xNTPQQzwtpkf3zgYOCjb2N7PFFlKBF/view",
+            "driveUrl": "https://drive.google.com/file/d/1E1xNTPQQzwtpkf3zgYOCjb2N7PFFlKBF/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1E1xNTPQQzwtpkf3zgYOCjb2N7PFFlKBF",
+            "previewUrl": "https://drive.google.com/file/d/1E1xNTPQQzwtpkf3zgYOCjb2N7PFFlKBF/preview",
+            "size": "PDF • 418 KB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1AfVaJJLyIwJNfuXLawblkiiJz6Xl-fRD",
+            "driveFileId": "1AfVaJJLyIwJNfuXLawblkiiJz6Xl-fRD",
+            "title": "محاضرة 1 معدية شرح",
+            "originalFileName": "محاضرة 1 معدية شرح.pdf",
+            "driveObservedName": "محاضرة 1 معدية شرح.pdf",
+            "driveModifiedTime": 1793523029574,
+            "subject": "moadya",
+            "category": "محاضرات",
+            "folderNum": 1,
+            "format": "شرح",
+            "doctor": "قسم الأمراض المعدية",
+            "externalUrl": "https://drive.google.com/file/d/1AfVaJJLyIwJNfuXLawblkiiJz6Xl-fRD/view",
+            "fileUrl": "https://drive.google.com/file/d/1AfVaJJLyIwJNfuXLawblkiiJz6Xl-fRD/view",
+            "driveUrl": "https://drive.google.com/file/d/1AfVaJJLyIwJNfuXLawblkiiJz6Xl-fRD/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1AfVaJJLyIwJNfuXLawblkiiJz6Xl-fRD",
+            "previewUrl": "https://drive.google.com/file/d/1AfVaJJLyIwJNfuXLawblkiiJz6Xl-fRD/preview",
+            "size": "PDF • 1.9 MB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1O70YiliS-BxaZOqpz7vNZI2B3KAPEEXC",
+            "driveFileId": "1O70YiliS-BxaZOqpz7vNZI2B3KAPEEXC",
+            "title": "محاضرة 1معدية تلخيص",
+            "originalFileName": "محاضرة 1معدية تلخيص.pdf",
+            "driveObservedName": "محاضرة 1معدية تلخيص.pdf",
+            "driveModifiedTime": 1793523028876,
+            "subject": "moadya",
+            "category": "محاضرات",
+            "folderNum": 1,
+            "format": "تلخيص",
+            "doctor": "قسم الأمراض المعدية",
+            "externalUrl": "https://drive.google.com/file/d/1O70YiliS-BxaZOqpz7vNZI2B3KAPEEXC/view",
+            "fileUrl": "https://drive.google.com/file/d/1O70YiliS-BxaZOqpz7vNZI2B3KAPEEXC/view",
+            "driveUrl": "https://drive.google.com/file/d/1O70YiliS-BxaZOqpz7vNZI2B3KAPEEXC/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1O70YiliS-BxaZOqpz7vNZI2B3KAPEEXC",
+            "previewUrl": "https://drive.google.com/file/d/1O70YiliS-BxaZOqpz7vNZI2B3KAPEEXC/preview",
+            "size": "PDF • 260.7 KB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1pe7teA0w2Dvs3gIwkfZ-QNUA-9kru36q",
+            "driveFileId": "1pe7teA0w2Dvs3gIwkfZ-QNUA-9kru36q",
+            "title": "محاضرة_1_معدية_خريطة_ذهنية",
+            "originalFileName": "محاضرة_1_معدية_خريطة_ذهنية.png",
+            "driveObservedName": "محاضرة_1_معدية_خريطة_ذهنية.png",
+            "driveModifiedTime": 1793523028132,
+            "subject": "moadya",
+            "category": "محاضرات",
+            "folderNum": 1,
+            "format": "خريطه ذهنية",
+            "doctor": "قسم الأمراض المعدية",
+            "externalUrl": "https://drive.google.com/file/d/1pe7teA0w2Dvs3gIwkfZ-QNUA-9kru36q/view",
+            "fileUrl": "https://drive.google.com/file/d/1pe7teA0w2Dvs3gIwkfZ-QNUA-9kru36q/view",
+            "driveUrl": "https://drive.google.com/file/d/1pe7teA0w2Dvs3gIwkfZ-QNUA-9kru36q/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1pe7teA0w2Dvs3gIwkfZ-QNUA-9kru36q",
+            "previewUrl": "https://drive.google.com/file/d/1pe7teA0w2Dvs3gIwkfZ-QNUA-9kru36q/preview",
+            "size": "PNG • 4.1 MB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1ieBT8_adCtksOKfmKdfPYwsrTk35K2hz",
+            "driveFileId": "1ieBT8_adCtksOKfmKdfPYwsrTk35K2hz",
+            "title": "محاضرة 3 معدية شرح",
+            "originalFileName": "محاضرة 3 معدية شرح.pdf",
+            "driveObservedName": "محاضرة 3 معدية شرح.pdf",
+            "driveModifiedTime": 1793523026457,
+            "subject": "moadya",
+            "category": "محاضرات",
+            "folderNum": 3,
+            "format": "شرح",
+            "doctor": "قسم الأمراض المعدية",
+            "externalUrl": "https://drive.google.com/file/d/1ieBT8_adCtksOKfmKdfPYwsrTk35K2hz/view",
+            "fileUrl": "https://drive.google.com/file/d/1ieBT8_adCtksOKfmKdfPYwsrTk35K2hz/view",
+            "driveUrl": "https://drive.google.com/file/d/1ieBT8_adCtksOKfmKdfPYwsrTk35K2hz/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1ieBT8_adCtksOKfmKdfPYwsrTk35K2hz",
+            "previewUrl": "https://drive.google.com/file/d/1ieBT8_adCtksOKfmKdfPYwsrTk35K2hz/preview",
+            "size": "PDF • 619.4 KB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1Mq4QlJlpxRGXbsk1qwzVFb1gXIgBGvDH",
+            "driveFileId": "1Mq4QlJlpxRGXbsk1qwzVFb1gXIgBGvDH",
+            "title": "محاضرة 3 معدية تلخيص",
+            "originalFileName": "محاضرة 3 معدية تلخيص.pdf",
+            "driveObservedName": "محاضرة 3 معدية تلخيص.pdf",
+            "driveModifiedTime": 1793523025807,
+            "subject": "moadya",
+            "category": "محاضرات",
+            "folderNum": 3,
+            "format": "تلخيص",
+            "doctor": "قسم الأمراض المعدية",
+            "externalUrl": "https://drive.google.com/file/d/1Mq4QlJlpxRGXbsk1qwzVFb1gXIgBGvDH/view",
+            "fileUrl": "https://drive.google.com/file/d/1Mq4QlJlpxRGXbsk1qwzVFb1gXIgBGvDH/view",
+            "driveUrl": "https://drive.google.com/file/d/1Mq4QlJlpxRGXbsk1qwzVFb1gXIgBGvDH/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1Mq4QlJlpxRGXbsk1qwzVFb1gXIgBGvDH",
+            "previewUrl": "https://drive.google.com/file/d/1Mq4QlJlpxRGXbsk1qwzVFb1gXIgBGvDH/preview",
+            "size": "PDF • 237 KB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1wtcho-pJydagz-mm9hWxUR044fv-WYP0",
+            "driveFileId": "1wtcho-pJydagz-mm9hWxUR044fv-WYP0",
+            "title": "محاضرة_3_معدية_خريطة_ذهنية",
+            "originalFileName": "محاضرة_3_معدية_خريطة_ذهنية.png",
+            "driveObservedName": "محاضرة_3_معدية_خريطة_ذهنية.png",
+            "driveModifiedTime": 1793523025090,
+            "subject": "moadya",
+            "category": "محاضرات",
+            "folderNum": 3,
+            "format": "خريطه ذهنية",
+            "doctor": "قسم الأمراض المعدية",
+            "externalUrl": "https://drive.google.com/file/d/1wtcho-pJydagz-mm9hWxUR044fv-WYP0/view",
+            "fileUrl": "https://drive.google.com/file/d/1wtcho-pJydagz-mm9hWxUR044fv-WYP0/view",
+            "driveUrl": "https://drive.google.com/file/d/1wtcho-pJydagz-mm9hWxUR044fv-WYP0/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1wtcho-pJydagz-mm9hWxUR044fv-WYP0",
+            "previewUrl": "https://drive.google.com/file/d/1wtcho-pJydagz-mm9hWxUR044fv-WYP0/preview",
+            "size": "PNG • 3.1 MB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1LlVbb6zEAGUJQ9l5Ml70UyKmyOP2PgJV",
+            "driveFileId": "1LlVbb6zEAGUJQ9l5Ml70UyKmyOP2PgJV",
+            "title": "محاضرة 5 معدية شرح",
+            "originalFileName": "محاضرة 5 معدية شرح.pdf",
+            "driveObservedName": "محاضرة 5 معدية شرح.pdf",
+            "driveModifiedTime": 1793523023060,
+            "subject": "moadya",
+            "category": "محاضرات",
+            "folderNum": 5,
+            "format": "شرح",
+            "doctor": "قسم الأمراض المعدية",
+            "externalUrl": "https://drive.google.com/file/d/1LlVbb6zEAGUJQ9l5Ml70UyKmyOP2PgJV/view",
+            "fileUrl": "https://drive.google.com/file/d/1LlVbb6zEAGUJQ9l5Ml70UyKmyOP2PgJV/view",
+            "driveUrl": "https://drive.google.com/file/d/1LlVbb6zEAGUJQ9l5Ml70UyKmyOP2PgJV/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1LlVbb6zEAGUJQ9l5Ml70UyKmyOP2PgJV",
+            "previewUrl": "https://drive.google.com/file/d/1LlVbb6zEAGUJQ9l5Ml70UyKmyOP2PgJV/preview",
+            "size": "PDF • 3.4 MB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1r5G0XgK15pGHB9StxdjWX1YeEO-0t9Ff",
+            "driveFileId": "1r5G0XgK15pGHB9StxdjWX1YeEO-0t9Ff",
+            "title": "محاضرة 5 معدية تلخيص",
+            "originalFileName": "محاضرة 5 معدية تلخيص.pdf",
+            "driveObservedName": "محاضرة 5 معدية تلخيص.pdf",
+            "driveModifiedTime": 1793523022349,
+            "subject": "moadya",
+            "category": "محاضرات",
+            "folderNum": 5,
+            "format": "تلخيص",
+            "doctor": "قسم الأمراض المعدية",
+            "externalUrl": "https://drive.google.com/file/d/1r5G0XgK15pGHB9StxdjWX1YeEO-0t9Ff/view",
+            "fileUrl": "https://drive.google.com/file/d/1r5G0XgK15pGHB9StxdjWX1YeEO-0t9Ff/view",
+            "driveUrl": "https://drive.google.com/file/d/1r5G0XgK15pGHB9StxdjWX1YeEO-0t9Ff/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1r5G0XgK15pGHB9StxdjWX1YeEO-0t9Ff",
+            "previewUrl": "https://drive.google.com/file/d/1r5G0XgK15pGHB9StxdjWX1YeEO-0t9Ff/preview",
+            "size": "PDF • 287.7 KB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1tAxE2dZdwvo-OekPFv-G6tGmHqHdrhM3",
+            "driveFileId": "1tAxE2dZdwvo-OekPFv-G6tGmHqHdrhM3",
+            "title": "محاضرة_5_معدية_خريطة_ذهنية",
+            "originalFileName": "محاضرة_5_معدية_خريطة_ذهنية.png",
+            "driveObservedName": "محاضرة_5_معدية_خريطة_ذهنية.png",
+            "driveModifiedTime": 1793523021637,
+            "subject": "moadya",
+            "category": "محاضرات",
+            "folderNum": 5,
+            "format": "خريطه ذهنية",
+            "doctor": "قسم الأمراض المعدية",
+            "externalUrl": "https://drive.google.com/file/d/1tAxE2dZdwvo-OekPFv-G6tGmHqHdrhM3/view",
+            "fileUrl": "https://drive.google.com/file/d/1tAxE2dZdwvo-OekPFv-G6tGmHqHdrhM3/view",
+            "driveUrl": "https://drive.google.com/file/d/1tAxE2dZdwvo-OekPFv-G6tGmHqHdrhM3/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1tAxE2dZdwvo-OekPFv-G6tGmHqHdrhM3",
+            "previewUrl": "https://drive.google.com/file/d/1tAxE2dZdwvo-OekPFv-G6tGmHqHdrhM3/preview",
+            "size": "PNG • 5.9 MB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1XnpWl_UWTrSmSeDJxLKwIKPWUElCK2FE",
+            "driveFileId": "1XnpWl_UWTrSmSeDJxLKwIKPWUElCK2FE",
+            "title": "محاضرة 3 لحمه شرح",
+            "originalFileName": "محاضرة 3 لحمه شرح.pdf",
+            "driveObservedName": "محاضرة 3 لحمه شرح.pdf",
+            "driveModifiedTime": 1793523019891,
+            "subject": "lahma",
+            "category": "محاضرات",
+            "folderNum": 3,
+            "format": "شرح",
+            "doctor": "قسم مراقبة الأغذية (اللحوم)",
+            "externalUrl": "https://drive.google.com/file/d/1XnpWl_UWTrSmSeDJxLKwIKPWUElCK2FE/view",
+            "fileUrl": "https://drive.google.com/file/d/1XnpWl_UWTrSmSeDJxLKwIKPWUElCK2FE/view",
+            "driveUrl": "https://drive.google.com/file/d/1XnpWl_UWTrSmSeDJxLKwIKPWUElCK2FE/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1XnpWl_UWTrSmSeDJxLKwIKPWUElCK2FE",
+            "previewUrl": "https://drive.google.com/file/d/1XnpWl_UWTrSmSeDJxLKwIKPWUElCK2FE/preview",
+            "size": "PDF • 687.8 KB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1ZVvcZwW370aCmMpCCPq75P9IVnBCrUbF",
+            "driveFileId": "1ZVvcZwW370aCmMpCCPq75P9IVnBCrUbF",
+            "title": "محاضرة 4 لحمة شرح",
+            "originalFileName": "محاضرة 4 لحمة شرح.pdf",
+            "driveObservedName": "محاضرة 4 لحمة شرح.pdf",
+            "driveModifiedTime": 1793523017020,
+            "subject": "lahma",
+            "category": "محاضرات",
+            "folderNum": 4,
+            "format": "شرح",
+            "doctor": "قسم مراقبة الأغذية (اللحوم)",
+            "externalUrl": "https://drive.google.com/file/d/1ZVvcZwW370aCmMpCCPq75P9IVnBCrUbF/view",
+            "fileUrl": "https://drive.google.com/file/d/1ZVvcZwW370aCmMpCCPq75P9IVnBCrUbF/view",
+            "driveUrl": "https://drive.google.com/file/d/1ZVvcZwW370aCmMpCCPq75P9IVnBCrUbF/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1ZVvcZwW370aCmMpCCPq75P9IVnBCrUbF",
+            "previewUrl": "https://drive.google.com/file/d/1ZVvcZwW370aCmMpCCPq75P9IVnBCrUbF/preview",
+            "size": "PDF • 1.1 MB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1P_DK5fqENxk3Ivs8rWI4Udl7_0M0NO4s",
+            "driveFileId": "1P_DK5fqENxk3Ivs8rWI4Udl7_0M0NO4s",
+            "title": "محاضرة 7 معدية شرح",
+            "originalFileName": "محاضرة 7 معدية شرح.pdf",
+            "driveObservedName": "محاضرة 7 معدية شرح.pdf",
+            "driveModifiedTime": 1793523013924,
+            "subject": "moadya",
+            "category": "محاضرات",
+            "folderNum": 7,
+            "format": "شرح",
+            "doctor": "قسم الأمراض المعدية",
+            "externalUrl": "https://drive.google.com/file/d/1P_DK5fqENxk3Ivs8rWI4Udl7_0M0NO4s/view",
+            "fileUrl": "https://drive.google.com/file/d/1P_DK5fqENxk3Ivs8rWI4Udl7_0M0NO4s/view",
+            "driveUrl": "https://drive.google.com/file/d/1P_DK5fqENxk3Ivs8rWI4Udl7_0M0NO4s/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1P_DK5fqENxk3Ivs8rWI4Udl7_0M0NO4s",
+            "previewUrl": "https://drive.google.com/file/d/1P_DK5fqENxk3Ivs8rWI4Udl7_0M0NO4s/preview",
+            "size": "PDF • 4.3 MB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1msclPh38-p4hZkzLe8z4jpFhD7l7wT33",
+            "driveFileId": "1msclPh38-p4hZkzLe8z4jpFhD7l7wT33",
+            "title": "محاضرة 7 معدية تلخيص",
+            "originalFileName": "محاضرة 7 معدية تلخيص.pdf",
+            "driveObservedName": "محاضرة 7 معدية تلخيص.pdf",
+            "driveModifiedTime": 1793523013224,
+            "subject": "moadya",
+            "category": "محاضرات",
+            "folderNum": 7,
+            "format": "تلخيص",
+            "doctor": "قسم الأمراض المعدية",
+            "externalUrl": "https://drive.google.com/file/d/1msclPh38-p4hZkzLe8z4jpFhD7l7wT33/view",
+            "fileUrl": "https://drive.google.com/file/d/1msclPh38-p4hZkzLe8z4jpFhD7l7wT33/view",
+            "driveUrl": "https://drive.google.com/file/d/1msclPh38-p4hZkzLe8z4jpFhD7l7wT33/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1msclPh38-p4hZkzLe8z4jpFhD7l7wT33",
+            "previewUrl": "https://drive.google.com/file/d/1msclPh38-p4hZkzLe8z4jpFhD7l7wT33/preview",
+            "size": "PDF • 330.8 KB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1l-vL_hv5GL_45pTqgz4VhU-jvriqnOMl",
+            "driveFileId": "1l-vL_hv5GL_45pTqgz4VhU-jvriqnOMl",
+            "title": "محاضرة_7_معدية_خريطه_ذهنيه",
+            "originalFileName": "محاضرة_7_معدية_خريطه_ذهنيه.png",
+            "driveObservedName": "محاضرة_7_معدية_خريطه_ذهنيه.png",
+            "driveModifiedTime": 1793523012558,
+            "subject": "moadya",
+            "category": "محاضرات",
+            "folderNum": 7,
+            "format": "خريطه ذهنية",
+            "doctor": "قسم الأمراض المعدية",
+            "externalUrl": "https://drive.google.com/file/d/1l-vL_hv5GL_45pTqgz4VhU-jvriqnOMl/view",
+            "fileUrl": "https://drive.google.com/file/d/1l-vL_hv5GL_45pTqgz4VhU-jvriqnOMl/view",
+            "driveUrl": "https://drive.google.com/file/d/1l-vL_hv5GL_45pTqgz4VhU-jvriqnOMl/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1l-vL_hv5GL_45pTqgz4VhU-jvriqnOMl",
+            "previewUrl": "https://drive.google.com/file/d/1l-vL_hv5GL_45pTqgz4VhU-jvriqnOMl/preview",
+            "size": "PNG • 5 MB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1u4V2p-g3eTe1mBEPtX5lS3eifwnsZQ_K",
+            "driveFileId": "1u4V2p-g3eTe1mBEPtX5lS3eifwnsZQ_K",
+            "title": "محاضرة 4 صحة شرح",
+            "originalFileName": "محاضرة 4 صحة شرح.pdf",
+            "driveObservedName": "محاضرة 4 صحة شرح.pdf",
+            "driveModifiedTime": 1793523010208,
+            "subject": "seha",
+            "category": "محاضرات",
+            "folderNum": 4,
+            "format": "شرح",
+            "doctor": "قسم الصحة والطب الوقائي",
+            "externalUrl": "https://drive.google.com/file/d/1u4V2p-g3eTe1mBEPtX5lS3eifwnsZQ_K/view",
+            "fileUrl": "https://drive.google.com/file/d/1u4V2p-g3eTe1mBEPtX5lS3eifwnsZQ_K/view",
+            "driveUrl": "https://drive.google.com/file/d/1u4V2p-g3eTe1mBEPtX5lS3eifwnsZQ_K/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1u4V2p-g3eTe1mBEPtX5lS3eifwnsZQ_K",
+            "previewUrl": "https://drive.google.com/file/d/1u4V2p-g3eTe1mBEPtX5lS3eifwnsZQ_K/preview",
+            "size": "PDF • 2.4 MB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1TsZ6fEJcbuNZAuOe2MIRuJFCe4I4g5_K",
+            "driveFileId": "1TsZ6fEJcbuNZAuOe2MIRuJFCe4I4g5_K",
+            "title": "محاضرة 4 صحة تلخيص",
+            "originalFileName": "محاضرة 4 صحة تلخيص.pdf",
+            "driveObservedName": "محاضرة 4 صحة تلخيص.pdf",
+            "driveModifiedTime": 1793523008454,
+            "subject": "seha",
+            "category": "محاضرات",
+            "folderNum": 4,
+            "format": "تلخيص",
+            "doctor": "قسم الصحة والطب الوقائي",
+            "externalUrl": "https://drive.google.com/file/d/1TsZ6fEJcbuNZAuOe2MIRuJFCe4I4g5_K/view",
+            "fileUrl": "https://drive.google.com/file/d/1TsZ6fEJcbuNZAuOe2MIRuJFCe4I4g5_K/view",
+            "driveUrl": "https://drive.google.com/file/d/1TsZ6fEJcbuNZAuOe2MIRuJFCe4I4g5_K/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1TsZ6fEJcbuNZAuOe2MIRuJFCe4I4g5_K",
+            "previewUrl": "https://drive.google.com/file/d/1TsZ6fEJcbuNZAuOe2MIRuJFCe4I4g5_K/preview",
+            "size": "PDF • 273.8 KB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_10WOTOBLA87a8GXiGcEkobfYpOXW_MPn_",
+            "driveFileId": "10WOTOBLA87a8GXiGcEkobfYpOXW_MPn_",
+            "title": "محاضره 2 لحمة شرح",
+            "originalFileName": "محاضره 2 لحمة شرح.pdf",
+            "driveObservedName": "محاضره 2 لحمة شرح.pdf",
+            "driveModifiedTime": 1793523004185,
+            "subject": "lahma",
+            "category": "محاضرات",
+            "folderNum": 2,
+            "format": "شرح",
+            "doctor": "قسم مراقبة الأغذية (اللحوم)",
+            "externalUrl": "https://drive.google.com/file/d/10WOTOBLA87a8GXiGcEkobfYpOXW_MPn_/view",
+            "fileUrl": "https://drive.google.com/file/d/10WOTOBLA87a8GXiGcEkobfYpOXW_MPn_/view",
+            "driveUrl": "https://drive.google.com/file/d/10WOTOBLA87a8GXiGcEkobfYpOXW_MPn_/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=10WOTOBLA87a8GXiGcEkobfYpOXW_MPn_",
+            "previewUrl": "https://drive.google.com/file/d/10WOTOBLA87a8GXiGcEkobfYpOXW_MPn_/preview",
+            "size": "PDF • 651.9 KB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1RuO0jLXAbdU3u5CjaTiYfdJc34o7oU8D",
+            "driveFileId": "1RuO0jLXAbdU3u5CjaTiYfdJc34o7oU8D",
+            "title": "محاضرة 2 لحمة تلخيص",
+            "originalFileName": "محاضرة 2 لحمة تلخيص.pdf",
+            "driveObservedName": "محاضرة 2 لحمة تلخيص.pdf",
+            "driveModifiedTime": 1793523003419,
+            "subject": "lahma",
+            "category": "محاضرات",
+            "folderNum": 2,
+            "format": "تلخيص",
+            "doctor": "قسم مراقبة الأغذية (اللحوم)",
+            "externalUrl": "https://drive.google.com/file/d/1RuO0jLXAbdU3u5CjaTiYfdJc34o7oU8D/view",
+            "fileUrl": "https://drive.google.com/file/d/1RuO0jLXAbdU3u5CjaTiYfdJc34o7oU8D/view",
+            "driveUrl": "https://drive.google.com/file/d/1RuO0jLXAbdU3u5CjaTiYfdJc34o7oU8D/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1RuO0jLXAbdU3u5CjaTiYfdJc34o7oU8D",
+            "previewUrl": "https://drive.google.com/file/d/1RuO0jLXAbdU3u5CjaTiYfdJc34o7oU8D/preview",
+            "size": "PDF • 178.1 KB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1eeQ__6P80z6xAuDTZki1gBnsTfJRzKgt",
+            "driveFileId": "1eeQ__6P80z6xAuDTZki1gBnsTfJRzKgt",
+            "title": "محاضره 1 لحمة تلخيص",
+            "originalFileName": "محاضره 1 لحمة تلخيص.pdf",
+            "driveObservedName": "محاضره 1 لحمة تلخيص.pdf",
+            "driveModifiedTime": 1793523001998,
+            "subject": "lahma",
+            "category": "محاضرات",
+            "folderNum": 1,
+            "format": "تلخيص",
+            "doctor": "قسم مراقبة الأغذية (اللحوم)",
+            "externalUrl": "https://drive.google.com/file/d/1eeQ__6P80z6xAuDTZki1gBnsTfJRzKgt/view",
+            "fileUrl": "https://drive.google.com/file/d/1eeQ__6P80z6xAuDTZki1gBnsTfJRzKgt/view",
+            "driveUrl": "https://drive.google.com/file/d/1eeQ__6P80z6xAuDTZki1gBnsTfJRzKgt/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1eeQ__6P80z6xAuDTZki1gBnsTfJRzKgt",
+            "previewUrl": "https://drive.google.com/file/d/1eeQ__6P80z6xAuDTZki1gBnsTfJRzKgt/preview",
+            "size": "PDF • 206.2 KB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1GXNWUwVCSy1l0gxyK44Dn7ljQkRjHs63",
+            "driveFileId": "1GXNWUwVCSy1l0gxyK44Dn7ljQkRjHs63",
+            "title": "محاضرة 3 لحمة تلخيص",
+            "originalFileName": "محاضرة 3 لحمة تلخيص.pdf",
+            "driveObservedName": "محاضرة 3 لحمة تلخيص.pdf",
+            "driveModifiedTime": 1793523000725,
+            "subject": "lahma",
+            "category": "محاضرات",
+            "folderNum": 3,
+            "format": "تلخيص",
+            "doctor": "قسم مراقبة الأغذية (اللحوم)",
+            "externalUrl": "https://drive.google.com/file/d/1GXNWUwVCSy1l0gxyK44Dn7ljQkRjHs63/view",
+            "fileUrl": "https://drive.google.com/file/d/1GXNWUwVCSy1l0gxyK44Dn7ljQkRjHs63/view",
+            "driveUrl": "https://drive.google.com/file/d/1GXNWUwVCSy1l0gxyK44Dn7ljQkRjHs63/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1GXNWUwVCSy1l0gxyK44Dn7ljQkRjHs63",
+            "previewUrl": "https://drive.google.com/file/d/1GXNWUwVCSy1l0gxyK44Dn7ljQkRjHs63/preview",
+            "size": "PDF • 179.6 KB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1-kKBNPj4MsHjM6ZPKrDlZBTiJBlFqh2k",
+            "driveFileId": "1-kKBNPj4MsHjM6ZPKrDlZBTiJBlFqh2k",
+            "title": "محاضرة 4 لحمة تلخيص",
+            "originalFileName": "محاضرة 4 لحمة تلخيص.pdf",
+            "driveObservedName": "محاضرة 4 لحمة تلخيص.pdf",
+            "driveModifiedTime": 1793522999820,
+            "subject": "lahma",
+            "category": "محاضرات",
+            "folderNum": 4,
+            "format": "تلخيص",
+            "doctor": "قسم مراقبة الأغذية (اللحوم)",
+            "externalUrl": "https://drive.google.com/file/d/1-kKBNPj4MsHjM6ZPKrDlZBTiJBlFqh2k/view",
+            "fileUrl": "https://drive.google.com/file/d/1-kKBNPj4MsHjM6ZPKrDlZBTiJBlFqh2k/view",
+            "driveUrl": "https://drive.google.com/file/d/1-kKBNPj4MsHjM6ZPKrDlZBTiJBlFqh2k/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1-kKBNPj4MsHjM6ZPKrDlZBTiJBlFqh2k",
+            "previewUrl": "https://drive.google.com/file/d/1-kKBNPj4MsHjM6ZPKrDlZBTiJBlFqh2k/preview",
+            "size": "PDF • 283.8 KB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1zba87A2vB_o_J3l3EjunokOXFr7qvXJH",
+            "driveFileId": "1zba87A2vB_o_J3l3EjunokOXFr7qvXJH",
+            "title": "محاضرة 1 باطنة شرح",
+            "originalFileName": "محاضرة 1 باطنة شرح.pdf",
+            "driveObservedName": "محاضرة 1 باطنة شرح.pdf",
+            "driveModifiedTime": 1793522997613,
+            "subject": "batna",
+            "category": "محاضرات",
+            "folderNum": 1,
+            "format": "شرح",
+            "doctor": "قسم طب الحيوان (باطنه)",
+            "externalUrl": "https://drive.google.com/file/d/1zba87A2vB_o_J3l3EjunokOXFr7qvXJH/view",
+            "fileUrl": "https://drive.google.com/file/d/1zba87A2vB_o_J3l3EjunokOXFr7qvXJH/view",
+            "driveUrl": "https://drive.google.com/file/d/1zba87A2vB_o_J3l3EjunokOXFr7qvXJH/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1zba87A2vB_o_J3l3EjunokOXFr7qvXJH",
+            "previewUrl": "https://drive.google.com/file/d/1zba87A2vB_o_J3l3EjunokOXFr7qvXJH/preview",
+            "size": "PDF • 921.7 KB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1lniZPbQWBmgOXb3fjvv-56CcwSGOvTfQ",
+            "driveFileId": "1lniZPbQWBmgOXb3fjvv-56CcwSGOvTfQ",
+            "title": "محاضرة 1 باطنة تلخيص",
+            "originalFileName": "محاضرة 1 باطنة تلخيص.pdf",
+            "driveObservedName": "محاضرة 1 باطنة تلخيص.pdf",
+            "driveModifiedTime": 1793522996799,
+            "subject": "batna",
+            "category": "محاضرات",
+            "folderNum": 1,
+            "format": "تلخيص",
+            "doctor": "قسم طب الحيوان (باطنه)",
+            "externalUrl": "https://drive.google.com/file/d/1lniZPbQWBmgOXb3fjvv-56CcwSGOvTfQ/view",
+            "fileUrl": "https://drive.google.com/file/d/1lniZPbQWBmgOXb3fjvv-56CcwSGOvTfQ/view",
+            "driveUrl": "https://drive.google.com/file/d/1lniZPbQWBmgOXb3fjvv-56CcwSGOvTfQ/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1lniZPbQWBmgOXb3fjvv-56CcwSGOvTfQ",
+            "previewUrl": "https://drive.google.com/file/d/1lniZPbQWBmgOXb3fjvv-56CcwSGOvTfQ/preview",
+            "size": "PDF • 317.4 KB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1xsrXkZVGDQ0kgGxmFfU8JNNBM3cWFSwd",
+            "driveFileId": "1xsrXkZVGDQ0kgGxmFfU8JNNBM3cWFSwd",
+            "title": "محاضره 2 باطنة شرح",
+            "originalFileName": "محاضره 2 باطنة شرح.pdf",
+            "driveObservedName": "محاضره 2 باطنة شرح.pdf",
+            "driveModifiedTime": 1793522995608,
+            "subject": "batna",
+            "category": "محاضرات",
+            "folderNum": 2,
+            "format": "شرح",
+            "doctor": "قسم طب الحيوان (باطنه)",
+            "externalUrl": "https://drive.google.com/file/d/1xsrXkZVGDQ0kgGxmFfU8JNNBM3cWFSwd/view",
+            "fileUrl": "https://drive.google.com/file/d/1xsrXkZVGDQ0kgGxmFfU8JNNBM3cWFSwd/view",
+            "driveUrl": "https://drive.google.com/file/d/1xsrXkZVGDQ0kgGxmFfU8JNNBM3cWFSwd/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1xsrXkZVGDQ0kgGxmFfU8JNNBM3cWFSwd",
+            "previewUrl": "https://drive.google.com/file/d/1xsrXkZVGDQ0kgGxmFfU8JNNBM3cWFSwd/preview",
+            "size": "PDF • 1 MB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1NX5V1nCtq71TIFQWa5RvKL8ZOwdTqUKd",
+            "driveFileId": "1NX5V1nCtq71TIFQWa5RvKL8ZOwdTqUKd",
+            "title": "محاضرة 2 باطنة تلخييص",
+            "originalFileName": "محاضرة 2 باطنة تلخييص.pdf",
+            "driveObservedName": "محاضرة 2 باطنة تلخييص.pdf",
+            "driveModifiedTime": 1793522994862,
+            "subject": "batna",
+            "category": "محاضرات",
+            "folderNum": 2,
+            "format": "تلخيص",
+            "doctor": "قسم طب الحيوان (باطنه)",
+            "externalUrl": "https://drive.google.com/file/d/1NX5V1nCtq71TIFQWa5RvKL8ZOwdTqUKd/view",
+            "fileUrl": "https://drive.google.com/file/d/1NX5V1nCtq71TIFQWa5RvKL8ZOwdTqUKd/view",
+            "driveUrl": "https://drive.google.com/file/d/1NX5V1nCtq71TIFQWa5RvKL8ZOwdTqUKd/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1NX5V1nCtq71TIFQWa5RvKL8ZOwdTqUKd",
+            "previewUrl": "https://drive.google.com/file/d/1NX5V1nCtq71TIFQWa5RvKL8ZOwdTqUKd/preview",
+            "size": "PDF • 351.4 KB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1jx6cE6pp4u20vMl5ley41AUX6Q7zorWo",
+            "driveFileId": "1jx6cE6pp4u20vMl5ley41AUX6Q7zorWo",
+            "title": "محاضرة 3 باطنه شرح",
+            "originalFileName": "محاضرة 3 باطنه شرح.pdf",
+            "driveObservedName": "محاضرة 3 باطنه شرح.pdf",
+            "driveModifiedTime": 1793522993067,
+            "subject": "batna",
+            "category": "محاضرات",
+            "folderNum": 3,
+            "format": "شرح",
+            "doctor": "قسم طب الحيوان (باطنه)",
+            "externalUrl": "https://drive.google.com/file/d/1jx6cE6pp4u20vMl5ley41AUX6Q7zorWo/view",
+            "fileUrl": "https://drive.google.com/file/d/1jx6cE6pp4u20vMl5ley41AUX6Q7zorWo/view",
+            "driveUrl": "https://drive.google.com/file/d/1jx6cE6pp4u20vMl5ley41AUX6Q7zorWo/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1jx6cE6pp4u20vMl5ley41AUX6Q7zorWo",
+            "previewUrl": "https://drive.google.com/file/d/1jx6cE6pp4u20vMl5ley41AUX6Q7zorWo/preview",
+            "size": "PDF • 1.2 MB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_18o9E2u8KvS0pcuU8uWGiL6uaaFSfaEAz",
+            "driveFileId": "18o9E2u8KvS0pcuU8uWGiL6uaaFSfaEAz",
+            "title": "محاضرة 3 باطنة تلخيص",
+            "originalFileName": "محاضرة 3 باطنة تلخيص.pdf",
+            "driveObservedName": "محاضرة 3 باطنة تلخيص.pdf",
+            "driveModifiedTime": 1793522992298,
+            "subject": "batna",
+            "category": "محاضرات",
+            "folderNum": 3,
+            "format": "تلخيص",
+            "doctor": "قسم طب الحيوان (باطنه)",
+            "externalUrl": "https://drive.google.com/file/d/18o9E2u8KvS0pcuU8uWGiL6uaaFSfaEAz/view",
+            "fileUrl": "https://drive.google.com/file/d/18o9E2u8KvS0pcuU8uWGiL6uaaFSfaEAz/view",
+            "driveUrl": "https://drive.google.com/file/d/18o9E2u8KvS0pcuU8uWGiL6uaaFSfaEAz/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=18o9E2u8KvS0pcuU8uWGiL6uaaFSfaEAz",
+            "previewUrl": "https://drive.google.com/file/d/18o9E2u8KvS0pcuU8uWGiL6uaaFSfaEAz/preview",
+            "size": "PDF • 335.4 KB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1Y6Wf4whuAp5Tgl5rnj5IfAyzy9wRDYhM",
+            "driveFileId": "1Y6Wf4whuAp5Tgl5rnj5IfAyzy9wRDYhM",
+            "title": "محاضرة 1 ولادة شرح",
+            "originalFileName": "محاضرة 1 ولادة شرح.pdf",
+            "driveObservedName": "محاضرة 1 ولادة شرح.pdf",
+            "driveModifiedTime": 1793522990361,
+            "subject": "tawleed",
+            "category": "محاضرات",
+            "folderNum": 1,
+            "format": "شرح",
+            "doctor": "قسم التوليد والتناسل",
+            "externalUrl": "https://drive.google.com/file/d/1Y6Wf4whuAp5Tgl5rnj5IfAyzy9wRDYhM/view",
+            "fileUrl": "https://drive.google.com/file/d/1Y6Wf4whuAp5Tgl5rnj5IfAyzy9wRDYhM/view",
+            "driveUrl": "https://drive.google.com/file/d/1Y6Wf4whuAp5Tgl5rnj5IfAyzy9wRDYhM/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1Y6Wf4whuAp5Tgl5rnj5IfAyzy9wRDYhM",
+            "previewUrl": "https://drive.google.com/file/d/1Y6Wf4whuAp5Tgl5rnj5IfAyzy9wRDYhM/preview",
+            "size": "PDF • 4.4 MB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1Y5v60Li7bx5bpfY_ok06LBTyNWjBp09y",
+            "driveFileId": "1Y5v60Li7bx5bpfY_ok06LBTyNWjBp09y",
+            "title": "محاضرة 1 ولادة تلخيص",
+            "originalFileName": "محاضرة 1 ولادة تلخيص.pdf",
+            "driveObservedName": "محاضرة 1 ولادة تلخيص.pdf",
+            "driveModifiedTime": 1793522989568,
+            "subject": "tawleed",
+            "category": "محاضرات",
+            "folderNum": 1,
+            "format": "تلخيص",
+            "doctor": "قسم التوليد والتناسل",
+            "externalUrl": "https://drive.google.com/file/d/1Y5v60Li7bx5bpfY_ok06LBTyNWjBp09y/view",
+            "fileUrl": "https://drive.google.com/file/d/1Y5v60Li7bx5bpfY_ok06LBTyNWjBp09y/view",
+            "driveUrl": "https://drive.google.com/file/d/1Y5v60Li7bx5bpfY_ok06LBTyNWjBp09y/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1Y5v60Li7bx5bpfY_ok06LBTyNWjBp09y",
+            "previewUrl": "https://drive.google.com/file/d/1Y5v60Li7bx5bpfY_ok06LBTyNWjBp09y/preview",
+            "size": "PDF • 321.9 KB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1kiI8_VaSLam9FpI9jzr-msrL6IcK5BMV",
+            "driveFileId": "1kiI8_VaSLam9FpI9jzr-msrL6IcK5BMV",
+            "title": "محاضرة 2 ولادة شرح",
+            "originalFileName": "محاضرة 2 ولادة شرح.pdf",
+            "driveObservedName": "محاضرة 2 ولادة شرح.pdf",
+            "driveModifiedTime": 1793522987672,
+            "subject": "tawleed",
+            "category": "محاضرات",
+            "folderNum": 2,
+            "format": "شرح",
+            "doctor": "قسم التوليد والتناسل",
+            "externalUrl": "https://drive.google.com/file/d/1kiI8_VaSLam9FpI9jzr-msrL6IcK5BMV/view",
+            "fileUrl": "https://drive.google.com/file/d/1kiI8_VaSLam9FpI9jzr-msrL6IcK5BMV/view",
+            "driveUrl": "https://drive.google.com/file/d/1kiI8_VaSLam9FpI9jzr-msrL6IcK5BMV/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1kiI8_VaSLam9FpI9jzr-msrL6IcK5BMV",
+            "previewUrl": "https://drive.google.com/file/d/1kiI8_VaSLam9FpI9jzr-msrL6IcK5BMV/preview",
+            "size": "PDF • 7.4 MB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1De9t0TtnTqc-ZW5XJ625IhJ9smbEm1Xx",
+            "driveFileId": "1De9t0TtnTqc-ZW5XJ625IhJ9smbEm1Xx",
+            "title": "محاضره 2 ولادة تلخيص",
+            "originalFileName": "محاضره 2 ولادة تلخيص.pdf",
+            "driveObservedName": "محاضره 2 ولادة تلخيص.pdf",
+            "driveModifiedTime": 1793522956070,
+            "subject": "tawleed",
+            "category": "محاضرات",
+            "folderNum": 2,
+            "format": "تلخيص",
+            "doctor": "قسم التوليد والتناسل",
+            "externalUrl": "https://drive.google.com/file/d/1De9t0TtnTqc-ZW5XJ625IhJ9smbEm1Xx/view",
+            "fileUrl": "https://drive.google.com/file/d/1De9t0TtnTqc-ZW5XJ625IhJ9smbEm1Xx/view",
+            "driveUrl": "https://drive.google.com/file/d/1De9t0TtnTqc-ZW5XJ625IhJ9smbEm1Xx/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1De9t0TtnTqc-ZW5XJ625IhJ9smbEm1Xx",
+            "previewUrl": "https://drive.google.com/file/d/1De9t0TtnTqc-ZW5XJ625IhJ9smbEm1Xx/preview",
+            "size": "PDF • 272.1 KB",
+            "date": "2026/11/01",
+            "dateAdded": "2026/11/01",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1d8WczFEUgLCPkIlG3otYa9X3OV1ye8d6",
+            "driveFileId": "1d8WczFEUgLCPkIlG3otYa9X3OV1ye8d6",
+            "title": "محاضرة 4 صحة",
+            "originalFileName": "محاضرة 4 صحة.mp4",
+            "driveObservedName": "محاضرة 4 صحة.mp4",
+            "driveModifiedTime": 1793359657492,
+            "subject": "seha",
+            "category": "محاضرات",
+            "folderNum": 4,
+            "format": "المصدر",
+            "doctor": "قسم الصحة والطب الوقائي",
+            "externalUrl": "https://drive.google.com/file/d/1d8WczFEUgLCPkIlG3otYa9X3OV1ye8d6/view",
+            "fileUrl": "https://drive.google.com/file/d/1d8WczFEUgLCPkIlG3otYa9X3OV1ye8d6/view",
+            "driveUrl": "https://drive.google.com/file/d/1d8WczFEUgLCPkIlG3otYa9X3OV1ye8d6/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1d8WczFEUgLCPkIlG3otYa9X3OV1ye8d6",
+            "previewUrl": "https://drive.google.com/file/d/1d8WczFEUgLCPkIlG3otYa9X3OV1ye8d6/preview",
+            "size": "MP4 • 95.9 MB",
+            "date": "2026/10/30",
+            "dateAdded": "2026/10/30",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      },
+      {
+            "id": "drive_1PTev_4kJeFdcG-qDEFx7hhFInhm-Nn7h",
+            "driveFileId": "1PTev_4kJeFdcG-qDEFx7hhFInhm-Nn7h",
+            "title": "محاضرة 2 جراحة شرح",
+            "originalFileName": "محاضرة 2 جراحة شرح.pdf",
+            "driveObservedName": "محاضرة 2 جراحة شرح.pdf",
+            "driveModifiedTime": 1793288627848,
+            "subject": "geraha",
+            "category": "محاضرات",
+            "folderNum": 2,
+            "format": "شرح",
+            "doctor": "قسم الجراحة والتخدير والأشعة",
+            "externalUrl": "https://drive.google.com/file/d/1PTev_4kJeFdcG-qDEFx7hhFInhm-Nn7h/view",
+            "fileUrl": "https://drive.google.com/file/d/1PTev_4kJeFdcG-qDEFx7hhFInhm-Nn7h/view",
+            "driveUrl": "https://drive.google.com/file/d/1PTev_4kJeFdcG-qDEFx7hhFInhm-Nn7h/view",
+            "downloadUrl": "https://drive.google.com/uc?export=download&id=1PTev_4kJeFdcG-qDEFx7hhFInhm-Nn7h",
+            "previewUrl": "https://drive.google.com/file/d/1PTev_4kJeFdcG-qDEFx7hhFInhm-Nn7h/preview",
+            "size": "PDF • 2.6 MB",
+            "date": "2026/10/29",
+            "dateAdded": "2026/10/29",
+            "downloads": 0,
+            "downloadsCount": 0,
+            "viewsCount": 0,
+            "description": "",
+            "keypoints": [],
+            "clinicalNote": "",
+            "pages": null,
+            "term": "الترم الاول"
+      }
+];
+
+    const INITIAL_FOLDERS_SNAPSHOT = [
+      {
+            "id": "1i-BQetFNrN1Kk0TpBRDxHyxoCzpPyqRV",
+            "subject": "batna",
+            "category": "محاضرات",
+            "folderNum": 1,
+            "name": "محاضرة 1"
+      },
+      {
+            "id": "1B0SG1otu_U0VSmcZ2F6yGiJUnTy7JVip",
+            "subject": "tawleed",
+            "category": "محاضرات",
+            "folderNum": 1,
+            "name": "محاضرة 1"
+      },
+      {
+            "id": "1lwAGqrqr9WPLyz3TsX0Rokq0YhPRg69u",
+            "subject": "geraha",
+            "category": "محاضرات",
+            "folderNum": 1,
+            "name": "محاضرة 1"
+      },
+      {
+            "id": "1WUlkARtDcJFBpxjuKIbHSDoiJNp8KgDi",
+            "subject": "dawagen",
+            "category": "محاضرات",
+            "folderNum": 1,
+            "name": "محاضرة 1"
+      },
+      {
+            "id": "1-k-otZoBkR0L7dugXXg_sDMRZ0yA7G2w",
+            "subject": "seha",
+            "category": "محاضرات",
+            "folderNum": 1,
+            "name": "محاضرة 1"
+      },
+      {
+            "id": "1ph3Keg2qNfP7O0pKr3w80sOZdbp31OGY",
+            "subject": "lahma",
+            "category": "محاضرات",
+            "folderNum": 1,
+            "name": "محاضرة 1"
+      },
+      {
+            "id": "1pH_DSrS2NmdYLlGdfINsgS8gu-SotLbi",
+            "subject": "moadya",
+            "category": "محاضرات",
+            "folderNum": 1,
+            "name": "محاضرة 1"
+      },
+      {
+            "id": "1IL7E8lOlehjF4_AliHJCyqTtrA_ylpi8",
+            "subject": "batna",
+            "category": "محاضرات",
+            "folderNum": 2,
+            "name": "محاضرة 2"
+      },
+      {
+            "id": "1j62fLNaZth3wyNnQ0skVDWVDwFJjgSQL",
+            "subject": "tawleed",
+            "category": "محاضرات",
+            "folderNum": 2,
+            "name": "محاضرة 2"
+      },
+      {
+            "id": "1m_WXnySRIKrK3yBH-hBHpUdGR5R0Xom8",
+            "subject": "geraha",
+            "category": "محاضرات",
+            "folderNum": 2,
+            "name": "محاضرة 2"
+      },
+      {
+            "id": "19k84bhCyaLAZUm59NzvHbL4-dBVx21Ty",
+            "subject": "seha",
+            "category": "محاضرات",
+            "folderNum": 2,
+            "name": "محاضرة 2"
+      },
+      {
+            "id": "1IKJRAhtnjQ8g26ITZn2StJsbenL87fZ1",
+            "subject": "lahma",
+            "category": "محاضرات",
+            "folderNum": 2,
+            "name": "محاضرة 2"
+      },
+      {
+            "id": "15YNsLqFjMfnLcMgt3xrpWTWTVTK1hbxs",
+            "subject": "batna",
+            "category": "محاضرات",
+            "folderNum": 3,
+            "name": "محاضرة 3"
+      },
+      {
+            "id": "1Rehynq0X-P8vFJt8TM4HPRC1z_zgvOQ0",
+            "subject": "seha",
+            "category": "محاضرات",
+            "folderNum": 3,
+            "name": "محاضرة 3"
+      },
+      {
+            "id": "14d8SWLhDndVTKD8arMRzJ4La3zEGUJND",
+            "subject": "lahma",
+            "category": "محاضرات",
+            "folderNum": 3,
+            "name": "محاضرة 3"
+      },
+      {
+            "id": "19MO8t-njqUVpmSCuG8gzfI7qcttmcLay",
+            "subject": "moadya",
+            "category": "محاضرات",
+            "folderNum": 3,
+            "name": "محاضرة 3"
+      },
+      {
+            "id": "1eurtzGymo0yOK5YgVFA4JCWTn6-k1GJN",
+            "subject": "batna",
+            "category": "محاضرات",
+            "folderNum": 4,
+            "name": "محاضرة 4"
+      },
+      {
+            "id": "13grCKf32-APVkqXn_J48T-N_OetuOy2S",
+            "subject": "seha",
+            "category": "محاضرات",
+            "folderNum": 4,
+            "name": "محاضرة 4"
+      },
+      {
+            "id": "1tyGy3XJMoEYxf0MDdj1DzFbyKLL1KaUh",
+            "subject": "lahma",
+            "category": "محاضرات",
+            "folderNum": 4,
+            "name": "محاضرة 4"
+      },
+      {
+            "id": "1Pe0FSUsQ_W1b2myFB0rrQnkNWRvqgnsl",
+            "subject": "batna",
+            "category": "محاضرات",
+            "folderNum": 5,
+            "name": "محاضرة 5"
+      },
+      {
+            "id": "1ZertboYonhbOpfKUL2AQ8vPFuUck7_Nj",
+            "subject": "moadya",
+            "category": "محاضرات",
+            "folderNum": 5,
+            "name": "محاضرة 5"
+      },
+      {
+            "id": "1wFIub58Mlumb9oRN4GgUg_yvbgNFp6-V",
+            "subject": "moadya",
+            "category": "محاضرات",
+            "folderNum": 7,
+            "name": "محاضرة 7"
+      }
+];
+
     function generateDefaultFilesDatabase() {
-      return [];
+      return INITIAL_FILES_SNAPSHOT.map(f => Object.assign({}, f));
+    }
+
+    function generateDefaultFoldersDatabase() {
+      return INITIAL_FOLDERS_SNAPSHOT.map(fl => Object.assign({}, fl));
     }
 
     // Google Apps Script Web App URL (Connected to Google Drive Database)
@@ -414,7 +2386,7 @@
       }
 
       try {
-        let reg = await navigator.serviceWorker.register('./sw.js?v=39', {
+        let reg = await navigator.serviceWorker.register('./sw.js?v=40', {
           scope: './',
           updateViaCache: 'none'
         });
@@ -1084,127 +3056,189 @@
       return `${fPart}###${flPart}###${abtPart}`;
     }
 
-    async function fetchDatabaseFromDrive(silent = false) {
-      if (appState.isSyncing || appState.isSavingAction) return;
+    let initialSyncRetryCount = 0;
+    let hasScheduledDeepDriveScan = false;
+
+    function applyNormalizedRemoteDatabase(normalized, silent = true) {
+      if (!normalized || !Array.isArray(normalized.files)) return false;
+      const rawRemoteList = normalized.files;
+      const nextFolders = (Array.isArray(normalized.folders) && normalized.folders.length > 0)
+        ? normalized.folders
+        : (appState.folders && appState.folders.length > 0 ? appState.folders : generateDefaultFoldersDatabase());
+
+      const sysSubEntry = rawRemoteList.find(rf => rf && rf.id === SYS_PUSH_SUBS_ID);
+      if (sysSubEntry && Array.isArray(sysSubEntry.subs)) {
+        appState.pushSubscriptions = sysSubEntry.subs;
+      }
+      const sysAboutEntry = rawRemoteList.find(rf => rf && rf.id === SYS_ABOUT_CONTENT_ID);
+      let nextAboutContent = appState.aboutContent;
+      if (sysAboutEntry && sysAboutEntry.aboutContent && typeof sysAboutEntry.aboutContent === 'object') {
+        nextAboutContent = { ...DEFAULT_ABOUT_CONTENT, ...sysAboutEntry.aboutContent };
+      }
+
+      const remoteFiles = rawRemoteList.filter(rf => {
+        if (!rf || !rf.id || rf.isSystemMeta || String(rf.id).startsWith('_sys_')) return false;
+        if (appState.deletedFileIds && (appState.deletedFileIds.has(rf.id) || (rf.driveFileId && appState.deletedFileIds.has(rf.driveFileId)))) return false;
+        if (!rf.adminFormat) {
+          const inferredFmt = detectAppFormatFromDriveFile({ name: rf.originalFileName || rf.title || '' });
+          if (rf.format === 'المصدر' && inferredFmt !== 'المصدر') {
+            rf.format = inferredFmt;
+          }
+        }
+        return true;
+      });
+
+      reconcileRemoteDownloadsWithPending(remoteFiles);
+
+      let wasSeededBefore = false;
+      try {
+        wasSeededBefore = Boolean(localStorage.getItem('ksu_vet33_pushed_seeded_v2'));
+      } catch (e) {}
+
+      if (!wasSeededBefore || appState.notifiedPushFileIds.length === 0) {
+        appState.notifiedPushFileIds = Array.from(new Set([...(appState.notifiedPushFileIds || []), ...remoteFiles.map(rf => rf.id)]));
+        try { localStorage.setItem('ksu_vet33_pushed_seeded_v2', '1'); } catch (e) {}
+      }
+
+      const unnotifiedFiles = [];
+      remoteFiles.forEach(rf => {
+        if (rf && rf.id) {
+          appState.knownFileIdsOnLoad.add(rf.id);
+          if (!appState.notifiedPushFileIds.includes(rf.id)) {
+            unnotifiedFiles.push(rf);
+          }
+        }
+      });
+
+      const newSignature = computeDatabaseSignature(remoteFiles, nextFolders, nextAboutContent);
+      const isFirstRemoteSync = !appState.hasInitializedRemote;
+      const hasDataChanged = isFirstRemoteSync || (newSignature !== appState.lastRenderedSignature);
+
+      const pendingLocalUploads = (appState.files || []).filter(f => f && f.isPendingUpload);
+      const mergedRemoteFiles = [...pendingLocalUploads, ...remoteFiles.filter(rf => !pendingLocalUploads.some(p => p.id === rf.id))];
+
+      appState.folders = nextFolders;
+      appState.aboutContent = nextAboutContent;
+      appState.files = mergedRemoteFiles;
+      appState.hasInitializedRemote = true;
+
+      if (hasDataChanged) {
+        appState.lastRenderedSignature = newSignature;
+        saveAppState();
+      }
+
+      // Render UI immediately before any notification or push subscription logic
+      if (hasDataChanged || !silent) {
+        renderQuickSubjectBar();
+        renderBreadcrumbBar();
+        renderExplorerContent();
+        updateLibraryCounters();
+        updateNotificationsUI();
+      }
+
+      checkPendingNotificationHash();
+      setCloudSyncStatus('online', `متصل (${remoteFiles.length})`);
+      if (!silent) {
+        showToast(`تمت المزامنة مع Google Drive بنجاح (${remoteFiles.length} ملف)`, 'success');
+      }
+
+      if ('Notification' in window && Notification.permission === 'granted') {
+        subscribeAndSaveWebPush(null);
+      }
+
+      if (unnotifiedFiles.length > 0) {
+        appState.notifiedPushFileIds = Array.from(new Set([...appState.notifiedPushFileIds, ...unnotifiedFiles.map(nf => nf.id)]));
+        try { localStorage.setItem('ksu_vet33_pushed_seeded_v2', '1'); } catch (e) {}
+        saveAppState();
+        postMessageToServiceWorker({
+          type: 'INIT_SW',
+          notifiedIds: appState.notifiedPushFileIds
+        });
+        unnotifiedFiles.slice(0, 3).reverse().forEach(nf => {
+          sendUserNotificationForFile(nf, false);
+        });
+      } else if (isFirstRemoteSync && appState.notifiedPushFileIds.length > 0) {
+        postMessageToServiceWorker({
+          type: 'INIT_SW',
+          notifiedIds: appState.notifiedPushFileIds
+        });
+      }
+
+      return true;
+    }
+
+    async function fetchDatabaseFromDrive(silent = false, forceDriveScan = false) {
+      if (appState.isSavingAction) return;
+      if (appState.isSyncing) {
+        appState.pendingSyncAfterCurrent = {
+          silent: silent && (appState.pendingSyncAfterCurrent ? appState.pendingSyncAfterCurrent.silent : true),
+          forceDriveScan: forceDriveScan || (appState.pendingSyncAfterCurrent ? appState.pendingSyncAfterCurrent.forceDriveScan : false)
+        };
+        return;
+      }
       appState.isSyncing = true;
       if (!silent) {
         setCloudSyncStatus('syncing', 'جاري الجلب...');
       }
       try {
-        const forceFlag = (!silent || !appState.hasInitializedRemote) ? 'true' : 'false';
+        // Use fast cached DB read (force=false) on initial load so files appear in <0.5s without waiting for a 20s Drive tree scan
+        const forceFlag = (!silent || forceDriveScan) ? 'true' : 'false';
+        const timeoutMs = forceFlag === 'true' ? 25000 : 12000;
         const res = await fetchWithTimeout(GAS_WEB_APP_URL + '?action=sync&force=' + forceFlag + '&t=' + Date.now(), {
           method: 'GET',
-          redirect: 'follow',
-          cache: 'no-store'
-        }, 22000);
+          redirect: 'follow'
+        }, timeoutMs);
         const data = await res.json();
         const normalized = normalizeDriveApiPayload(data);
-        const nextFolders = Array.isArray(normalized.folders) ? normalized.folders : (appState.folders || []);
-        const rawRemoteList = normalized.files;
-        if (rawRemoteList) {
-          const sysSubEntry = rawRemoteList.find(rf => rf && rf.id === SYS_PUSH_SUBS_ID);
-          if (sysSubEntry && Array.isArray(sysSubEntry.subs)) {
-            appState.pushSubscriptions = sysSubEntry.subs;
-          }
-          const sysAboutEntry = rawRemoteList.find(rf => rf && rf.id === SYS_ABOUT_CONTENT_ID);
-          let nextAboutContent = appState.aboutContent;
-          if (sysAboutEntry && sysAboutEntry.aboutContent && typeof sysAboutEntry.aboutContent === 'object') {
-            nextAboutContent = { ...DEFAULT_ABOUT_CONTENT, ...sysAboutEntry.aboutContent };
-          }
-          const remoteFiles = rawRemoteList.filter(rf => {
-            if (!rf || !rf.id || rf.isSystemMeta || String(rf.id).startsWith('_sys_')) return false;
-            if (appState.deletedFileIds && (appState.deletedFileIds.has(rf.id) || (rf.driveFileId && appState.deletedFileIds.has(rf.driveFileId)))) return false;
-            if (!rf.adminFormat) {
-              const inferredFmt = detectAppFormatFromDriveFile({ name: rf.originalFileName || rf.title || '' });
-              if (rf.format === 'المصدر' && inferredFmt !== 'المصدر') {
-                rf.format = inferredFmt;
-              }
-            }
-            return true;
-          });
+        if (normalized && Array.isArray(normalized.files)) {
+          initialSyncRetryCount = 0;
+          applyNormalizedRemoteDatabase(normalized, silent);
 
-          // Reconcile optimistic local download increments (Issue #7)
-          reconcileRemoteDownloadsWithPending(remoteFiles);
-
-          let wasSeededBefore = false;
-          try {
-            wasSeededBefore = Boolean(localStorage.getItem('ksu_vet33_pushed_seeded_v1'));
-          } catch (e) {}
-
-          if (!wasSeededBefore && appState.notifiedPushFileIds.length === 0) {
-            appState.notifiedPushFileIds = remoteFiles.map(rf => rf.id);
-            try { localStorage.setItem('ksu_vet33_pushed_seeded_v1', '1'); } catch (e) {}
-          }
-
-          // Detect any newly published files from cloud that this user device has never been notified about
-          const unnotifiedFiles = [];
-          remoteFiles.forEach(rf => {
-            if (rf && rf.id) {
-              appState.knownFileIdsOnLoad.add(rf.id);
-              if (!appState.notifiedPushFileIds.includes(rf.id)) {
-                unnotifiedFiles.push(rf);
-              }
-            }
-          });
-
-          const newSignature = computeDatabaseSignature(remoteFiles, nextFolders, nextAboutContent);
-          const isFirstRemoteSync = !appState.hasInitializedRemote;
-          const hasDataChanged = isFirstRemoteSync || (newSignature !== appState.lastRenderedSignature);
-
-          // Preserve any local files that are currently being uploaded so background sync never erases them mid-upload
-          const pendingLocalUploads = (appState.files || []).filter(f => f && f.isPendingUpload);
-          const mergedRemoteFiles = [...pendingLocalUploads, ...remoteFiles.filter(rf => !pendingLocalUploads.some(p => p.id === rf.id))];
-
-          appState.folders = nextFolders;
-          appState.aboutContent = nextAboutContent;
-          appState.files = mergedRemoteFiles;
-          appState.hasInitializedRemote = true;
-
-          if (hasDataChanged) {
-            appState.lastRenderedSignature = newSignature;
-            saveAppState();
-          }
-
-          if ('Notification' in window && Notification.permission === 'granted') {
-            subscribeAndSaveWebPush(null);
-          }
-
-          if (unnotifiedFiles.length > 0) {
-            // Always record these file IDs so they never repeat in an infinite 15-second toast/chime loop
-            unnotifiedFiles.forEach(nf => markFileAsPushNotified(nf.id));
-            try { localStorage.setItem('ksu_vet33_pushed_seeded_v1', '1'); } catch (e) {}
-            unnotifiedFiles.slice(0, 3).reverse().forEach(nf => {
-              sendUserNotificationForFile(nf, false);
-            });
-          } else if (isFirstRemoteSync && appState.notifiedPushFileIds.length > 0) {
-            postMessageToServiceWorker({
-              type: 'INIT_SW',
-              notifiedIds: appState.notifiedPushFileIds
-            });
-          }
-
-          // Issue #3 Fix: Only re-render DOM & icons when data has actually changed or user clicked manual sync
-          if (hasDataChanged || !silent) {
-            renderQuickSubjectBar();
-            renderBreadcrumbBar();
-            renderExplorerContent();
-            updateNotificationsUI();
-          }
-          checkPendingNotificationHash();
-          setCloudSyncStatus('online', `متصل (${remoteFiles.length})`);
-          if (!silent) {
-            showToast(`تمت المزامنة مع Google Drive بنجاح (${remoteFiles.length} ملف)`, 'success');
+          // Schedule a one-time silent background deep scan (force=true) 6s after fast initial load
+          if (!hasScheduledDeepDriveScan && forceFlag === 'false') {
+            hasScheduledDeepDriveScan = true;
+            setTimeout(() => {
+              fetchDatabaseFromDrive(true, true);
+            }, 6000);
           }
         } else {
           setCloudSyncStatus('online', 'متصل بـ Drive');
         }
       } catch (err) {
+        // Fallback: Try local vet_ksu_33_db.json if remote failed on first load
+        if (!appState.hasInitializedRemote) {
+          try {
+            const localRes = await fetch('./vet_ksu_33_db.json?t=' + Date.now());
+            if (localRes && localRes.ok) {
+              const localData = await localRes.json();
+              const localNorm = normalizeDriveApiPayload(localData);
+              if (localNorm && Array.isArray(localNorm.files) && localNorm.files.length > 0) {
+                applyNormalizedRemoteDatabase(localNorm, true);
+              }
+            }
+          } catch (localErr) {}
+
+          // Automatic retry on weak mobile connection
+          if (initialSyncRetryCount < 3) {
+            initialSyncRetryCount++;
+            setTimeout(() => {
+              fetchDatabaseFromDrive(true, false);
+            }, 2500 * initialSyncRetryCount);
+          }
+        }
         setCloudSyncStatus('error', 'وضع محلي');
         if (!silent) {
           showToast('تعذر الاتصال بـ Google Drive حالياً، يتم العرض من الذاكرة المحلية.', 'warning');
         }
       } finally {
         appState.isSyncing = false;
+        if (appState.pendingSyncAfterCurrent) {
+          const nextReq = appState.pendingSyncAfterCurrent;
+          appState.pendingSyncAfterCurrent = null;
+          setTimeout(() => {
+            fetchDatabaseFromDrive(nextReq.silent, nextReq.forceDriveScan);
+          }, 250);
+        }
       }
     }
 
@@ -1288,17 +3322,17 @@
     }
 
     const DEFAULT_ABOUT_CONTENT = {
-      greeting: 'السلام عليكم ورحمة الله وبركاتة',
-      verse: 'سُبْحَانَ الَّذِي سَخَّرَ لَنَا هَذَا وَمَا كُنَّا لَهُ مُقْرِنِينَ، وَإِنَّا إِلَى رَبِّنَا لَمُنْقَلِبُونَ',
-      modelNote: 'دي داتا معموله باقوي نماذج الذكاء الاصطناعي من google (gemini argon 4).',
-      typesHeading: 'عبارة عن 4 أنواع :',
-      sourceDesc: 'ودا هيكون رابط تليجرام هيوديك للملف الي انا بعته للذكاء الاصطناعي (argon 4).',
-      explainDesc: 'ودا شرح مفصل جدا للمصدر باللغه العاميه (الشرح بيكون فيه بعض المعلومات الي متذكرتش في المصدر عشان تزود الفهم فقط).',
-      summaryDesc: 'ودا تلخيص للمصدر من غير اي زيادة او نقص في المعلومات الي اتذكرت في المصدر ، بيجمعلك كل معلومه اتذكرت في المصدر فقط بشكل ملخص جدا ومنظم.',
-      mindmapDesc: 'ودي نفس الكلام الي موجود في التلخيص بس علي هيئة تفريعات عشان تربط المعلومات ببعضها.',
-      aiNoteTitle: 'بالنسبه للناس الي بتخاف ان الذكاء الاصطناعي يغلط او يهلوس :',
-      aiNoteDesc: 'الداتا دي مفيهاش اي هلوسه او اخطاء( تكاد تكون منعدمه) وتقدر تقارن بين المصدر الاصلي وبين الحجات الي الذكاء الاصطناعي عملها ومش هتلاقي اخطاء نهائيا ان شاء الله.'
-    };
+      "greeting": "بسم الله الرحمن الرحيم",
+      "verse": "سُبْحَانَ الَّذِي سَخَّرَ لَنَا هَذَا وَمَا كُنَّا لَهُ مُقْرِنِينَ، وَإِنَّا إِلَى رَبِّنَا لَمُنْقَلِبُونَ",
+      "modelNote": "دي داتا معموله باقوي نماذج الذكاء الاصطناعي من google (gemini argon 4).",
+      "typesHeading": "عبارة عن 4 أنواع :",
+      "sourceDesc": "ودا الملف الي انا بعته للذكاء الاصطناعي (argon 4) والمصدر  دا يإما تبيض او داتا دكتور المادة او ممكن يكون تفريغ لريكورد باستخدام الذكاء الاصطناعي بردو.",
+      "explainDesc": "ودا شرح مفصل جدا للمصدر باللغه العاميه (الشرح بيكون فيه بعض المعلومات الي متذكرتش في المصدر عشان تزود الفهم فقط).",
+      "summaryDesc": "ودا تلخيص للمصدر من غير اي زيادة او نقص في المعلومات الي اتذكرت في المصدر ، بيجمعلك كل معلومه اتذكرت في المصدر فقط بشكل ملخص جدا ومنظم.",
+      "mindmapDesc": "ودي نفس الكلام الي موجود في التلخيص بس علي هيئة تفريعات عشان تربط المعلومات ببعضها.",
+      "aiNoteTitle": "بالنسبه للناس الي بتخاف ان الذكاء الاصطناعي يغلط او يهلوس :",
+      "aiNoteDesc": "الداتا دي مفيهاش اي هلوسه او اخطاء( تكاد تكون منعدمه) وتقدر تقارن بين المصدر الاصلي وبين الحجات الي الذكاء الاصطناعي عملها ومش هتلاقي اخطاء نهائيا ان شاء الله."
+};
 
     // Safely load and normalize saved IDs from localStorage (dual-key: primary 'vet33_saved_files_v1', fallback 'ksu_vet33_saved_v4')
     function loadSavedFilesFromStorage() {
@@ -1484,9 +3518,12 @@
         localStorage.removeItem('ksu_vet33_saved_v3');
         localStorage.removeItem('ksu_vet33_completed_v3');
 
-        appState.files = safeParseArray(localStorage.getItem('ksu_vet33_files_v5'), generateDefaultFilesDatabase())
+        const storedFiles = safeParseArray(localStorage.getItem('ksu_vet33_files_v5'), [])
           .filter(rf => rf && rf.id && !rf.isSystemMeta && !String(rf.id).startsWith('_sys_'));
-        appState.folders = safeParseArray(localStorage.getItem('ksu_vet33_folders_v5'), []);
+        appState.files = storedFiles.length > 0 ? storedFiles : generateDefaultFilesDatabase();
+
+        const storedFolders = safeParseArray(localStorage.getItem('ksu_vet33_folders_v5'), []);
+        appState.folders = storedFolders.length > 0 ? storedFolders : generateDefaultFoldersDatabase();
         loadSavedFilesFromStorage();
         loadCompletedFilesFromStorage();
         appState.seenNotificationIds = safeParseArray(localStorage.getItem('ksu_vet33_seen_notifs_v4'), []);
@@ -1529,6 +3566,7 @@
         }
       } catch (e) {
         appState.files = generateDefaultFilesDatabase();
+        appState.folders = generateDefaultFoldersDatabase();
         appState.savedIds = [];
         appState.completedIds = [];
         appState.seenNotificationIds = [];
@@ -1540,8 +3578,12 @@
 
     function saveAppState() {
       try {
-        localStorage.setItem('ksu_vet33_files_v5', JSON.stringify(appState.files));
-        localStorage.setItem('ksu_vet33_folders_v5', JSON.stringify(appState.folders || []));
+        if (Array.isArray(appState.files) && (appState.files.length > 0 || appState.hasInitializedRemote)) {
+          localStorage.setItem('ksu_vet33_files_v5', JSON.stringify(appState.files));
+        }
+        if (Array.isArray(appState.folders) && (appState.folders.length > 0 || appState.hasInitializedRemote)) {
+          localStorage.setItem('ksu_vet33_folders_v5', JSON.stringify(appState.folders));
+        }
         saveSavedFilesToStorage();
         saveCompletedFilesToStorage();
         localStorage.setItem('ksu_vet33_seen_notifs_v4', JSON.stringify(appState.seenNotificationIds));
@@ -1715,9 +3757,14 @@
       const sidebar = document.getElementById('quick-access-sidebar');
       const edgeTab = document.getElementById('sidebar-edge-tab');
       const backdrop = document.getElementById('sidebar-backdrop');
+      renderQuickSubjectBar();
+      updateLibraryCounters();
       if (sidebar) sidebar.classList.add('sidebar-open');
       if (edgeTab) edgeTab.classList.add('tab-hidden');
-      if (backdrop && window.innerWidth < 1024) backdrop.classList.remove('hidden');
+      if (backdrop) backdrop.classList.remove('hidden');
+      if (window.innerWidth < 1024) {
+        document.body.classList.add('overflow-hidden');
+      }
     }
 
     function closeQuickSidebar() {
@@ -1727,6 +3774,14 @@
       if (sidebar) sidebar.classList.remove('sidebar-open');
       if (edgeTab) edgeTab.classList.remove('tab-hidden');
       if (backdrop) backdrop.classList.add('hidden');
+      const anyModalOpen = ['preview-modal', 'publish-modal', 'admin-login-modal', 'notifications-modal', 'about-modal'].some(id => {
+        const el = document.getElementById(id);
+        return el && !el.classList.contains('hidden');
+      });
+      if (!anyModalOpen) {
+        document.body.classList.remove('overflow-hidden');
+        document.body.style.overflow = '';
+      }
     }
 
     function toggleQuickSidebar() {
@@ -1746,27 +3801,27 @@
       const isRootActive = !appState.currentSubject && !appState.onlySavedFilter && !appState.searchQuery.trim();
       const totalFilesCount = appState.files.length;
 
-      // 1. Dedicated Home Screen Button (زر الشاشة الرئيسية)
+      // 1. Dedicated Home Screen Button (زر الشاشة الرئيسية - يرفع لأعلى الصفحة الرئيسية)
       const homeItem = `
-        <button type="button" id="sidebar-home-btn" class="quick-nav-btn w-full p-2.5 rounded-2xl border text-xs font-black transition flex items-center justify-between gap-2.5 group ${isRootActive ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-emerald-400 shadow-md shadow-emerald-500/25' : 'bg-slate-900/80 hover:bg-slate-800 text-slate-200 border-slate-800/80'}">
+        <button type="button" id="sidebar-home-btn" class="quick-nav-btn w-full p-2 rounded-2xl border text-xs font-black transition flex items-center justify-between gap-2 group bg-emerald-950/35 hover:bg-emerald-900/50 text-emerald-300 border-emerald-500/35">
           <div class="flex items-center gap-2.5 min-w-0">
-            <div class="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${isRootActive ? 'bg-white/20 text-white' : 'bg-emerald-500/20 text-emerald-400 group-hover:scale-105 transition'}">
+            <div class="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 bg-emerald-500/20 text-emerald-400 group-hover:scale-105 transition">
               <i data-lucide="home" class="w-4 h-4"></i>
             </div>
             <span class="truncate font-black">الشاشة الرئيسية</span>
           </div>
-          <span class="text-[10px] px-2 py-0.5 rounded-lg font-black shrink-0 ${isRootActive ? 'bg-white/20 text-white' : 'bg-slate-800 text-emerald-400 border border-slate-700/60'}">الرئيسية</span>
+          <span class="text-[10px] px-2 py-0.5 rounded-lg font-black shrink-0 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">الرئيسية</span>
         </button>
       `;
 
-      // 2. Root All-Files Folder
+      // 2. Root All-Files Folder (الترم الاول - الكل)
       const rootItem = `
-        <button type="button" data-quick-sub="root" class="quick-sub-btn w-full p-2.5 rounded-2xl border text-xs font-extrabold transition flex items-center justify-between gap-2.5 group ${isRootActive ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20' : 'bg-slate-900/80 hover:bg-slate-800 text-slate-200 border-slate-800/80'}">
+        <button type="button" data-quick-sub="root" class="quick-sub-btn w-full p-2 rounded-2xl border text-xs font-extrabold transition flex items-center justify-between gap-2 group ${isRootActive ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20' : 'bg-slate-900/85 hover:bg-slate-800 text-slate-200 border-slate-800/80'}">
           <div class="flex items-center gap-2.5 min-w-0">
             <div class="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${isRootActive ? 'bg-slate-950/20 text-slate-950' : 'bg-amber-500/20 text-amber-400 group-hover:scale-105 transition'}">
               <i data-lucide="layers" class="w-4 h-4"></i>
             </div>
-            <span class="truncate">الترم الاول (الكل)</span>
+            <span class="truncate">الترم الأول (كل المقررات)</span>
           </div>
           <span class="text-[10px] px-2 py-0.5 rounded-lg font-black shrink-0 ${isRootActive ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-800 text-amber-400 border border-slate-700/60'}">${totalFilesCount} ملف</span>
         </button>
@@ -1778,16 +3833,17 @@
         const subFiles = appState.files.filter(f => f.subject === sub.id);
         const fileCount = subFiles.length;
         const iconName = sub.icon || 'folder';
+        const label = sub.displayName || sub.folderName;
 
         return `
-          <button type="button" data-quick-sub="${sub.id}" class="quick-sub-btn w-full p-2.5 rounded-2xl border text-xs font-extrabold transition flex items-center justify-between gap-2.5 group ${isActive ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20' : 'bg-slate-900/80 hover:bg-slate-800 text-slate-200 border-slate-800/80'}">
+          <button type="button" data-quick-sub="${sub.id}" class="quick-sub-btn w-full p-2 rounded-2xl border text-xs font-extrabold transition flex items-center justify-between gap-2 group ${isActive ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20' : 'bg-slate-900/85 hover:bg-slate-800 text-slate-200 border-slate-800/80'}">
             <div class="flex items-center gap-2.5 min-w-0">
               <div class="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${isActive ? 'bg-slate-950/20 text-slate-950' : 'bg-amber-500/20 text-amber-400 group-hover:scale-105 transition'}">
                 <i data-lucide="${iconName}" class="w-4 h-4"></i>
               </div>
-              <span class="truncate">${sub.folderName}</span>
+              <span class="truncate">${label}</span>
             </div>
-            <span class="text-[10px] px-2 py-0.5 rounded-lg font-bold shrink-0 ${isActive ? 'bg-slate-950/20 text-slate-950' : 'bg-slate-800 text-slate-400 border border-slate-700/60'}">${fileCount} ملف</span>
+            <span class="text-[10px] px-2 py-0.5 rounded-lg font-bold shrink-0 ${isActive ? 'bg-slate-950/20 text-slate-950' : (fileCount > 0 ? 'bg-slate-800 text-amber-300 border border-amber-500/30' : 'bg-slate-800/70 text-slate-400 border border-slate-700/60')}">${fileCount} ملف</span>
           </button>
         `;
       }).join('');
@@ -1804,9 +3860,9 @@
           if (sInput) sInput.value = '';
           const cBtn = document.getElementById('clear-search-btn');
           if (cBtn) cBtn.classList.add('hidden');
+          closeQuickSidebar();
           navigateToHierarchy(null, null, null);
           window.scrollTo({ top: 0, behavior: 'smooth' });
-          if (window.innerWidth < 1024) closeQuickSidebar();
         });
       }
 
@@ -1821,12 +3877,16 @@
           const cBtn = document.getElementById('clear-search-btn');
           if (cBtn) cBtn.classList.add('hidden');
 
+          closeQuickSidebar();
           if (target === 'root') {
             navigateToHierarchy(null, null, null);
           } else {
             navigateToHierarchy(target, null, null);
           }
-          if (window.innerWidth < 1024) closeQuickSidebar();
+          const ws = document.getElementById('main-workspace');
+          if (ws && target !== 'root') {
+            ws.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
         });
       });
 
@@ -4020,10 +6080,6 @@
 
     // Initialize All Listeners
     window.addEventListener('DOMContentLoaded', () => {
-      const appHeader = document.querySelector('header');
-      if (appHeader) {
-        appHeader.style.zIndex = '120';
-      }
       initIntroVideo();
       loadAppState();
       appState.lastRenderedSignature = computeDatabaseSignature(appState.files, appState.folders, appState.aboutContent);
@@ -4036,8 +6092,10 @@
       renderQuickSubjectBar();
       renderBreadcrumbBar();
       renderExplorerContent();
+      updateLibraryCounters();
+      updateNotificationsUI();
       initThreeBackground();
-      fetchDatabaseFromDrive(true);
+      fetchDatabaseFromDrive(true, false);
 
       // Issue #1 Fix: Listen to phone/browser Back button (popstate) to close open modals or step back to parent folder
       window.addEventListener('popstate', (e) => {
@@ -4176,6 +6234,9 @@
             renderBreadcrumbBar();
             renderQuickSubjectBar();
             renderExplorerContent();
+            if (appState.searchQuery && window.innerWidth < 1024) {
+              closeQuickSidebar();
+            }
           } else if (e.key === 'Escape') {
             if (searchInput.value.length > 0) {
               e.stopPropagation();
@@ -4433,10 +6494,12 @@
             if (d.fileId) {
               openPreviewModal(d.fileId);
             }
+          } else if (msg.type === 'SW_DRIVE_DATA' && Array.isArray(msg.files) && msg.files.length > 0) {
+            applyNormalizedRemoteDatabase({ files: msg.files, folders: msg.folders || [] }, true);
           } else if (msg.type === 'SW_DETECTED_NEW_FILES' && Array.isArray(msg.notifiedIds)) {
             appState.notifiedPushFileIds = Array.from(new Set([...appState.notifiedPushFileIds, ...msg.notifiedIds]));
             saveAppState();
-            fetchDatabaseFromDrive(true);
+            fetchDatabaseFromDrive(true, false);
           }
         });
       }

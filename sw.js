@@ -1,7 +1,7 @@
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbxjlsN__9eXZvIuGLMJW0rCcpCiggFIdzdatlVXKuAy-34wGQN4b0k2iNSkP1SBI8S54A/exec';
 const DB_NAME = 'vet33_bg_sw_db_v10';
 const STORE_NAME = 'state';
-const CACHE_NAME = 'vet33-pwa-cache-v39';
+const CACHE_NAME = 'vet33-pwa-cache-v40';
 const APP_SHELL = [
   './',
   './index.html',
@@ -12,7 +12,7 @@ const APP_SHELL = [
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png',
   './assets/icons/app-icon.png',
-  './assets/images/bg.jpg'
+  './vet_ksu_33_db.json'
 ];
 const RUNTIME_CDN_HOSTS = ['cdnjs.cloudflare.com', 'cdn.jsdelivr.net', 'unpkg.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 const NEVER_CACHE_HOSTS = ['script.google.com', 'script.googleusercontent.com', 'googleusercontent.com', 'drive.google.com', 'drive.usercontent.google.com', 'docs.google.com', 't.me', 'telegram.org'];
@@ -213,6 +213,16 @@ async function checkDriveInBackground(isFromPushWakeup = false) {
     if (!Array.isArray(rawFiles)) return;
 
     const remoteFiles = rawFiles.filter(f => f && f.id && !f.isSystemMeta && !String(f.id).startsWith('_sys_'));
+    try {
+      const allClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      for (const client of allClients) {
+        client.postMessage({
+          type: 'SW_DRIVE_DATA',
+          files: rawFiles,
+          folders: Array.isArray(data.folders) ? data.folders : []
+        });
+      }
+    } catch (e) {}
     let notifiedIds = await getSwNotifiedIds();
 
     if (!notifiedIds) {
@@ -268,7 +278,7 @@ self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
     try {
       const cache = await caches.open(CACHE_NAME);
-      await Promise.allSettled(APP_SHELL.map(u => cache.add(new Request(u, { cache: 'reload' }))));
+      await Promise.allSettled(APP_SHELL.map(u => cache.add(new Request(u, { cache: 'default' }))));
     } catch (e) {}
   })());
 });

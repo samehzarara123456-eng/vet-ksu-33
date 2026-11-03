@@ -38,7 +38,7 @@
       id="intro-video"
       class="relative z-10 w-full h-full object-contain cursor-pointer"
       src="./assets/videos/1031.mp4"
-      preload="auto"
+      preload="metadata"
       playsinline
       webkit-playsinline
       x5-playsinline
@@ -71,9 +71,9 @@
   <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:right-auto z-50 flex flex-col gap-2.5 sm:max-w-sm pointer-events-none"></div>
 
     <!-- Floating Edge Tab docked to the extreme right edge of the screen (اقصى اليمين) -->
-  <button type="button" id="sidebar-edge-tab" class="fixed right-0 top-1/2 -translate-y-1/2 z-[85] px-2 py-4 rounded-l-2xl bg-slate-900/95 hover:bg-slate-850 text-amber-300 border-t border-b border-l border-amber-500/50 shadow-2xl backdrop-blur-md flex flex-col items-center gap-2.5 group transition-all duration-300 hover:pr-3 cursor-pointer" title="إظهار / إخفاء شريط الوصول السريع">
-    <i data-lucide="compass" class="w-5 h-5 text-amber-400 group-hover:rotate-45 transition-transform duration-300"></i>
-    <span class="writing-mode-vertical text-[11px] font-black tracking-wider text-slate-200 group-hover:text-amber-300">الوصول السريع</span>
+  <button type="button" id="sidebar-edge-tab" class="fixed right-0 top-1/2 -translate-y-1/2 z-[85] px-2 py-3.5 rounded-l-2xl bg-slate-900/95 hover:bg-slate-850 text-amber-300 border-t border-b border-l border-amber-500/50 shadow-2xl backdrop-blur-md flex flex-col items-center gap-2 group transition-all duration-300 hover:pr-3 cursor-pointer" title="إظهار / إخفاء شريط الوصول السريع">
+    <i data-lucide="compass" class="w-4 h-4 text-amber-400 group-hover:rotate-45 transition-transform duration-300"></i>
+    <span class="writing-mode-vertical text-[11px] font-black text-slate-200 group-hover:text-amber-300">الوصول السريع</span>
     <i data-lucide="chevron-left" class="w-3.5 h-3.5 text-amber-400 group-hover:-translate-x-0.5 transition-transform"></i>
   </button>
 
@@ -183,27 +183,27 @@
     </div>
 
     <!-- Top Student Phone Notification Activation Banner (Auto-hides once phone notifications are granted) -->
-    <div id="phone-notif-banner" class="hidden bg-gradient-to-r from-emerald-950/95 via-slate-900/95 to-amber-950/95 border-b border-emerald-500/40 px-3 sm:px-6 py-2.5 backdrop-blur-md">
-      <div class="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 text-xs">
-        <div class="flex items-center gap-2.5 min-w-0">
+    <div id="phone-notif-banner" class="hidden w-full max-w-full overflow-hidden bg-gradient-to-r from-emerald-950/95 via-slate-900/95 to-amber-950/95 border-b border-emerald-500/40 px-3 sm:px-6 py-2.5 backdrop-blur-md">
+      <div class="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs min-w-0">
+        <div class="flex items-start sm:items-center gap-2.5 min-w-0">
           <div class="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-300 shrink-0 animate-bounce">
             <i data-lucide="bell-ring" class="w-4 h-4"></i>
           </div>
-          <div class="min-w-0">
+          <div class="min-w-0 flex-1">
             <p class="font-extrabold text-white leading-snug">فعّل إشعارات الهاتف الخارجية لتصلك تنبيهات المحاضرات والسكاشن الجديدة في شريط إشعارات هاتفك حتى بعد إغلاق المتصفح</p>
-            <p class="text-[11px] text-slate-300 truncate" id="phone-notif-subtext">اضغط على زر التفعيل ثم اختر "سماح / Allow" من نافذة المتصفح</p>
+            <p class="text-[11px] text-slate-300 leading-snug mt-0.5" id="phone-notif-subtext">اضغط على زر التفعيل ثم اختر "سماح / Allow" من نافذة المتصفح</p>
           </div>
         </div>
-        <div class="flex items-center gap-2 shrink-0">
-          <button type="button" id="banner-enable-phone-notif-btn" class="btn-3d flex-1 sm:flex-initial justify-center px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-black text-xs flex items-center gap-1.5 whitespace-nowrap">
-            <i data-lucide="smartphone" class="w-4 h-4"></i>
-            <span>تفعيل إشعارات الهاتف الآن</span>
+        <div class="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto min-w-0">
+          <button type="button" id="banner-enable-phone-notif-btn" class="btn-3d flex-1 sm:flex-initial min-w-0 justify-center px-2 sm:px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-black text-[10.5px] sm:text-xs flex items-center gap-1 sm:gap-1.5">
+            <i data-lucide="smartphone" class="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0"></i>
+            <span class="truncate">تفعيل إشعارات الهاتف</span>
           </button>
-          <button type="button" id="pwa-install-btn" class="hidden px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs items-center gap-1.5 transition whitespace-nowrap">
-            <i data-lucide="download" class="w-3.5 h-3.5"></i>
-            <span>تثبيت كبرنامج بالخلفية</span>
+          <button type="button" id="pwa-install-btn" class="hidden flex-1 sm:flex-initial min-w-0 justify-center px-2 sm:px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[10.5px] sm:text-xs items-center gap-1 sm:gap-1.5 transition">
+            <i data-lucide="download" class="w-3.5 h-3.5 shrink-0"></i>
+            <span class="truncate">تثبيت كبرنامج بالخلفية</span>
           </button>
-          <button type="button" id="dismiss-phone-notif-banner-btn" class="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition" title="إخفاء مؤقت">
+          <button type="button" id="dismiss-phone-notif-banner-btn" class="w-8 h-8 shrink-0 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 flex items-center justify-center transition" title="إخفاء مؤقت">
             <i data-lucide="x" class="w-4 h-4"></i>
           </button>
         </div>
@@ -281,11 +281,11 @@
       <div class="max-w-7xl mx-auto space-y-4 sm:space-y-5">
 
         <!-- Sticky Navigation & Back Bar -->
-        <div id="sticky-breadcrumb-bar" style="position: sticky; top: 0; z-index: 60; background-color: rgba(7, 13, 30, 0.98);" class="sticky top-0 z-[60] bg-slate-950/98 backdrop-blur-2xl rounded-2xl px-3 sm:px-4 py-2.5 border border-amber-500/40 shadow-2xl flex flex-wrap items-center justify-between gap-2.5 transition-all">
+        <div id="sticky-breadcrumb-bar" style="position: sticky; top: 0; z-index: 60; background-color: rgba(7, 13, 30, 0.98);" class="sticky top-0 z-[60] bg-slate-950/98 backdrop-blur-2xl rounded-2xl px-2 sm:px-4 py-1.5 sm:py-2.5 border border-amber-500/40 shadow-2xl flex flex-wrap items-center justify-between gap-1 sm:gap-2.5 transition-all">
           
-          <div class="flex items-center gap-2 min-w-0">
+          <div class="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-wrap">
             <!-- Sidebar Toggle Button (Available on all devices) -->
-            <button type="button" id="sidebar-toggle-btn" class="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-black inline-flex items-center gap-1.5 shrink-0 transition shadow-sm" title="إظهار / إخفاء شريط الوصول السريع">
+            <button type="button" id="sidebar-toggle-btn" class="px-2 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-black inline-flex items-center gap-1.5 shrink-0 transition shadow-sm" title="إظهار / إخفاء شريط الوصول السريع">
               <i data-lucide="compass" class="w-4 h-4 text-amber-400 animate-pulse"></i>
               <span class="text-[11px]">الوصول السريع</span>
             </button>
@@ -297,22 +297,22 @@
           </div>
 
           <!-- Right Controls: Quick Step Up + View Layout Toggle -->
-          <div class="flex items-center gap-2 shrink-0 mr-auto sm:mr-0">
+          <div class="flex items-center gap-1.5 sm:gap-2 shrink-0 mr-auto sm:mr-0">
             <button type="button" id="breadcrumb-publish-btn" class="hidden px-2.5 sm:px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 text-xs font-black items-center gap-1.5 transition whitespace-nowrap shadow-md cursor-pointer" title="نشر مادة جديدة داخل هذا المجلد">
-            <i data-lucide="plus-circle" class="w-3.5 h-3.5 text-slate-950"></i>
-            <span class="hidden sm:inline">نشر مادة</span>
-          </button>
-          <button type="button" id="step-back-btn" class="hidden px-3 sm:px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-extrabold items-center gap-1.5 transition whitespace-nowrap shadow-md" title="رجوع للمجلد السابق">
+              <i data-lucide="plus-circle" class="w-3.5 h-3.5 text-slate-950"></i>
+              <span class="hidden sm:inline">نشر مادة</span>
+            </button>
+            <button type="button" id="step-back-btn" class="hidden px-2.5 sm:px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-[11px] sm:text-xs font-extrabold items-center gap-1 transition whitespace-nowrap shadow-md" title="رجوع للمجلد السابق">
               <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
-              <span>رجوع للخلف</span>
+              <span>رجوع</span>
             </button>
 
-            <div class="flex items-center bg-slate-950/90 p-1 rounded-xl border border-slate-800">
-              <button type="button" id="layout-grid-btn" class="px-2.5 py-1 rounded-lg bg-amber-500 text-slate-950 text-xs font-extrabold flex items-center gap-1 transition whitespace-nowrap" title="عرض شبكي ثلاثي الأبعاد">
+            <div class="flex items-center bg-slate-950/90 p-0.5 sm:p-1 rounded-xl border border-slate-800">
+              <button type="button" id="layout-grid-btn" class="px-2 sm:px-2.5 py-1 rounded-lg bg-amber-500 text-slate-950 text-[11px] sm:text-xs font-extrabold flex items-center gap-1 transition whitespace-nowrap" title="عرض شبكي ثلاثي الأبعاد">
                 <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i>
                 <span>شبكة</span>
               </button>
-              <button type="button" id="layout-list-btn" class="px-2.5 py-1 rounded-lg text-slate-400 hover:text-white text-xs font-bold flex items-center gap-1 transition whitespace-nowrap" title="عرض قائمة مثل مدير ملفات الهاتف">
+              <button type="button" id="layout-list-btn" class="px-2 sm:px-2.5 py-1 rounded-lg text-slate-400 hover:text-white text-[11px] sm:text-xs font-bold flex items-center gap-1 transition whitespace-nowrap" title="عرض قائمة مثل مدير ملفات الهاتف">
                 <i data-lucide="list" class="w-3.5 h-3.5"></i>
                 <span>قائمة</span>
               </button>
@@ -348,79 +348,7 @@
       </div>
     </main>
 
-    <!-- Mobile / Drawer Backdrop Overlay -->
-    <div id="sidebar-backdrop" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[95] hidden transition-opacity duration-300" aria-hidden="true"></div>
 
-    <!-- Quick Access Sidebar at Extreme Far Right (اقصى اليمين مع إمكانية الإظهار والإخفاء) -->
-    <aside id="quick-access-sidebar" class="flex flex-col p-4 sm:p-5 space-y-4 overflow-y-auto scrollbar-thin">
-
-      <!-- Sidebar Header -->
-      <div class="flex items-center justify-between gap-2 pb-3 border-b border-slate-800/80 shrink-0">
-        <div class="flex items-center gap-2.5">
-          <div class="w-9 h-9 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center shadow-inner shrink-0">
-            <i data-lucide="compass" class="w-5 h-5"></i>
-          </div>
-          <div>
-            <h3 class="text-sm font-black text-white flex items-center gap-1.5">
-              <span>الوصول السريع</span>
-              <span class="px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-black">8 مقررات</span>
-            </h3>
-            <p class="text-[10px] text-slate-400 font-medium">تنقل فوري بين مقررات الترم الأول</p>
-          </div>
-        </div>
-        <button type="button" id="sidebar-hide-btn" class="px-2.5 py-1.5 rounded-xl bg-slate-800/80 hover:bg-amber-500/20 text-slate-300 hover:text-amber-400 border border-slate-700 transition flex items-center gap-1 text-xs font-bold" title="إخفاء الشريط">
-          <span class="text-[11px]">إخفاء</span>
-          <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
-        </button>
-      </div>
-
-      <!-- Instant Search Input inside Sidebar -->
-      <div class="relative shrink-0">
-        <i data-lucide="search" class="w-4 h-4 text-amber-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
-        <input 
-          type="text" 
-          id="search-input" 
-          placeholder="بحث في المقررات والملفات..." 
-          class="w-full pr-10 pl-9 py-2.5 rounded-2xl bg-slate-900/90 border border-slate-700/80 focus:border-amber-400 focus:outline-none text-xs text-white placeholder-slate-400 transition shadow-inner"
-        />
-        <button type="button" id="clear-search-btn" class="hidden absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1" title="مسح البحث">
-          <i data-lucide="x-circle" class="w-4 h-4"></i>
-        </button>
-      </div>
-
-      <!-- Subject & Navigation List (Includes Home Screen Button, Root Level, and 8 Subjects) -->
-      <div class="flex-1 space-y-1.5 overflow-y-auto pr-0.5 scrollbar-thin" id="quick-subject-bar">
-        <!-- Populated dynamically by renderQuickSubjectBar() in exact order: الشاشة الرئيسية، الترم الأول، باطنه، توليد، جراحه، دواجن، صحه، لحمه، مشتركه، معديه -->
-      </div>
-
-      <!-- Sidebar Footer Quick Links -->
-      <div class="pt-3 border-t border-slate-800/80 space-y-2 shrink-0">
-        <button type="button" id="sidebar-intro-video-btn" class="w-full p-2.5 rounded-2xl border border-amber-500/30 bg-amber-950/20 hover:bg-amber-900/40 text-amber-300 text-xs font-bold transition flex items-center justify-between gap-2">
-          <div class="flex items-center gap-2">
-            <i data-lucide="clapperboard" class="w-4 h-4 text-amber-400"></i>
-            <span>فيديو المقدمة</span>
-          </div>
-          <span class="text-[10px] text-amber-400/80 font-black">تشغيل</span>
-        </button>
-
-        <button type="button" id="sidebar-publish-btn" class="hidden w-full p-2.5 rounded-2xl border border-emerald-500/40 bg-gradient-to-r from-emerald-950/40 to-teal-950/40 hover:from-emerald-900/60 hover:to-teal-900/60 text-emerald-300 text-xs font-black transition items-center justify-between gap-2 shadow-sm cursor-pointer">
-          <div class="flex items-center gap-2">
-            <i data-lucide="plus-circle" class="w-4 h-4 text-emerald-400"></i>
-            <span>نشر مادة جديدة</span>
-          </div>
-          <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">مسؤول</span>
-        </button>
-
-        <button type="button" id="sidebar-saved-btn" class="w-full p-2.5 rounded-2xl border border-cyan-500/30 bg-cyan-950/20 hover:bg-cyan-900/40 text-cyan-300 text-xs font-bold transition flex items-center justify-between gap-2">
-          <div class="flex items-center gap-2">
-            <i data-lucide="bookmark" class="w-4 h-4 text-cyan-400"></i>
-            <span>ملفاتي المحفوظة</span>
-          </div>
-          <span id="sidebar-saved-badge" class="px-2 py-0.5 rounded-lg bg-cyan-500/20 text-cyan-300 text-[10px] font-black">0</span>
-        </button>
-      </div>
-
-    </aside>
     <!-- Footer -->
     <footer class="glass-panel border-t border-slate-800/80 py-5 px-4 sm:px-6 lg:px-10 mt-auto">
       <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
@@ -441,6 +369,80 @@
     </footer>
 
   </div> <!-- End Main Content Wrapper -->
+
+  <!-- Mobile / Drawer Backdrop Overlay (Outside main wrapper for clean root stacking context) -->
+  <div id="sidebar-backdrop" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[140] hidden transition-opacity duration-300" aria-hidden="true"></div>
+
+  <!-- Quick Access Sidebar at Extreme Far Right (اقصى اليمين مع إمكانية الإظهار والإخفاء) -->
+  <aside id="quick-access-sidebar" class="flex flex-col p-3.5 sm:p-5 gap-3 overflow-hidden">
+
+    <!-- Sidebar Header (Pinned at Top - Never Scrolls Out of View) -->
+    <div class="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-800/80 shrink-0">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div class="w-9 h-9 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center shadow-inner shrink-0">
+          <i data-lucide="compass" class="w-5 h-5"></i>
+        </div>
+        <div class="min-w-0">
+          <h3 class="text-sm font-black text-white flex items-center gap-1.5 truncate">
+            <span>الوصول السريع</span>
+            <span class="px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-black shrink-0">8 مقررات</span>
+          </h3>
+          <p class="text-[10px] text-slate-400 font-medium truncate">تنقل فوري بين مقررات الترم الأول</p>
+        </div>
+      </div>
+      <button type="button" id="sidebar-hide-btn" class="px-2.5 py-1.5 rounded-xl bg-slate-800/90 hover:bg-amber-500/20 text-slate-200 hover:text-amber-300 border border-slate-700 transition flex items-center gap-1 text-xs font-extrabold shrink-0" title="إخفاء الشريط">
+        <span class="text-[11px]">إخفاء</span>
+        <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+      </button>
+    </div>
+
+    <!-- Instant Search Input inside Sidebar (Pinned below Header) -->
+    <div class="relative shrink-0">
+      <i data-lucide="search" class="w-4 h-4 text-amber-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+      <input 
+        type="text" 
+        id="search-input" 
+        placeholder="بحث في المقررات والملفات..." 
+        class="w-full pr-10 pl-9 py-2 rounded-2xl bg-slate-900/90 border border-slate-700/80 focus:border-amber-400 focus:outline-none text-xs text-white placeholder-slate-400 transition shadow-inner"
+      />
+      <button type="button" id="clear-search-btn" class="hidden absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1" title="مسح البحث">
+        <i data-lucide="x-circle" class="w-4 h-4"></i>
+      </button>
+    </div>
+
+    <!-- Subject & Navigation List (Scrollable Flex Child with min-h-0) -->
+    <div class="flex-1 min-h-0 space-y-1.5 overflow-y-auto pr-0.5 py-0.5 scrollbar-thin" id="quick-subject-bar">
+      <!-- Populated dynamically by renderQuickSubjectBar() -->
+    </div>
+
+    <!-- Sidebar Footer Quick Links (Pinned at Bottom) -->
+    <div class="pt-2.5 border-t border-slate-800/80 space-y-1.5 shrink-0">
+      <button type="button" id="sidebar-intro-video-btn" class="w-full p-2 rounded-2xl border border-amber-500/30 bg-amber-950/20 hover:bg-amber-900/40 text-amber-300 text-xs font-bold transition flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <i data-lucide="clapperboard" class="w-4 h-4 text-amber-400"></i>
+          <span>فيديو المقدمة</span>
+        </div>
+        <span class="text-[10px] text-amber-400/80 font-black">تشغيل</span>
+      </button>
+
+      <button type="button" id="sidebar-publish-btn" class="hidden w-full p-2 rounded-2xl border border-emerald-500/40 bg-gradient-to-r from-emerald-950/40 to-teal-950/40 hover:from-emerald-900/60 hover:to-teal-900/60 text-emerald-300 text-xs font-black transition items-center justify-between gap-2 shadow-sm cursor-pointer">
+        <div class="flex items-center gap-2">
+          <i data-lucide="plus-circle" class="w-4 h-4 text-emerald-400"></i>
+          <span>نشر مادة جديدة</span>
+        </div>
+        <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">مسؤول</span>
+      </button>
+
+      <button type="button" id="sidebar-saved-btn" class="w-full p-2 rounded-2xl border border-cyan-500/30 bg-cyan-950/20 hover:bg-cyan-900/40 text-cyan-300 text-xs font-bold transition flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <i data-lucide="bookmark" class="w-4 h-4 text-cyan-400"></i>
+          <span>ملفاتي المحفوظة</span>
+        </div>
+        <span id="sidebar-saved-badge" class="px-2 py-0.5 rounded-lg bg-cyan-500/20 text-cyan-300 text-[10px] font-black">0</span>
+      </button>
+    </div>
+
+  </aside>
 
   <!-- ===================================================================== -->
   <!-- MODAL 1: LECTURE / SECTION FILE PREVIEW & DOWNLOAD MODAL              -->
