@@ -2386,7 +2386,7 @@
       }
 
       try {
-        let reg = await navigator.serviceWorker.register('./sw.js?v=40', {
+        let reg = await navigator.serviceWorker.register('./sw.js?v=41', {
           scope: './',
           updateViaCache: 'none'
         });
@@ -5875,13 +5875,22 @@
 
       let isClosing = false;
       let isClosed = false;
-      let fallbackTimer = null;
+      let startupTimer = null;
+      let playbackMaxTimer = null;
+      let closeTransitionTimer = null;
 
-      // Clears any pending safety fallback timers safely
-      function clearSafetyTimer() {
-        if (fallbackTimer) {
-          clearTimeout(fallbackTimer);
-          fallbackTimer = null;
+      function clearAllIntroTimers() {
+        if (startupTimer) {
+          clearTimeout(startupTimer);
+          startupTimer = null;
+        }
+        if (playbackMaxTimer) {
+          clearTimeout(playbackMaxTimer);
+          playbackMaxTimer = null;
+        }
+        if (closeTransitionTimer) {
+          clearTimeout(closeTransitionTimer);
+          closeTransitionTimer = null;
         }
       }
 
@@ -5890,7 +5899,14 @@
         try { sessionStorage.setItem('vet33_intro_seen', '1'); } catch (e) {}
         if (isClosing || isClosed) return;
         isClosing = true;
-        clearSafetyTimer();
+        if (startupTimer) {
+          clearTimeout(startupTimer);
+          startupTimer = null;
+        }
+        if (playbackMaxTimer) {
+          clearTimeout(playbackMaxTimer);
+          playbackMaxTimer = null;
+        }
 
         // Immediately unblock user interaction with underlying page
         overlay.style.pointerEvents = 'none';
@@ -5899,11 +5915,12 @@
         document.body.classList.remove('overflow-hidden');
 
         // Smooth visual exit transition
-        overlay.style.transition = 'opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1), transform 0.65s cubic-bezier(0.16, 1, 0.3, 1)';
+        overlay.style.transition = 'opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1), transform 0.55s cubic-bezier(0.16, 1, 0.3, 1)';
         overlay.style.opacity = '0';
-        overlay.style.transform = 'scale(1.04)';
+        overlay.style.transform = 'scale(1.03)';
 
-        setTimeout(() => {
+        closeTransitionTimer = setTimeout(() => {
+          closeTransitionTimer = null;
           try {
             video.pause();
           } catch (e) {}
@@ -5918,15 +5935,30 @@
 
           isClosing = false;
           isClosed = true;
-        }, 650);
+        }, 550);
+      }
+
+      function armPlaybackSafetyWindow() {
+        if (startupTimer) {
+          clearTimeout(startupTimer);
+          startupTimer = null;
+        }
+        if (!playbackMaxTimer) {
+          // Video is 5.83s; guarantee dismissal after 7.2s even if mobile WebView drops 'ended'
+          playbackMaxTimer = setTimeout(() => {
+            if (!isClosed && !isClosing) {
+              closeIntroVideo();
+            }
+          }, 7200);
+        }
       }
 
       function playIntroVideo(userInitiated) {
-        clearSafetyTimer();
+        clearAllIntroTimers();
         isClosing = false;
         isClosed = false;
 
-        // Reset display state
+        // Reset display state cleanly
         overlay.style.display = 'flex';
         overlay.classList.remove('intro-hidden', 'hidden');
         overlay.classList.add('active');
@@ -5936,104 +5968,95 @@
         overlay.style.transform = 'none';
         overlay.style.transition = 'opacity 0.3s ease-out';
 
+        // Ensure mobile browsers (iOS Safari, Android Chrome) always permit playback
+        video.defaultMuted = true;
+        video.muted = true;
+        video.playsInline = true;
+        video.setAttribute('muted', '');
+        video.setAttribute('playsinline', '');
+
         try {
-          video.currentTime = 0;
+          if (video.readyState === 0) {
+            video.load();
+          } else {
+            video.currentTime = 0;
+          }
         } catch (e) {}
 
-        // 3-Second Safety Fallback Timer:
-        // Guarantees overlay will dismiss if video stalls, fails to buffer, or hangs
-        fallbackTimer = setTimeout(() => {
-          console.warn('Intro video 3-second safety fallback triggered; dismissing overlay.');
-          closeIntroVideo();
-        }, 3000);
+        // 8-Second Startup Watchdog (only triggers if video never starts loading/playing at all)
+        startupTimer = setTimeout(() => {
+          if (!isClosed && !isClosing && (video.paused || video.currentTime < 0.05)) {
+            console.warn('Intro video startup fallback triggered; dismissing overlay.');
+            closeIntroVideo();
+          }
+        }, 8000);
 
-        if (userInitiated) {
-          // Explicit click by user -> unmuted audio allowed by browser policies
-          video.muted = false;
-          const p = video.play();
-          if (p !== undefined) {
-            p.catch(() => {
+        const playPromise = video.play();
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              armPlaybackSafetyWindow();
+            })
+            .catch(() => {
+              video.defaultMuted = true;
               video.muted = true;
-              video.play().catch(err => {
-                console.warn('User-initiated intro video play failed:', err);
-                closeIntroVideo();
-              });
+              video.play()
+                .then(() => {
+                  armPlaybackSafetyWindow();
+                })
+                .catch(err => {
+                  console.warn('Intro video autoplay prevented:', err);
+                  closeIntroVideo();
+                });
             });
-          }
-        } else {
-          // Automatic launch on site open: try unmuted, fallback to muted if blocked
-          video.muted = false;
-          const p = video.play();
-          if (p !== undefined) {
-            p.catch(() => {
-              // Browser autoplay policy blocked unmuted sound -> play muted
-              video.muted = true;
-              video.play().catch(err => {
-                console.warn('Intro video autoplay prevented:', err);
-                // If autoplay is completely blocked, dismiss immediately so user can see app
-                closeIntroVideo();
-              });
-            });
-          }
         }
       }
 
-      // Clear the startup safety timer as soon as the video actually begins playing so it plays its full 5.83s duration
+      // Clear startup watchdog as soon as frames begin rendering and arm max duration timer
       video.addEventListener('playing', () => {
-        clearSafetyTimer();
-      });
-      video.addEventListener('timeupdate', () => {
-        if (video.currentTime > 0.1) clearSafetyTimer();
+        armPlaybackSafetyWindow();
       });
 
-      // Event 1: Normal completion
+      video.addEventListener('timeupdate', () => {
+        if (video.currentTime > 0.05) {
+          armPlaybackSafetyWindow();
+        }
+        // Smoothly begin fade-out right before the final black frame (5.72s of 5.83s)
+        if (video.duration && video.duration > 1 && video.currentTime >= video.duration - 0.12) {
+          closeIntroVideo();
+        }
+      });
+
+      // Normal completion
       video.addEventListener('ended', () => {
         closeIntroVideo();
       });
 
-      // Event 2: Media loading or decoding error (offline, missing file, corrupt stream)
+      // Media loading or decoding error (missing file or corrupt stream)
       video.addEventListener('error', (e) => {
         console.warn('Intro video error encountered:', video.error || e);
         closeIntroVideo();
       });
 
-      // Event 3: Network stall (data stopped arriving)
-      video.addEventListener('stalled', () => {
-        console.warn('Intro video stream stalled; triggering dismissal.');
-        closeIntroVideo();
-      });
-
-      // Event 4: Buffer waiting timeout
-      video.addEventListener('waiting', () => {
-        setTimeout(() => {
-          if (video.readyState < 3 && !isClosed) {
-            closeIntroVideo();
-          }
-        }, 1500);
-      });
-
       // Skip button
       if (skipBtn) {
         skipBtn.addEventListener('click', (e) => {
+          e.preventDefault();
           e.stopPropagation();
           closeIntroVideo();
         });
       }
 
-      // Tap video to toggle sound or play/pause
-      video.addEventListener('click', () => {
-        if (video.muted) {
-          video.muted = false;
-        } else {
-          if (video.paused) {
-            video.play();
-          } else {
-            video.pause();
-          }
+      // Clicking overlay or video resumes playback if paused (never freezes the intro screen)
+      overlay.addEventListener('click', (e) => {
+        if (e.target && e.target.closest('#intro-skip-btn')) return;
+        if (video.paused && !isClosing && !isClosed) {
+          video.muted = true;
+          video.play().catch(() => closeIntroVideo());
         }
       });
 
-      // Keyboard Esc to skip
+      // Keyboard Esc / Space / Enter to skip
       window.addEventListener('keydown', (e) => {
         if (!isClosed && (e.key === 'Escape' || e.key === 'Esc')) {
           closeIntroVideo();
@@ -6042,26 +6065,25 @@
 
       // Header Replay Button
       if (headerIntroBtn) {
-        headerIntroBtn.addEventListener('click', () => playIntroVideo(true));
+        headerIntroBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          playIntroVideo(true);
+        });
       }
 
       // Sidebar Replay Button
       if (sidebarIntroBtn) {
-        sidebarIntroBtn.addEventListener('click', () => {
+        sidebarIntroBtn.addEventListener('click', (e) => {
+          e.preventDefault();
           if (typeof closeQuickSidebar === 'function') closeQuickSidebar();
           playIntroVideo(true);
         });
       }
 
-      // Issue #2 Fix: Do not force-play intro video on page refresh within the same session or when opening a notification (#file=...)
-      let hasSeenInSession = false;
-      try {
-        hasSeenInSession = sessionStorage.getItem('vet33_intro_seen') === '1';
-      } catch (e) {}
+      // Play intro video on site open (skip only when opening a direct notification file link #file=...)
       const isOpeningNotificationFile = Boolean(location.hash && location.hash.startsWith('#file='));
-
-      if (hasSeenInSession || isOpeningNotificationFile) {
-        clearSafetyTimer();
+      if (isOpeningNotificationFile) {
+        clearAllIntroTimers();
         try { video.pause(); } catch (e) {}
         overlay.classList.add('intro-hidden', 'hidden');
         overlay.classList.remove('active');
@@ -6073,7 +6095,6 @@
         document.body.classList.remove('overflow-hidden');
         isClosed = true;
       } else {
-        try { sessionStorage.setItem('vet33_intro_seen', '1'); } catch (e) {}
         playIntroVideo(false);
       }
     }
