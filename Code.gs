@@ -22,7 +22,9 @@ var CONFIG = {
   DB_FILE_NAME: 'vet_ksu_33_db.json',
   SYS_PUSH_SUBS_ID: '_sys_push_subs_v1',
   SYS_ABOUT_CONTENT_ID: '_sys_about_content_v1',
-  SYNC_THROTTLE_MS: 30000,
+  SYNC_THROTTLE_MS: 45000,
+  CACHE_TTL_SEC: 21600,
+  CACHE_CHUNK_SIZE: 85000,
   VAPID_PUBLIC_KEY: 'BBe2gBt8gJLkBd1A18PTct2lU5Z7hvEIYHCZsJGpoAxbE87icx-JptMv6X_MreSsSy_msKURSS-bgmbxlt3YJpA',
   VAPID_PRIVATE_D_B64URL: 'B1wi3aQnb-RLzcd1QiW9REM_TVITkBf6yAKz8iQyADo',
   ADMIN_HASHES: ['0643799174995559', 'ea9b3768d5fb77e8', 'ce67dfc0bfb928fe', 'c1acda7163742c9b', '2afb2a3e63add4dc']
@@ -99,14 +101,30 @@ function doGet(e) {
   try {
     const params = (e && e.parameter) ? e.parameter : {};
     const forceScan = String(params.force || '') === 'true';
+    const explicitSync = String(params.explicit || '') === 'true';
+
+    // المسار السريع الفوري (Fast-Path): عند فتح الموقع (force=false) نرجع قاعدة البيانات فوراً من الذاكرة السريعة (CacheService / JSON) في أقل من 0.1 ثانية دون انتظار فحص 80 مجلداً
+    if (!forceScan) {
+      const fastDb = readDatabaseState(null, false);
+      if (fastDb && Array.isArray(fastDb.files) && fastDb.files.length > 0) {
+        return jsonResponse({
+          ok: true,
+          status: 'success',
+          fastCached: true,
+          syncedAt: new Date().toISOString(),
+          files: fastDb.files,
+          folders: fastDb.folders || []
+        });
+      }
+    }
+
     const props = PropertiesService.getScriptProperties();
     const lastScanMs = Number(props.getProperty('LAST_DRIVE_SCAN_MS') || 0);
     const nowMs = Date.now();
 
     let syncResult = null;
-    if (!forceScan && (nowMs - lastScanMs < CONFIG.SYNC_THROTTLE_MS)) {
-      const rootFolder = getRootFolder();
-      const cachedDb = readDatabaseState(rootFolder);
+    if (!explicitSync && (nowMs - lastScanMs < CONFIG.SYNC_THROTTLE_MS)) {
+      const cachedDb = readDatabaseState(null, false);
       if (Array.isArray(cachedDb.files) && cachedDb.files.length > 0) {
         syncResult = cachedDb;
       }
@@ -114,7 +132,8 @@ function doGet(e) {
 
     if (!syncResult) {
       const lock = LockService.getScriptLock();
-      if (lock.tryLock(15000)) {
+      // انتظار خفيف (600ms فقط بدلاً من 15 ثانية) حتى لا يتجمد أي مستخدم أثناء مسح الخلفية
+      if (lock.tryLock(600)) {
         try {
           syncResult = syncDriveWithDatabase();
           props.setProperty('LAST_DRIVE_SCAN_MS', String(Date.now()));
@@ -122,8 +141,7 @@ function doGet(e) {
           lock.releaseLock();
         }
       } else {
-        const rootFolder = getRootFolder();
-        syncResult = readDatabaseState(rootFolder);
+        syncResult = readDatabaseState(null, false);
       }
     }
 
@@ -324,8 +342,8 @@ function syncDriveWithDatabase() {
     }
   });
 
-  // مسح شجرة مجلدات Google Drive بالكامل
-  const scanOutput = scanEntireDriveTree(rootFolder);
+  // مسح شجرة مجلدات Google Drive بالكامل مع تمرير الفهرس الحالي لتسريع قراءة الملفات غير المعدلة
+  const scanOutput = scanEntireDriveTree(rootFolder, dbByDriveId);
   const discoveredDriveFiles = scanOutput.driveFiles; // كل الملفات الموجودة فعلياً الآن في المجلد
   const discoveredFolders = scanOutput.folders;       // كل مجلدات المحاضرات/السكاشن الموجودة فعلياً
 
@@ -458,9 +476,10 @@ function syncDriveWithDatabase() {
  * 4. مسح الهيكل الرباعي لمجلد Google Drive (VET_KSU_33_Library)
  * ============================================================================
  */
-function scanEntireDriveTree(rootFolder) {
+function scanEntireDriveTree(rootFolder, dbByDriveId) {
   const driveFiles = [];
   const folders = [];
+  const knownMap = dbByDriveId || {};
 
   const rootSubfolders = getSubfoldersList(rootFolder);
 
@@ -500,7 +519,7 @@ function scanEntireDriveTree(rootFolder) {
         }
 
         filesInNumFolder.forEach(file => {
-          driveFiles.push(buildScannedDriveFileObject(file, subConfig, categoryName, folderNum));
+          driveFiles.push(buildScannedDriveFileObject(file, subConfig, categoryName, folderNum, knownMap));
         });
       });
 
@@ -508,7 +527,7 @@ function scanEntireDriveTree(rootFolder) {
       const directCatFiles = getFilesList(catFolder);
       directCatFiles.forEach(file => {
         const inferredNum = extractFolderNumber(file.getName()) || 1;
-        driveFiles.push(buildScannedDriveFileObject(file, subConfig, categoryName, inferredNum));
+        driveFiles.push(buildScannedDriveFileObject(file, subConfig, categoryName, inferredNum, knownMap));
       });
     });
 
@@ -520,7 +539,7 @@ function scanEntireDriveTree(rootFolder) {
         ? 'سكاشن'
         : 'محاضرات';
       const inferredNum = extractFolderNumber(fName) || 1;
-      driveFiles.push(buildScannedDriveFileObject(file, subConfig, inferredCategory, inferredNum));
+      driveFiles.push(buildScannedDriveFileObject(file, subConfig, inferredCategory, inferredNum, knownMap));
     });
   });
 
@@ -532,16 +551,39 @@ function scanEntireDriveTree(rootFolder) {
 }
 
 /**
- * تحويل ملف Google Drive إلى كائن بيانات متوافق مع الموقع
+ * تحويل ملف Google Drive إلى كائن بيانات متوافق مع الموقع (مع إعادة استخدام بيانات الملفات غير المعدلة لتسريع المسح)
  */
-function buildScannedDriveFileObject(file, subConfig, categoryName, folderNum) {
+function buildScannedDriveFileObject(file, subConfig, categoryName, folderNum, knownMap) {
   const fileId = file.getId();
   const fileName = file.getName();
+  const lastUpdated = file.getLastUpdated();
+  const modifiedTimeMs = lastUpdated.getTime();
+  const detectedFormat = detectStudyFormat(fileName);
+  const prev = knownMap ? knownMap[fileId] : null;
+
+  if (prev && prev.driveModifiedTime === modifiedTimeMs && prev.driveObservedName === fileName && prev.size) {
+    return {
+      driveFileId: fileId,
+      fileName: fileName,
+      cleanTitle: stripExtension(fileName),
+      mimeType: prev.mimeType || 'application/pdf',
+      subjectId: subConfig.id,
+      categoryName: categoryName,
+      folderNum: Number(folderNum) || 1,
+      format: detectedFormat,
+      doctor: subConfig.doctor,
+      sizeFormatted: prev.size,
+      dateFormatted: prev.date || Utilities.formatDate(lastUpdated, 'Africa/Cairo', 'yyyy/MM/dd'),
+      modifiedTimeMs: modifiedTimeMs,
+      viewUrl: 'https://drive.google.com/file/d/' + fileId + '/view',
+      previewUrl: 'https://drive.google.com/file/d/' + fileId + '/preview',
+      downloadUrl: 'https://drive.google.com/uc?export=download&id=' + fileId
+    };
+  }
+
   const mimeType = file.getMimeType();
   const sizeBytes = file.getSize();
   const ext = getFileExtension(fileName).toUpperCase() || (mimeType.indexOf('pdf') !== -1 ? 'PDF' : (mimeType.indexOf('image') !== -1 ? 'PNG' : 'FILE'));
-  const detectedFormat = detectStudyFormat(fileName);
-  const lastUpdated = file.getLastUpdated();
 
   return {
     driveFileId: fileId,
@@ -555,7 +597,7 @@ function buildScannedDriveFileObject(file, subConfig, categoryName, folderNum) {
     doctor: subConfig.doctor,
     sizeFormatted: ext + ' • ' + formatBytes(sizeBytes),
     dateFormatted: Utilities.formatDate(lastUpdated, 'Africa/Cairo', 'yyyy/MM/dd'),
-    modifiedTimeMs: lastUpdated.getTime(),
+    modifiedTimeMs: modifiedTimeMs,
     viewUrl: 'https://drive.google.com/file/d/' + fileId + '/view',
     previewUrl: 'https://drive.google.com/file/d/' + fileId + '/preview',
     downloadUrl: 'https://drive.google.com/uc?export=download&id=' + fileId
@@ -1062,11 +1104,90 @@ function extractDriveIdFromRecord(rec) {
   return '';
 }
 
-function readDatabaseState(rootFolder) {
+function readDbFromMemoryCache() {
   try {
-    const iter = rootFolder.getFilesByName(CONFIG.DB_FILE_NAME);
-    if (iter.hasNext()) {
-      const raw = iter.next().getBlob().getDataAsString('UTF-8');
+    const cache = CacheService.getScriptCache();
+    const metaStr = cache.get('VET33_DB_META_V2');
+    if (!metaStr) return null;
+    const meta = JSON.parse(metaStr);
+    const count = Number(meta && meta.chunks) || 0;
+    if (count <= 0) return null;
+    const keys = [];
+    for (let i = 0; i < count; i++) {
+      keys.push('VET33_DB_CHUNK_' + i);
+    }
+    const map = cache.getAll(keys);
+    let raw = '';
+    for (let i = 0; i < count; i++) {
+      const part = map['VET33_DB_CHUNK_' + i];
+      if (typeof part !== 'string') return null;
+      raw += part;
+    }
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object') {
+      return {
+        files: Array.isArray(parsed.files) ? parsed.files : [],
+        folders: Array.isArray(parsed.folders) ? parsed.folders : []
+      };
+    }
+  } catch (e) {}
+  return null;
+}
+
+function writeDbToMemoryCache(jsonStr) {
+  try {
+    if (!jsonStr) return;
+    const cache = CacheService.getScriptCache();
+    const chunkSize = CONFIG.CACHE_CHUNK_SIZE || 85000;
+    const totalChunks = Math.ceil(jsonStr.length / chunkSize);
+    if (totalChunks > 25) return;
+    const payload = {};
+    for (let i = 0; i < totalChunks; i++) {
+      payload['VET33_DB_CHUNK_' + i] = jsonStr.substr(i * chunkSize, chunkSize);
+    }
+    payload['VET33_DB_META_V2'] = JSON.stringify({
+      chunks: totalChunks,
+      updatedAt: Date.now()
+    });
+    cache.putAll(payload, CONFIG.CACHE_TTL_SEC || 21600);
+  } catch (e) {}
+}
+
+function readDatabaseState(rootFolder, skipMemoryCache) {
+  if (!skipMemoryCache) {
+    const memCached = readDbFromMemoryCache();
+    if (memCached && Array.isArray(memCached.files) && memCached.files.length > 0) {
+      return memCached;
+    }
+  }
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const savedDbFileId = props.getProperty('DB_FILE_ID') || '';
+    let raw = '';
+
+    if (savedDbFileId) {
+      try {
+        const directFile = DriveApp.getFileById(savedDbFileId);
+        if (!directFile.isTrashed()) {
+          raw = directFile.getBlob().getDataAsString('UTF-8');
+        }
+      } catch (idErr) {
+        raw = '';
+      }
+    }
+
+    if (!raw) {
+      const folder = rootFolder || getRootFolder();
+      const iter = folder.getFilesByName(CONFIG.DB_FILE_NAME);
+      if (iter.hasNext()) {
+        const f = iter.next();
+        try { props.setProperty('DB_FILE_ID', f.getId()); } catch (pe) {}
+        raw = f.getBlob().getDataAsString('UTF-8');
+      }
+    }
+
+    if (raw) {
+      writeDbToMemoryCache(raw);
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
         return { files: parsed, folders: [] };
@@ -1084,15 +1205,33 @@ function readDatabaseState(rootFolder) {
 
 function writeDatabaseState(rootFolder, stateObj) {
   const jsonStr = JSON.stringify(stateObj, null, 2);
-  const iter = rootFolder.getFilesByName(CONFIG.DB_FILE_NAME);
+  // تحديث الكاش السريع (RAM) فوراً حتى تظهر الملفات لأي طالب يفتح الموقع في نفس اللحظة
+  writeDbToMemoryCache(jsonStr);
+
+  const props = PropertiesService.getScriptProperties();
+  const savedDbFileId = props.getProperty('DB_FILE_ID') || '';
+  if (savedDbFileId) {
+    try {
+      const directFile = DriveApp.getFileById(savedDbFileId);
+      if (!directFile.isTrashed()) {
+        directFile.setContent(jsonStr);
+        return;
+      }
+    } catch (e) {}
+  }
+
+  const folder = rootFolder || getRootFolder();
+  const iter = folder.getFilesByName(CONFIG.DB_FILE_NAME);
   if (iter.hasNext()) {
     const file = iter.next();
     file.setContent(jsonStr);
+    try { props.setProperty('DB_FILE_ID', file.getId()); } catch (pe) {}
     while (iter.hasNext()) {
       iter.next().setTrashed(true);
     }
   } else {
-    rootFolder.createFile(CONFIG.DB_FILE_NAME, jsonStr, MimeType.PLAIN_TEXT);
+    const created = folder.createFile(CONFIG.DB_FILE_NAME, jsonStr, MimeType.PLAIN_TEXT);
+    try { props.setProperty('DB_FILE_ID', created.getId()); } catch (pe) {}
   }
 }
 

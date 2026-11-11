@@ -1,7 +1,7 @@
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbxjlsN__9eXZvIuGLMJW0rCcpCiggFIdzdatlVXKuAy-34wGQN4b0k2iNSkP1SBI8S54A/exec';
 const DB_NAME = 'vet33_bg_sw_db_v10';
 const STORE_NAME = 'state';
-const CACHE_NAME = 'vet33-pwa-cache-v41';
+const CACHE_NAME = 'vet33-pwa-cache-v42';
 const APP_SHELL = [
   './',
   './index.html',
@@ -11,8 +11,7 @@ const APP_SHELL = [
   './assets/icons/favicon.png',
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png',
-  './assets/icons/app-icon.png',
-  './vet_ksu_33_db.json'
+  './assets/icons/app-icon.png'
 ];
 const RUNTIME_CDN_HOSTS = ['cdnjs.cloudflare.com', 'cdn.jsdelivr.net', 'unpkg.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 const NEVER_CACHE_HOSTS = ['script.google.com', 'script.googleusercontent.com', 'googleusercontent.com', 'drive.google.com', 'drive.usercontent.google.com', 'docs.google.com', 't.me', 'telegram.org'];
@@ -36,7 +35,7 @@ function isHostMatch(hostname, list) {
 
 // Network-first for the app itself (always shows the latest GitHub version when online),
 // falls back to the cached copy when offline or when the network is very slow.
-async function networkFirst(req, fallbackUrl, timeoutMs = 5000) {
+async function networkFirst(req, fallbackUrl, timeoutMs = 2500) {
   const cache = await caches.open(CACHE_NAME);
   const networkPromise = fetch(req).then((res) => {
     if (res && res.ok) cache.put(req, res.clone()).catch(() => {});

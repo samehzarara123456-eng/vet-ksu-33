@@ -13,6 +13,20 @@
   <link rel="apple-touch-icon" href="./assets/icons/icon-192.png" />
   <title>Seniors 2027 VET-KSU 33 Old List | مكتبة المحاضرات والسكاشن</title>
   
+  <!-- Preconnect & Early Parallel Fetch from Google Apps Script RAM Cache (cuts 15-20s wait down to <1s) -->
+  <link rel="preconnect" href="https://script.google.com" crossorigin>
+  <link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
+  <script>
+    window.__EARLY_GAS_URL = 'https://script.google.com/macros/s/AKfycbxjlsN__9eXZvIuGLMJW0rCcpCiggFIdzdatlVXKuAy-34wGQN4b0k2iNSkP1SBI8S54A/exec';
+    window.__earlyDriveFetchPromise = (typeof fetch === 'function')
+      ? fetch(window.__EARLY_GAS_URL + '?action=sync&force=false&t=' + Date.now(), {
+          method: 'GET',
+          redirect: 'follow',
+          cache: 'no-store'
+        }).then(function(r) { return r && r.ok ? r.json() : null; }).catch(function() { return null; })
+      : null;
+  </script>
+
   <!-- Google Fonts: Non-blocking load so slow mobile networks never hang on a blank screen -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -38,7 +52,7 @@
       id="intro-video"
       class="relative z-10 w-full h-full object-contain pointer-events-none select-none"
       src="./assets/videos/1031.mp4"
-      preload="auto"
+      preload="metadata"
       muted
       autoplay
       playsinline
