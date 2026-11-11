@@ -498,13 +498,15 @@ function scanEntireDriveTree(rootFolder, dbByDriveId) {
       const catFolder = findFolderByAliases(categoryFolders, catAliases);
       if (!catFolder) return;
 
-      // أ) مسح مجلدات المحاضرات/السكاشن المرقمة (مثل: محاضرة 1، محاضرة 2، سكشن 1...)
+      // أ) مسح مجلدات المحاضرات/السكاشن المرقمة أو المدمجة (مثل: محاضرة 1، محاضرة 8-10، سكشن 1...)
       const numberedFolders = getSubfoldersList(catFolder);
       const unitSingular = categoryName === 'محاضرات' ? 'محاضرة' : 'سكشن';
       numberedFolders.forEach((numFolder, idx) => {
         const rawFolderName = String(numFolder.getName() || '').trim();
-        const folderNum = extractFolderNumber(rawFolderName) || (idx + 1);
-        const normalizedFolderName = /^\d+$/.test(rawFolderName) ? (unitSingular + ' ' + folderNum) : rawFolderName;
+        const folderNum = extractFolderNumber(rawFolderName) || normalizeFolderNumServer(rawFolderName) || (idx + 1);
+        const normalizedFolderName = !/^(?:محاضرات|محاضرة|محاضره|سكاشن|سكشن)/i.test(rawFolderName)
+          ? (unitSingular + ' ' + folderNum)
+          : rawFolderName;
 
         const filesInNumFolder = getFilesList(numFolder);
         // لا نضيف المجلد الفارغ تماماً من الملفات حتى لا يظهر كبطاقة فارغة ("غير مضاف") بعد حذف ملفاته
@@ -543,7 +545,7 @@ function scanEntireDriveTree(rootFolder, dbByDriveId) {
     });
   });
 
-  folders.sort((a, b) => (Number(a.folderNum) || 0) - (Number(b.folderNum) || 0));
+  folders.sort((a, b) => compareFolderNumsServer(a.folderNum, b.folderNum));
   return {
     driveFiles: driveFiles,
     folders: folders
@@ -559,6 +561,7 @@ function buildScannedDriveFileObject(file, subConfig, categoryName, folderNum, k
   const lastUpdated = file.getLastUpdated();
   const modifiedTimeMs = lastUpdated.getTime();
   const detectedFormat = detectStudyFormat(fileName);
+  const normalizedNum = normalizeFolderNumServer(folderNum) || 1;
   const prev = knownMap ? knownMap[fileId] : null;
 
   if (prev && prev.driveModifiedTime === modifiedTimeMs && prev.driveObservedName === fileName && prev.size) {
@@ -569,7 +572,7 @@ function buildScannedDriveFileObject(file, subConfig, categoryName, folderNum, k
       mimeType: prev.mimeType || 'application/pdf',
       subjectId: subConfig.id,
       categoryName: categoryName,
-      folderNum: Number(folderNum) || 1,
+      folderNum: normalizedNum,
       format: detectedFormat,
       doctor: subConfig.doctor,
       sizeFormatted: prev.size,
@@ -592,7 +595,7 @@ function buildScannedDriveFileObject(file, subConfig, categoryName, folderNum, k
     mimeType: mimeType,
     subjectId: subConfig.id,
     categoryName: categoryName,
-    folderNum: Number(folderNum) || 1,
+    folderNum: normalizedNum,
     format: detectedFormat,
     doctor: subConfig.doctor,
     sizeFormatted: ext + ' • ' + formatBytes(sizeBytes),
@@ -621,7 +624,7 @@ function handleSaveStudyFileFromSite(item, fileUpload) {
   const subjectId = item.subject || 'batna';
   const subConfig = getSubjectConfigById(subjectId);
   const categoryName = (item.category === 'سكاشن') ? 'سكاشن' : 'محاضرات';
-  const folderNum = Number(item.folderNum) || 1;
+  const folderNum = normalizeFolderNumServer(item.folderNum) || 1;
   const format = item.format || 'المصدر';
 
   // الوصول إلى المجلد المخصص (أو إنشاؤه تلقائياً):
@@ -737,7 +740,7 @@ function handleSaveStudyFileFromSite(item, fileUpload) {
   const existingFolders = Array.isArray(dbState.folders) ? dbState.folders : [];
   if (targetTopicFolder) {
     const tFolderId = targetTopicFolder.getId();
-    const hasFolder = existingFolders.some(fl => fl && (fl.id === tFolderId || (fl.subject === subConfig.id && fl.category === categoryName && Number(fl.folderNum) === folderNum)));
+    const hasFolder = existingFolders.some(fl => fl && (fl.id === tFolderId || (fl.subject === subConfig.id && fl.category === categoryName && String(normalizeFolderNumServer(fl.folderNum)) === String(folderNum))));
     if (!hasFolder) {
       const unitSingular = categoryName === 'محاضرات' ? 'محاضرة' : 'سكشن';
       existingFolders.push({
@@ -747,7 +750,7 @@ function handleSaveStudyFileFromSite(item, fileUpload) {
         folderNum: folderNum,
         name: unitSingular + ' ' + folderNum
       });
-      existingFolders.sort((a, b) => (Number(a.folderNum) || 0) - (Number(b.folderNum) || 0));
+      existingFolders.sort((a, b) => compareFolderNumsServer(a.folderNum, b.folderNum));
     }
   }
 
@@ -835,7 +838,7 @@ function handleDeleteStudyFileFromSite(payload) {
   const existingFolders = Array.isArray(dbState.folders) ? dbState.folders : [];
   const remainingFolders = existingFolders.filter(fl => {
     if (!fl) return false;
-    return remainingFiles.some(rf => rf && !rf.isSystemMeta && rf.subject === fl.subject && rf.category === fl.category && Number(rf.folderNum) === Number(fl.folderNum));
+    return remainingFiles.some(rf => rf && !rf.isSystemMeta && rf.subject === fl.subject && rf.category === fl.category && String(normalizeFolderNumServer(rf.folderNum)) === String(normalizeFolderNumServer(fl.folderNum)));
   });
 
   writeDatabaseState(rootFolder, {
@@ -891,12 +894,13 @@ function getOrCreateNumberedTopicFolder(rootFolder, subConfig, categoryName, fol
     catFolder = subjectFolder.createFolder(categoryName);
   }
 
-  // 3. مجلد المحاضرة أو السكشن المرقم (مثلاً: "محاضرة 1" أو "سكشن 1")
+  // 3. مجلد المحاضرة أو السكشن المرقم أو المدمج (مثلاً: "محاضرة 1" أو "محاضرة 8-10" أو "سكشن 1")
   const numberedFolders = getSubfoldersList(catFolder);
-  const targetNum = Number(folderNum) || 1;
+  const targetNum = normalizeFolderNumServer(folderNum) || 1;
   for (let i = 0; i < numberedFolders.length; i++) {
-    const fNum = extractFolderNumber(numberedFolders[i].getName());
-    if (fNum === targetNum) {
+    const rawName = numberedFolders[i].getName();
+    const fNum = extractFolderNumber(rawName) || normalizeFolderNumServer(rawName);
+    if (String(fNum) === String(targetNum)) {
       return numberedFolders[i];
     }
   }
@@ -1066,10 +1070,43 @@ function normalizeArabic(str) {
     .replace(/\s+/g, ' ');
 }
 
+function normalizeFolderNumServer(val) {
+  if (val === null || val === undefined) return null;
+  const s0 = String(val).replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).trim();
+  let s = s0.replace(/^(?:محاضرات|محاضرة|محاضره|سكاشن|سكشن|مجلد|عملي|lecture|section)\s*/i, '').trim();
+  s = s.replace(/(\d+)\s*[-–—]\s*(\d+)/g, '$1-$2');
+  if (!s) return null;
+  if (/^\d+$/.test(s)) {
+    const n = parseInt(s, 10);
+    return n >= 1 ? n : s;
+  }
+  return s;
+}
+
+function compareFolderNumsServer(a, b) {
+  const sa = String(normalizeFolderNumServer(a) || '');
+  const sb = String(normalizeFolderNumServer(b) || '');
+  const ma = sa.match(/(\d+)/);
+  const mb = sb.match(/(\d+)/);
+  const na = ma ? parseInt(ma[1], 10) : 999999;
+  const nb = mb ? parseInt(mb[1], 10) : 999999;
+  if (na !== nb) return na - nb;
+  return sa.localeCompare(sb, 'ar');
+}
+
 function extractFolderNumber(str) {
-  const s = String(str || '').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+  const s = String(str || '').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).trim();
+  if (!s) return null;
+  // دعم المحاضرات المدمجة مثل 8-10 أو 8 و 9 أو 8،9
+  const rangeMatch = s.match(/(\d+\s*(?:[-–—+,،/&]|و|إلى|الى)\s*\d+(?:\s*(?:[-–—+,،/&]|و|إلى|الى)\s*\d+)*)/);
+  if (rangeMatch && rangeMatch[1]) {
+    return normalizeFolderNumServer(rangeMatch[1]);
+  }
   const m = s.match(/(\d+)/);
-  return m ? parseInt(m[1], 10) : null;
+  if (m && m[1]) {
+    return parseInt(m[1], 10);
+  }
+  return null;
 }
 
 function stripExtension(fileName) {
@@ -1205,7 +1242,6 @@ function readDatabaseState(rootFolder, skipMemoryCache) {
 
 function writeDatabaseState(rootFolder, stateObj) {
   const jsonStr = JSON.stringify(stateObj, null, 2);
-  // تحديث الكاش السريع (RAM) فوراً حتى تظهر الملفات لأي طالب يفتح الموقع في نفس اللحظة
   writeDbToMemoryCache(jsonStr);
 
   const props = PropertiesService.getScriptProperties();

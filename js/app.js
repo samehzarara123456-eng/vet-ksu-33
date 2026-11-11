@@ -8012,7 +8012,7 @@
         n.onclick = () => {
           window.focus();
           if (file) {
-            navigateToHierarchy(file.subject, file.category, Number(file.folderNum));
+            navigateToHierarchy(file.subject, file.category, normalizeFolderNumValue(file.folderNum));
             openPreviewModal(file.id);
           }
         };
@@ -8221,7 +8221,7 @@
           document.getElementById('notifications-modal').classList.add('hidden');
           appState.onlySavedFilter = false;
           appState.searchQuery = '';
-          navigateToHierarchy(targetFile.subject, targetFile.category, Number(targetFile.folderNum));
+          navigateToHierarchy(targetFile.subject, targetFile.category, normalizeFolderNumValue(targetFile.folderNum));
           openPreviewModal(targetFile.id);
           updateNotificationsUI();
         });
@@ -8305,7 +8305,7 @@
             } else {
               location.hash = '';
             }
-            navigateToHierarchy(target.subject, target.category, Number(target.folderNum));
+            navigateToHierarchy(target.subject, target.category, normalizeFolderNumValue(target.folderNum));
             openPreviewModal(target.id);
           }
         }
@@ -8351,8 +8351,42 @@
       return 'المصدر';
     }
 
+    function normalizeFolderNumValue(val) {
+      if (val === null || val === undefined) return null;
+      let s = String(val).replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).trim();
+      s = s.replace(/^(?:محاضرات|محاضرة|محاضره|سكاشن|سكشن|مجلد|عملي|lecture|section)\s*/i, '').trim();
+      s = s.replace(/(\d+)\s*[-–—]\s*(\d+)/g, '$1-$2');
+      if (!s) return null;
+      if (/^\d+$/.test(s)) {
+        const n = parseInt(s, 10);
+        return n >= 1 ? n : s;
+      }
+      return s;
+    }
+
+    function folderNumEquals(a, b) {
+      if (a === null || a === undefined || b === null || b === undefined) return false;
+      return String(normalizeFolderNumValue(a)) === String(normalizeFolderNumValue(b));
+    }
+
+    function compareFolderNums(a, b) {
+      const sa = String(normalizeFolderNumValue(a) ?? '');
+      const sb = String(normalizeFolderNumValue(b) ?? '');
+      const ma = sa.match(/(\d+)/);
+      const mb = sb.match(/(\d+)/);
+      const na = ma ? parseInt(ma[1], 10) : Number.MAX_SAFE_INTEGER;
+      const nb = mb ? parseInt(mb[1], 10) : Number.MAX_SAFE_INTEGER;
+      if (na !== nb) return na - nb;
+      return sa.localeCompare(sb, 'ar', { numeric: true });
+    }
+
     function extractNumFromAnyString(str) {
-      const s = String(str || '').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+      const s = String(str || '').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).trim();
+      if (!s) return null;
+      const rangeMatch = s.match(/(\d+\s*(?:[-–—+,،/&]|و|إلى|الى)\s*\d+(?:\s*(?:[-–—+,،/&]|و|إلى|الى)\s*\d+)*)/);
+      if (rangeMatch && rangeMatch[1]) {
+        return normalizeFolderNumValue(rangeMatch[1]);
+      }
       const m = s.match(/(\d+)/);
       return m ? parseInt(m[1], 10) : null;
     }
@@ -8392,7 +8426,7 @@
             if (!Array.isArray(topicsArr)) return;
             topicsArr.forEach((topic, tIdx) => {
               const isDirectBucket = String(topic.id || '').endsWith('_direct') || Number(topic.number) === 999;
-              const topicNum = !isDirectBucket ? (Number(topic.number) || extractNumFromAnyString(topic.name) || (tIdx + 1)) : null;
+              const topicNum = !isDirectBucket ? (normalizeFolderNumValue(topic.number) || extractNumFromAnyString(topic.name) || (tIdx + 1)) : null;
 
               if (!isDirectBucket && topicNum) {
                 mappedFolders.push({
@@ -8430,7 +8464,7 @@
                     driveModifiedTime: new Date(dateIso).getTime() || Date.now(),
                     subject: appSubId,
                     category: categoryAr,
-                    folderNum: Number(fNum) || 1,
+                    folderNum: normalizeFolderNumValue(fNum) || 1,
                     format: fmt,
                     doctor: prev.doctor || subObj.doctor || 'أعضاء هيئة التدريس',
                     externalUrl: df.viewUrl || ('https://drive.google.com/file/d/' + dId + '/view'),
@@ -9244,12 +9278,12 @@
       loadSavedFilesFromStorage();
       const allFolders = Array.isArray(appState.folders) ? appState.folders : [];
       const lecturesCount = new Set([
-        ...appState.files.filter(f => f.category === 'محاضرات').map(f => `${f.subject}-${Number(f.folderNum)}`),
-        ...allFolders.filter(fl => fl.category === 'محاضرات').map(fl => `${fl.subject}-${Number(fl.folderNum)}`)
+        ...appState.files.filter(f => f.category === 'محاضرات').map(f => `${f.subject}-${normalizeFolderNumValue(f.folderNum)}`),
+        ...allFolders.filter(fl => fl.category === 'محاضرات').map(fl => `${fl.subject}-${normalizeFolderNumValue(fl.folderNum)}`)
       ]).size;
       const sectionsCount = new Set([
-        ...appState.files.filter(f => f.category === 'سكاشن').map(f => `${f.subject}-${Number(f.folderNum)}`),
-        ...allFolders.filter(fl => fl.category === 'سكاشن').map(fl => `${fl.subject}-${Number(fl.folderNum)}`)
+        ...appState.files.filter(f => f.category === 'سكاشن').map(f => `${f.subject}-${normalizeFolderNumValue(f.folderNum)}`),
+        ...allFolders.filter(fl => fl.category === 'سكاشن').map(fl => `${fl.subject}-${normalizeFolderNumValue(fl.folderNum)}`)
       ]).size;
       const statFilesEl = document.getElementById('stat-files-count');
       if (statFilesEl) statFilesEl.textContent = appState.files.length;
@@ -9456,7 +9490,7 @@
         onlySavedFilter: Boolean(appState.onlySavedFilter),
         subject: appState.currentSubject || null,
         category: appState.currentCategory || null,
-        folderNum: appState.currentFolderNum !== null && appState.currentFolderNum !== undefined ? Number(appState.currentFolderNum) : null
+        folderNum: appState.currentFolderNum !== null && appState.currentFolderNum !== undefined ? normalizeFolderNumValue(appState.currentFolderNum) : null
       }, extra);
     }
 
@@ -9472,7 +9506,7 @@
             cur.onlySavedFilter === nextState.onlySavedFilter &&
             cur.subject === nextState.subject &&
             cur.category === nextState.category &&
-            cur.folderNum === nextState.folderNum &&
+            String(cur.folderNum ?? '') === String(nextState.folderNum ?? '') &&
             Boolean(cur.modalOpen) === Boolean(nextState.modalOpen);
           if (!isSame) {
             window.history.pushState(nextState, '', location.pathname + location.search);
@@ -9483,7 +9517,7 @@
 
     // Navigate to Specific Hierarchy Level (1Data -> Subject -> Category -> FolderNum)
     function navigateToHierarchy(subjectId, categoryName, folderNum, skipHistory = false) {
-      const normalizedFolder = folderNum !== null && folderNum !== undefined ? Number(folderNum) : null;
+      const normalizedFolder = folderNum !== null && folderNum !== undefined && String(folderNum).trim() !== '' ? normalizeFolderNumValue(folderNum) : null;
       appState.currentView = 'explorer';
       appState.onlySavedFilter = false;
       appState.previousHierarchy = null;
@@ -9511,7 +9545,7 @@
           appState.currentSubject = appState.previousHierarchy.subject || null;
           appState.currentCategory = appState.previousHierarchy.category || null;
           appState.currentFolderNum = appState.previousHierarchy.folderNum !== null && appState.previousHierarchy.folderNum !== undefined
-            ? Number(appState.previousHierarchy.folderNum)
+            ? normalizeFolderNumValue(appState.previousHierarchy.folderNum)
             : null;
           appState.previousHierarchy = null;
         }
@@ -9740,14 +9774,14 @@
 
       const subFolders = (Array.isArray(appState.folders) ? appState.folders : []).filter(fl => fl.subject === sub.id);
       const subLecturesCount = new Set([
-        ...subFiles.filter(f => f.category === 'محاضرات').map(f => Number(f.folderNum)),
-        ...subFolders.filter(fl => fl.category === 'محاضرات').map(fl => Number(fl.folderNum))
-      ]).size;
+        ...subFiles.filter(f => f.category === 'محاضرات').map(f => String(normalizeFolderNumValue(f.folderNum) ?? '')),
+        ...subFolders.filter(fl => fl.category === 'محاضرات').map(fl => String(normalizeFolderNumValue(fl.folderNum) ?? ''))
+      ].filter(Boolean)).size;
 
       const subSectionsCount = new Set([
-        ...subFiles.filter(f => f.category === 'سكاشن').map(f => Number(f.folderNum)),
-        ...subFolders.filter(fl => fl.category === 'سكاشن').map(fl => Number(fl.folderNum))
-      ]).size;
+        ...subFiles.filter(f => f.category === 'سكاشن').map(f => String(normalizeFolderNumValue(f.folderNum) ?? '')),
+        ...subFolders.filter(fl => fl.category === 'سكاشن').map(fl => String(normalizeFolderNumValue(fl.folderNum) ?? ''))
+      ].filter(Boolean)).size;
 
       const subDoneFiles = subFiles.filter(f => appState.completedIds.includes(f.id)).length;
       const subProgressPct = subFilesCount > 0 ? Math.round((subDoneFiles / subFilesCount) * 100) : 0;
@@ -9869,9 +9903,9 @@
         fl => fl.subject === (subjectObj && subjectObj.id) && fl.category === category
       );
       const folderNums = [...new Set([
-        ...files.map(f => Number(f.folderNum)),
-        ...catFolders.map(fl => Number(fl.folderNum))
-      ])];
+        ...files.map(f => String(normalizeFolderNumValue(f.folderNum) ?? '')),
+        ...catFolders.map(fl => String(normalizeFolderNumValue(fl.folderNum) ?? ''))
+      ].filter(Boolean))];
       const folderCount = folderNums.length;
       const totalFiles = files.length;
       const doneCount = files.filter(f => appState.completedIds.includes(f.id)).length;
@@ -10462,10 +10496,15 @@
         const catFolders = (Array.isArray(appState.folders) ? appState.folders : []).filter(
           fl => fl.subject === currentSubObj.id && fl.category === appState.currentCategory
         );
-        const folderNumbers = [...new Set([
-          ...catFiles.map(f => Number(f.folderNum)),
-          ...catFolders.map(fl => Number(fl.folderNum))
-        ])].filter(n => !isNaN(n) && n >= 1).sort((a, b) => a - b);
+        const folderNumbersMap = new Map();
+        [...catFiles.map(f => f.folderNum), ...catFolders.map(fl => fl.folderNum)].forEach(rawVal => {
+          const norm = normalizeFolderNumValue(rawVal);
+          if (norm !== null && norm !== undefined && String(norm) !== '') {
+            const key = String(norm);
+            if (!folderNumbersMap.has(key)) folderNumbersMap.set(key, norm);
+          }
+        });
+        const folderNumbers = Array.from(folderNumbersMap.values()).sort(compareFolderNums);
 
         const unitPlural = appState.currentCategory === 'محاضرات' ? 'محاضرات' : 'سكاشن';
         countBadge.textContent = `${folderNumbers.length} ${unitPlural} • ${catFiles.length} ملف`;
@@ -10481,7 +10520,7 @@
         }
 
         grid.innerHTML = folderNumbers.map(num => {
-          const filesInNum = catFiles.filter(f => Number(f.folderNum) === num);
+          const filesInNum = catFiles.filter(f => folderNumEquals(f.folderNum, num));
           return buildNumberedFolderCardHTML({
             num,
             category: appState.currentCategory,
@@ -10493,7 +10532,7 @@
 
         grid.querySelectorAll('[data-open-foldernum]').forEach(el => {
           el.addEventListener('click', () => {
-            navigateToHierarchy(currentSubObj.id, appState.currentCategory, Number(el.getAttribute('data-open-foldernum')));
+            navigateToHierarchy(currentSubObj.id, appState.currentCategory, normalizeFolderNumValue(el.getAttribute('data-open-foldernum')));
           });
         });
 
@@ -10507,7 +10546,7 @@
       const folderFiles = appState.files.filter(
         f => f.subject === currentSubObj.id &&
              f.category === appState.currentCategory &&
-             Number(f.folderNum) === Number(appState.currentFolderNum)
+             folderNumEquals(f.folderNum, appState.currentFolderNum)
       );
 
       heading.textContent = `${currentSubObj.folderName} > ${appState.currentCategory} > مجلد (${appState.currentFolderNum})`;
@@ -11185,8 +11224,7 @@
       const subject = subEl ? subEl.value : '';
       const category = catEl ? catEl.value : '';
       const rawFolder = folderEl ? folderEl.value.trim() : '';
-      const parsedFolder = parseInt(rawFolder, 10);
-      const folderNum = (rawFolder !== '' && !isNaN(parsedFolder) && parsedFolder >= 1) ? parsedFolder : null;
+      const folderNum = normalizeFolderNumValue(rawFolder);
       const format = fmtEl ? fmtEl.value : 'المصدر';
 
       if (!subject || !category || !folderNum || !format) {
@@ -12065,7 +12103,7 @@
           if (msg.type === 'OPEN_FILE_FROM_NOTIF' && msg.data) {
             const d = msg.data;
             if (d.subject && d.category && d.folderNum) {
-              navigateToHierarchy(d.subject, d.category, Number(d.folderNum));
+              navigateToHierarchy(d.subject, d.category, normalizeFolderNumValue(d.folderNum));
             }
             if (d.fileId) {
               openPreviewModal(d.fileId);
@@ -12086,7 +12124,7 @@
           const fId = decodeURIComponent(location.hash.replace('#file=', ''));
           const target = appState.files.find(f => f.id === fId);
           if (target) {
-            navigateToHierarchy(target.subject, target.category, Number(target.folderNum));
+            navigateToHierarchy(target.subject, target.category, normalizeFolderNumValue(target.folderNum));
             openPreviewModal(target.id);
           }
         }
