@@ -335,7 +335,6 @@ self.addEventListener('message', (event) => {
         await mergeSwNotifiedIds(msg.notifiedIds);
       }
       await checkDriveInBackground(false);
-      await runBackgroundKeepAliveLoop(11, 12000);
     })());
   } else if (msg.type === 'CHECK_NOW') {
     event.waitUntil((async () => {
@@ -343,7 +342,6 @@ self.addEventListener('message', (event) => {
         await mergeSwNotifiedIds(msg.notifiedIds);
       }
       await checkDriveInBackground(false);
-      await runBackgroundKeepAliveLoop(11, 12000);
     })());
   } else if (msg.type === 'SHOW_NOTIFICATION' && msg.title) {
     event.waitUntil(showSwNotificationSafe(msg.title, msg.options || {}));
@@ -354,7 +352,6 @@ self.addEventListener('periodicsync', (event) => {
   if (event.tag && event.tag.startsWith('vet33-bg-sync')) {
     event.waitUntil((async () => {
       await checkDriveInBackground(false);
-      await runBackgroundKeepAliveLoop(11, 12000);
     })());
   }
 });
@@ -363,7 +360,6 @@ self.addEventListener('sync', (event) => {
   if (event.tag && event.tag.startsWith('vet33-sync')) {
     event.waitUntil((async () => {
       await checkDriveInBackground(false);
-      await runBackgroundKeepAliveLoop(11, 12000);
     })());
   }
 });
@@ -386,7 +382,6 @@ self.addEventListener('push', (event) => {
     if (!handledPayload) {
       await checkDriveInBackground(true);
     }
-    await runBackgroundKeepAliveLoop(11, 12000);
   })());
 });
 

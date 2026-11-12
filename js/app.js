@@ -330,15 +330,15 @@
             "subject": "moadya",
             "category": "محاضرات",
             "folderNum": 12,
-            "format": "المصدر",
-            "adminFormat": "المصدر",
+            "format": "شرح",
+            "adminFormat": "شرح",
             "doctor": "قسم الأمراض المعدية",
             "externalUrl": "https://drive.google.com/file/d/1V6k1m5uMLlHgWhrVliw-ixmtxbX3-rwh/view",
             "fileUrl": "https://drive.google.com/file/d/1V6k1m5uMLlHgWhrVliw-ixmtxbX3-rwh/view",
             "driveUrl": "https://drive.google.com/file/d/1V6k1m5uMLlHgWhrVliw-ixmtxbX3-rwh/view",
-            "description": "ملف (المصدر) خاص بـ المحاضرة رقم (12) في مقرر الأمراض المعدية والوبائية (Infectious Diseases).",
+            "description": "ملف (شرح) خاص بـ المحاضرة رقم (12) في مقرر الأمراض المعدية والوبائية (Infectious Diseases).",
             "keypoints": [
-                  "المصدر معتمد لـ المحاضرة رقم (12)"
+                  "شرح معتمد لـ المحاضرة رقم (12)"
             ],
             "clinicalNote": "",
             "pages": null,
@@ -7641,8 +7641,6 @@
 
     const ADMIN_PASSCODE_HASHES = ["0643799174995559", "ea9b3768d5fb77e8", "ce67dfc0bfb928fe", "c1acda7163742c9b", "2afb2a3e63add4dc"];
     const VAPID_PUBLIC_KEY = 'BBe2gBt8gJLkBd1A18PTct2lU5Z7hvEIYHCZsJGpoAxbE87icx-JptMv6X_MreSsSy_msKURSS-bgmbxlt3YJpA';
-    const VAPID_KEY_ENC = 'eyJrdHkiOiJFQyIsImNydiI6IlAtMjU2IiwieCI6IkY3YUFHM3lBa3VRRjNVRFh3OU55M2FWVGxudUc4UWhnY0ptd2thbWdERnMiLCJ5IjoiRTg3aWN4LUpwdE12NlhfTXJlU3NTeV9tc0tVUlNTLWJnbWJ4bHQzWUpwQSIsImQiOiJCMXdpM2FRbmItUkx6Y2QxUWlXOVJFTV9UVklUa0JmNnlBS3o4aVF5QURvIiwiZXh0Ijp0cnVlfQ==';
-    function getVapidJwk() { try { return JSON.parse(window.atob(VAPID_KEY_ENC)); } catch (e) { return null; } }
     const SYS_PUSH_SUBS_ID = '_sys_push_subs_v1';
     const SYS_ABOUT_CONTENT_ID = '_sys_about_content_v1';
 
@@ -7655,46 +7653,6 @@
         outputArray[i] = rawData.charCodeAt(i);
       }
       return outputArray;
-    }
-
-    function uint8ArrayToBase64Url(bytes) {
-      let binary = '';
-      for (let i = 0; i < bytes.byteLength; i++) {
-        binary += String.fromCharCode(bytes[i]);
-      }
-      return window.btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-    }
-
-    async function createVapidHeaders(endpointUrl) {
-      try {
-        const urlObj = new URL(endpointUrl);
-        const aud = urlObj.origin;
-        const exp = Math.floor(Date.now() / 1000) + (12 * 3600);
-        const enc = new TextEncoder();
-        const headerB64 = uint8ArrayToBase64Url(enc.encode(JSON.stringify({ typ: 'JWT', alg: 'ES256' })));
-        const payloadB64 = uint8ArrayToBase64Url(enc.encode(JSON.stringify({ aud: aud, exp: exp, sub: 'mailto:vetksu33@gmail.com' })));
-        const unsignedToken = headerB64 + '.' + payloadB64;
-        const key = await crypto.subtle.importKey(
-          'jwk',
-          getVapidJwk(),
-          { name: 'ECDSA', namedCurve: 'P-256' },
-          false,
-          ['sign']
-        );
-        const sigBuf = await crypto.subtle.sign(
-          { name: 'ECDSA', hash: { name: 'SHA-256' } },
-          key,
-          enc.encode(unsignedToken)
-        );
-        const jwt = unsignedToken + '.' + uint8ArrayToBase64Url(new Uint8Array(sigBuf));
-        return {
-          vapid: 'vapid t=' + jwt + ', k=' + VAPID_PUBLIC_KEY,
-          webPush: 'WebPush ' + jwt,
-          cryptoKey: 'p256ecdsa=' + VAPID_PUBLIC_KEY
-        };
-      } catch (e) {
-        return null;
-      }
     }
 
     // Helper for Issue #4: Reliably post message to active Service Worker even on first visit when controller is null
@@ -7795,25 +7753,14 @@
           await subscribeAndSaveWebPush(null);
         }
         const subs = Array.isArray(appState.pushSubscriptions) ? appState.pushSubscriptions : [];
-        const pushTargets = [];
-        for (const s of subs) {
-          if (!s || !s.endpoint) continue;
-          const hdrs = await createVapidHeaders(s.endpoint);
-          pushTargets.push({
-            endpoint: s.endpoint,
-            authorization: hdrs ? hdrs.vapid : '',
-            webPushAuth: hdrs ? hdrs.webPush : '',
-            cryptoKey: hdrs ? hdrs.cryptoKey : ''
-          });
-        }
-        // Dispatch via GAS_WEB_APP_URL server backend (even if pushTargets is empty, server can read _sys_push_subs_v1 directly)
+        const pushTargets = subs.filter(s => s && s.endpoint).map(s => ({ endpoint: s.endpoint }));
+        // Dispatch via GAS_WEB_APP_URL server backend (server signs VAPID JWT securely via createServerVapidHeaders)
         fetch(GAS_WEB_APP_URL, {
           method: 'POST',
           redirect: 'follow',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({
             action: 'push_wakeup',
-            passcode: 'vetksu33',
             adminToken: appState.adminToken || ADMIN_PASSCODE_HASHES[0],
             fileId: newFile ? newFile.id : '',
             targets: pushTargets
@@ -7834,42 +7781,7 @@
 
     let deferredPwaPrompt = null;
 
-    // Ensure valid same-origin manifest.json link (never overwrite with blob: on HTTPS!)
-    function initDynamicPwaManifest() {
-      try {
-        const existingLink = document.querySelector('link[rel="manifest"]');
-        if (existingLink && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
-          return;
-        }
-        const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192"><rect width="192" height="192" rx="42" fill="#0f172a"/><rect x="16" y="16" width="160" height="160" rx="32" fill="#10b981" fill-opacity="0.18" stroke="#f59e0b" stroke-width="6"/><text x="96" y="118" font-family="Arial,sans-serif" font-size="68" font-weight="900" fill="#fbbf24" text-anchor="middle">33</text></svg>`;
-        const iconDataUrl = 'data:image/svg+xml;utf8,' + encodeURIComponent(iconSvg);
-        const manifest = {
-          name: 'Seniors 2027 VET-KSU 33 Old List',
-          short_name: 'VET-KSU 33',
-          description: 'المكتبة الرقمية للمحاضرات والسكاشن - طب بيطري كفر الشيخ',
-          lang: 'ar',
-          dir: 'rtl',
-          start_url: './',
-          scope: './',
-          display: 'standalone',
-          background_color: '#050914',
-          theme_color: '#050914',
-          icons: [
-            { src: iconDataUrl, sizes: '192x192', type: 'image/svg+xml', purpose: 'any maskable' },
-            { src: iconDataUrl, sizes: '512x512', type: 'image/svg+xml', purpose: 'any maskable' }
-          ]
-        };
-        const dataUri = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifest));
-        if (existingLink) {
-          existingLink.href = dataUri;
-        } else {
-          const link = document.createElement('link');
-          link.rel = 'manifest';
-          link.href = dataUri;
-          document.head.appendChild(link);
-        }
-      } catch (e) {}
-    }
+
 
     // Wait for a ServiceWorkerRegistration to have an active worker (up to timeoutMs)
     async function waitForRegistrationActive(reg, timeoutMs = 4500) {
@@ -8391,6 +8303,25 @@
       return m ? parseInt(m[1], 10) : null;
     }
 
+    function detectSubjectFromFileName(fileName) {
+      const norm = normalizeArabicSearch(fileName || '');
+      if (!norm) return null;
+      const rules = [
+        { id: 'batna', keys: ['باطنه', 'الباطنه', 'batna', 'medicine'] },
+        { id: 'tawleed', keys: ['توليد', 'التوليد', 'ولاده', 'الولاده', 'tawleed', 'theriogenology', 'obstetrics'] },
+        { id: 'geraha', keys: ['جراحه', 'الجراحه', 'geraha', 'surgery'] },
+        { id: 'dawagen', keys: ['دواجن', 'الدواجن', 'dawagen', 'poultry'] },
+        { id: 'seha', keys: ['صحه', 'الصحه', 'seha', 'hygiene'] },
+        { id: 'lahma', keys: ['لحمه', 'اللحمه', 'لحوم', 'اللحوم', 'رقابه', 'lahma', 'meat'] },
+        { id: 'moshtaraka', keys: ['مشتركه', 'المشتركه', 'moshtaraka', 'zoonoses'] },
+        { id: 'moadya', keys: ['معديه', 'المعديه', 'moadya', 'infectious'] }
+      ];
+      for (const r of rules) {
+        if (r.keys.some(k => norm.includes(k))) return r.id;
+      }
+      return null;
+    }
+
     function normalizeDriveApiPayload(apiResponse) {
       if (!apiResponse) return { files: null, folders: [] };
 
@@ -8626,11 +8557,12 @@
       const remoteFiles = rawRemoteList.filter(rf => {
         if (!rf || !rf.id || rf.isSystemMeta || String(rf.id).startsWith('_sys_')) return false;
         if (appState.deletedFileIds && (appState.deletedFileIds.has(rf.id) || (rf.driveFileId && appState.deletedFileIds.has(rf.driveFileId)))) return false;
-        if (!rf.adminFormat) {
-          const inferredFmt = detectAppFormatFromDriveFile({ name: rf.originalFileName || rf.title || '' });
-          if (rf.format === 'المصدر' && inferredFmt !== 'المصدر') {
-            rf.format = inferredFmt;
-          }
+        const checkTitleOrName = String(rf.originalFileName || rf.title || '');
+        const normTitleOrName = normalizeArabicSearch(checkTitleOrName);
+        const inferredFmt = detectAppFormatFromDriveFile({ name: checkTitleOrName });
+        if (rf.format === 'المصدر' && inferredFmt !== 'المصدر' && !normTitleOrName.includes('تفريغ') && !normTitleOrName.includes('مصدر')) {
+          rf.format = inferredFmt;
+          rf.adminFormat = inferredFmt;
         }
         return true;
       });
@@ -8813,7 +8745,6 @@
       const enrichedPayload = Object.assign({}, payload || {});
       if (appState.isAdmin) {
         enrichedPayload.adminToken = appState.adminToken || ADMIN_PASSCODE_HASHES[0];
-        enrichedPayload.passcode = 'vetksu33';
       }
       const tempOutgoingId = (enrichedPayload.file && enrichedPayload.file.id) || (enrichedPayload.item && enrichedPayload.item.id) || '';
       const isHeavyUpload = Boolean(enrichedPayload.fileUpload || enrichedPayload.base64);
@@ -8902,24 +8833,24 @@
     function loadSavedFilesFromStorage() {
       try {
         const raw = localStorage.getItem('vet33_saved_files_v1') || localStorage.getItem('ksu_vet33_saved_v4');
-        if (raw) {
+        if (raw !== null && raw !== undefined) {
           const parsed = safeParseArray(raw, []);
           const ids = parsed.map(item => (item && typeof item === 'object' && item.id ? item.id : item));
           appState.savedIds = Array.from(new Set(ids.filter(id => typeof id === 'string' || typeof id === 'number')));
-        } else {
+        } else if (!Array.isArray(appState.savedIds)) {
           appState.savedIds = [];
         }
       } catch (e) {
-        appState.savedIds = [];
+        if (!Array.isArray(appState.savedIds)) appState.savedIds = [];
       }
       return appState.savedIds;
     }
 
     // Persist saved IDs to both primary and legacy keys
     function saveSavedFilesToStorage() {
+      const uniqueIds = Array.from(new Set((appState.savedIds || []).filter(Boolean)));
+      appState.savedIds = uniqueIds;
       try {
-        const uniqueIds = Array.from(new Set((appState.savedIds || []).filter(Boolean)));
-        appState.savedIds = uniqueIds;
         const json = JSON.stringify(uniqueIds);
         localStorage.setItem('vet33_saved_files_v1', json);
         localStorage.setItem('ksu_vet33_saved_v4', json);
@@ -8930,15 +8861,15 @@
     function loadCompletedFilesFromStorage() {
       try {
         const raw = localStorage.getItem('vet33_completed_files_v1') || localStorage.getItem('ksu_vet33_completed_v4');
-        if (raw) {
+        if (raw !== null && raw !== undefined) {
           const parsed = safeParseArray(raw, []);
           const ids = parsed.map(item => (item && typeof item === 'object' && item.id ? item.id : item));
           appState.completedIds = Array.from(new Set(ids.filter(id => typeof id === 'string' || typeof id === 'number')));
-        } else {
+        } else if (!Array.isArray(appState.completedIds)) {
           appState.completedIds = [];
         }
       } catch (e) {
-        appState.completedIds = [];
+        if (!Array.isArray(appState.completedIds)) appState.completedIds = [];
       }
       return appState.completedIds;
     }
@@ -9093,6 +9024,15 @@
               mergedStartupFiles.push(df);
             }
           });
+          mergedStartupFiles.forEach(rf => {
+            const checkTitleOrName = String(rf.originalFileName || rf.title || '');
+            const normTitleOrName = normalizeArabicSearch(checkTitleOrName);
+            const inferredFmt = detectAppFormatFromDriveFile({ name: checkTitleOrName });
+            if (rf.format === 'المصدر' && inferredFmt !== 'المصدر' && !normTitleOrName.includes('تفريغ') && !normTitleOrName.includes('مصدر')) {
+              rf.format = inferredFmt;
+              rf.adminFormat = inferredFmt;
+            }
+          });
           mergedStartupFiles.sort((a, b) => (Number(b.driveModifiedTime) || 0) - (Number(a.driveModifiedTime) || 0));
           appState.files = mergedStartupFiles;
         } else {
@@ -9230,20 +9170,13 @@
 
     // 4. Custom Static Background Image (Three.js 3D canvas animation removed per user request)
         // 3D Perspective Cyber-Grid & Ambient Light Canvas Engine (60 FPS)
-    function initThreeBackground() {
-      // Static background mode: animated canvas and render loops completely removed per user request.
-      const canvas = document.getElementById('bg-canvas');
-      if (canvas) canvas.remove();
-    }
     // =====================================================================
-    // STAGE 5B: HIERARCHICAL FOLDER EXPLORER, FORMAT STYLING & CONTROLLERS
+    // 4. UI RENDERING ENGINE (HIERARCHICAL FOLDER EXPLORER + FILE CARDS)
     // =====================================================================
-
     function getSubjectObj(subId) {
       return ORDERED_SUBJECTS.find(s => s.id === subId) || ORDERED_SUBJECTS[0];
     }
 
-    // Visual Styling Helper for the 4 File Formats: المصدر , شرح , تلخيص , خريطه ذهنية
     function getFormatVisuals(formatName) {
       const f = String(formatName || 'المصدر').trim();
       if (f === 'شرح') {
@@ -9256,14 +9189,14 @@
       if (f === 'تلخيص') {
         return {
           label: 'تلخيص',
-          icon: 'file-check-2',
+          icon: 'sparkles',
           badgeClass: 'bg-amber-500/20 text-amber-300 border-amber-500/40'
         };
       }
-      if (f === 'خريطه ذهنية') {
+      if (f === 'خريطه ذهنية' || f === 'خريطة ذهنية') {
         return {
           label: 'خريطه ذهنية',
-          icon: 'git-fork',
+          icon: 'network',
           badgeClass: 'bg-purple-500/20 text-purple-300 border-purple-500/40'
         };
       }
@@ -9275,7 +9208,6 @@
     }
 
     function updateLibraryCounters() {
-      loadSavedFilesFromStorage();
       const allFolders = Array.isArray(appState.folders) ? appState.folders : [];
       const lecturesCount = new Set([
         ...appState.files.filter(f => f.category === 'محاضرات').map(f => `${f.subject}-${normalizeFolderNumValue(f.folderNum)}`),
@@ -9287,8 +9219,6 @@
       ]).size;
       const statFilesEl = document.getElementById('stat-files-count');
       if (statFilesEl) statFilesEl.textContent = appState.files.length;
-      const statSubjectsEl = document.getElementById('stat-subjects-count');
-      if (statSubjectsEl) statSubjectsEl.textContent = ORDERED_SUBJECTS.length;
       document.getElementById('stat-lectures-count').textContent = lecturesCount;
       document.getElementById('stat-sections-count').textContent = sectionsCount;
       document.getElementById('saved-count-badge').textContent = appState.savedIds.length;
@@ -9297,7 +9227,7 @@
 
       const total = appState.files.length || 1;
       const done = appState.completedIds.filter(id => appState.files.some(f => f.id === id)).length;
-      const pct = Math.min(100, Math.round((done / total) * 100));
+      const pct = done > 0 ? Math.max(1, Math.min(100, Math.round((done / total) * 100))) : 0;
       document.getElementById('study-progress-text').textContent = `${pct}%`;
     }
 
@@ -9346,6 +9276,7 @@
       const sidebar = document.getElementById('quick-access-sidebar');
       const edgeTab = document.getElementById('sidebar-edge-tab');
       const backdrop = document.getElementById('sidebar-backdrop');
+      const wasOpen = sidebar && sidebar.classList.contains('sidebar-open');
       renderQuickSubjectBar();
       updateLibraryCounters();
       if (sidebar) sidebar.classList.add('sidebar-open');
@@ -9353,6 +9284,9 @@
       if (backdrop) backdrop.classList.remove('hidden');
       if (window.innerWidth < 1024) {
         document.body.classList.add('overflow-hidden');
+      }
+      if (!wasOpen) {
+        pushNavigationHistoryState({ modalOpen: 'sidebar' });
       }
     }
 
@@ -9507,10 +9441,19 @@
             cur.subject === nextState.subject &&
             cur.category === nextState.category &&
             String(cur.folderNum ?? '') === String(nextState.folderNum ?? '') &&
-            Boolean(cur.modalOpen) === Boolean(nextState.modalOpen);
+            String(cur.modalOpen || '') === String(nextState.modalOpen || '');
           if (!isSame) {
             window.history.pushState(nextState, '', location.pathname + location.search);
           }
+        }
+      } catch (e) {}
+    }
+
+    function cleanupModalHistoryOnClose() {
+      if (appState.isHandlingPopState) return;
+      try {
+        if (window.history && window.history.state && window.history.state.modalOpen && typeof window.history.replaceState === 'function') {
+          window.history.replaceState(getCurrentHistoryStateSnapshot(), '', location.pathname + location.search + location.hash);
         }
       } catch (e) {}
     }
@@ -10246,6 +10189,8 @@
               <div class="min-w-0 flex-1 space-y-1">
                 <div class="flex flex-wrap items-center gap-1.5">
                   <span class="px-2 py-0.5 rounded-lg border text-[11px] font-extrabold ${fmt.badgeClass}">${fmt.label}</span>
+                  ${(/\b(MP4|WEBM|MKV)\b/i.test(String(file.size || '')) || /\.(mp4|webm|mkv)$/i.test(String(file.originalFileName || ''))) ? `<span class="px-2 py-0.5 rounded-lg bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[10.5px] font-extrabold">🎬 فيديو</span>` : ''}
+                  ${String(file.externalUrl || file.fileUrl || '').includes('t.me/') ? `<span class="px-2 py-0.5 rounded-lg bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[10.5px] font-extrabold">تيليجرام ↗</span>` : ''}
                   <span class="px-2 py-0.5 rounded-lg bg-slate-900 text-amber-300 border border-slate-700 text-[10.5px] font-extrabold">${showFullPath ? `${sub.displayName || sub.folderName} • ` : ''}${file.category} > مجلد ${file.folderNum}</span>
                   <span class="text-[11px] text-cyan-300 font-bold" dir="ltr">${file.size} • <span id="card-dl-${file.id}">${file.downloads}</span> DL</span>
                 </div>
@@ -10289,6 +10234,8 @@
                   <i data-lucide="${fmt.icon}" class="w-3.5 h-3.5"></i>
                   <span>${fmt.label}</span>
                 </span>
+                ${(/\b(MP4|WEBM|MKV)\b/i.test(String(file.size || '')) || /\.(mp4|webm|mkv)$/i.test(String(file.originalFileName || ''))) ? `<span class="px-2 py-1 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[11px] font-extrabold">🎬 فيديو</span>` : ''}
+                ${String(file.externalUrl || file.fileUrl || '').includes('t.me/') ? `<span class="px-2 py-1 rounded-xl bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[11px] font-extrabold">تيليجرام ↗</span>` : ''}
                 <span class="px-2.5 py-1 rounded-xl bg-slate-900 text-amber-300 border border-slate-700 text-[11px] font-extrabold">
                   ${file.category} > مجلد ${file.folderNum}
                 </span>
@@ -10809,6 +10756,23 @@
               <iframe src="https://drive.google.com/file/d/${encodeURIComponent(driveId)}/preview" class="w-full h-[380px] sm:h-[460px] border-0" allow="autoplay"></iframe>
             `;
           }
+        } else if (cloudViewUrl) {
+          drivePreviewContainer.classList.remove('hidden');
+          const isTg = cloudViewUrl.includes('t.me/') || cloudViewUrl.includes('telegram.');
+          drivePreviewContainer.innerHTML = `
+            <div class="p-5 sm:p-6 bg-slate-900/90 text-center space-y-3">
+              <div class="w-12 h-12 rounded-2xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center mx-auto text-cyan-300">
+                <i data-lucide="external-link" class="w-6 h-6"></i>
+              </div>
+              <p class="text-xs sm:text-sm font-extrabold text-white">${isTg ? 'هذا الملف مستضاف على قناة تيليجرام الخاصة بالدفعة' : 'هذا الملف متاح عبر رابط خارجي مباشر'}</p>
+              <p class="text-[11px] text-slate-400">اضغط على الزر بالأسفل لفتح الملف مباشرة في ${isTg ? 'تطبيق تيليجرام' : 'علامة تبويب جديدة'}</p>
+              <div>
+                <a href="${escapeHTML(cloudViewUrl)}" target="_blank" rel="noopener" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-600 text-slate-950 font-black text-xs shadow-lg hover:opacity-95 transition">
+                  <span>${isTg ? 'فتح الملف في تيليجرام ↗' : 'فتح الرابط الخارجي ↗'}</span>
+                </a>
+              </div>
+            </div>
+          `;
         } else {
           drivePreviewContainer.classList.add('hidden');
           drivePreviewContainer.innerHTML = '';
@@ -10832,6 +10796,7 @@
       document.body.classList.remove('overflow-hidden');
       document.body.style.overflow = '';
       appState.activePreviewId = null;
+      cleanupModalHistoryOnClose();
 
       // Clean up any dynamic media/iframes if injected
       const iframes = modal.querySelectorAll('iframe');
@@ -10936,11 +10901,13 @@
         editBtn.classList.toggle('inline-flex', appState.isAdmin);
       }
       modal.classList.remove('hidden');
+      pushNavigationHistoryState({ modalOpen: 'about' });
     }
 
     function closeAboutModal() {
       const modal = document.getElementById('about-modal');
       if (modal) modal.classList.add('hidden');
+      cleanupModalHistoryOnClose();
     }
 
     // Sync Admin Mode Controls (Clean Single-Line Mobile Labels)
@@ -11030,6 +10997,7 @@
       }
 
       modal.classList.remove('hidden');
+      pushNavigationHistoryState({ modalOpen: 'admin' });
       setTimeout(() => {
         if (passInput) passInput.focus();
       }, 50);
@@ -11038,6 +11006,7 @@
     function closeAdminModal() {
       const modal = document.getElementById('admin-login-modal');
       if (modal) modal.classList.add('hidden');
+      cleanupModalHistoryOnClose();
 
       const errorMsg = document.getElementById('admin-login-error');
       if (errorMsg) errorMsg.classList.add('hidden');
@@ -11170,11 +11139,23 @@
         }
       }
 
+      const fileHintEl = document.getElementById('pub-current-file-hint');
+      if (fileHintEl) {
+        if (editFile && (editFile.originalFileName || editFile.driveFileId)) {
+          fileHintEl.textContent = `📎 الملف المرفوع حالياً على Drive: ${editFile.originalFileName || editFile.title} (اترك الحقل فارغاً للاحتفاظ به أو اختر ملفاً جديداً لاستبداله)`;
+          fileHintEl.classList.remove('hidden');
+        } else {
+          fileHintEl.textContent = '';
+          fileHintEl.classList.add('hidden');
+        }
+      }
+
       const modal = document.getElementById('publish-modal');
       if (modal) {
         modal.classList.remove('hidden');
         document.body.classList.add('overflow-hidden');
         document.body.style.overflow = 'hidden';
+        pushNavigationHistoryState({ modalOpen: 'publish' });
       }
       if (typeof lucide !== 'undefined' && lucide.createIcons) {
         lucide.createIcons();
@@ -11189,9 +11170,16 @@
       }
       document.body.classList.remove('overflow-hidden');
       document.body.style.overflow = '';
+      cleanupModalHistoryOnClose();
 
       const form = document.getElementById('publish-form');
       if (form) form.reset();
+
+      const fileHintEl = document.getElementById('pub-current-file-hint');
+      if (fileHintEl) {
+        fileHintEl.textContent = '';
+        fileHintEl.classList.add('hidden');
+      }
 
       const editItemId = document.getElementById('edit-item-id');
       if (editItemId) editItemId.value = '';
@@ -11225,7 +11213,15 @@
       const category = catEl ? catEl.value : '';
       const rawFolder = folderEl ? folderEl.value.trim() : '';
       const folderNum = normalizeFolderNumValue(rawFolder);
-      const format = fmtEl ? fmtEl.value : 'المصدر';
+      let format = fmtEl ? fmtEl.value : 'المصدر';
+      const uploadedCheckObj = (fileInputEl && fileInputEl.files && fileInputEl.files[0]) ? fileInputEl.files[0] : null;
+      const nameToInspect = (uploadedCheckObj ? uploadedCheckObj.name : '') + ' ' + (titleEl ? titleEl.value : '');
+      const normInspect = normalizeArabicSearch(nameToInspect);
+      const inferredFromFile = detectAppFormatFromDriveFile({ name: nameToInspect });
+      if (format === 'المصدر' && inferredFromFile !== 'المصدر' && !normInspect.includes('تفريغ') && !normInspect.includes('مصدر')) {
+        format = inferredFromFile;
+        if (fmtEl) fmtEl.value = format;
+      }
 
       if (!subject || !category || !folderNum || !format) {
         showToast('يرجى ملء جميع الحقول الإجبارية (*)', 'warning');
@@ -11451,6 +11447,7 @@
     function closeNotificationsModal() {
       const modal = document.getElementById('notifications-modal');
       if (modal) modal.classList.add('hidden');
+      cleanupModalHistoryOnClose();
     }
 
 
@@ -11708,7 +11705,6 @@
       renderExplorerContent();
       updateLibraryCounters();
       updateNotificationsUI();
-      initThreeBackground();
       fetchDatabaseFromDrive(true, false);
 
       // Issue #1 Fix: Listen to phone/browser Back button (popstate) to close open modals or step back to parent folder
@@ -11771,15 +11767,50 @@
         }
       });
 
-      // Issue #11 Fix: Validate file size immediately when selected in the publish form
+      // Validate file size AND auto-detect Subject, Category, FolderNum, and Format from filename when selected
       const pubFileUploadEl = document.getElementById('pub-file-upload');
       if (pubFileUploadEl) {
         pubFileUploadEl.addEventListener('change', (e) => {
           const fObj = e.target.files && e.target.files[0];
-          if (fObj && fObj.size > MAX_DIRECT_UPLOAD_BYTES) {
+          if (!fObj) return;
+          if (fObj.size > MAX_DIRECT_UPLOAD_BYTES) {
             const sizeMb = (fObj.size / (1024 * 1024)).toFixed(1);
             showToast(`حجم الملف (${sizeMb} MB) أكبر من الحد المسموح للرفع من المتصفح (35 MB). يرجى رفعه مباشرة من تطبيق Google Drive في مجلد المادة.`, 'warning');
             e.target.value = '';
+            return;
+          }
+          const fName = fObj.name || '';
+          const normName = normalizeArabicSearch(fName);
+
+          // 1. Auto-detect Format (المصدر / شرح / تلخيص / خريطه ذهنية)
+          const detectedFmt = detectAppFormatFromDriveFile({ name: fName });
+          const fmtEl = document.getElementById('pub-format');
+          if (fmtEl && detectedFmt) {
+            fmtEl.value = detectedFmt;
+          }
+
+          // 2. Auto-detect Folder Number (supports single numbers like 7 or combined like 8-10)
+          const detectedNum = extractNumFromAnyString(fName);
+          const folderEl = document.getElementById('pub-folder-num');
+          if (folderEl && detectedNum !== null && detectedNum !== undefined) {
+            folderEl.value = detectedNum;
+          }
+
+          // 3. Auto-detect Category (محاضرات / سكاشن)
+          const catEl = document.getElementById('pub-category');
+          if (catEl) {
+            if (normName.includes('سكشن') || normName.includes('سكاشن') || normName.includes('عملي')) {
+              catEl.value = 'سكاشن';
+            } else if (normName.includes('محاضره') || normName.includes('محاضرات')) {
+              catEl.value = 'محاضرات';
+            }
+          }
+
+          // 4. Auto-detect Subject if filename contains subject name
+          const detectedSub = detectSubjectFromFileName(fName);
+          const subEl = document.getElementById('pub-subject');
+          if (subEl && detectedSub) {
+            subEl.value = detectedSub;
           }
         });
       }
@@ -11802,8 +11833,6 @@
       };
 
       document.getElementById('brand-logo-btn').addEventListener('click', goRoot);
-      const hRoot = document.getElementById('header-root-btn');
-      if (hRoot) hRoot.addEventListener('click', goRoot);
       const fRoot = document.getElementById('footer-root-link');
       if (fRoot) fRoot.addEventListener('click', goRoot);
       const emptyReset = document.getElementById('empty-reset-btn');
@@ -12010,6 +12039,7 @@
           updateNotificationsUI();
           syncBrowserNotifButton();
           notifModal.classList.remove('hidden');
+          pushNavigationHistoryState({ modalOpen: 'notifications' });
         });
       }
       document.getElementById('close-notifications-modal-btn').addEventListener('click', () => {
@@ -12053,7 +12083,6 @@
         showToast('تم تحديد جميع الإشعارات كمقروءة ✓', 'info');
       });
 
-      initDynamicPwaManifest();
       syncBrowserNotifButton();
       registerBackgroundServiceWorker();
       updateNotificationsUI();
@@ -12271,7 +12300,10 @@
           if (!file) return;
 
           const shareTitle = getCleanFileTitle(file);
-          const shareUrl = file.externalUrl || file.fileUrl || file.driveUrl || window.location.href;
+          const basePlatformUrl = (window.location.protocol.startsWith('http'))
+            ? (window.location.origin + window.location.pathname + '#file=' + encodeURIComponent(file.id))
+            : '';
+          const shareUrl = basePlatformUrl || file.externalUrl || file.fileUrl || file.driveUrl || window.location.href;
 
           try {
             if (navigator.share && typeof navigator.share === 'function') {
@@ -12528,12 +12560,34 @@
             appState.deletedFileIds.add(fileId);
             if (file.driveFileId) appState.deletedFileIds.add(file.driveFileId);
 
-            // Immediate optimistic UI removal
+            // Immediate optimistic UI removal + clean up empty folder card
             appState.files = appState.files.filter(f => f.id !== fileId);
             appState.savedIds = appState.savedIds.filter(id => id !== fileId);
             appState.completedIds = appState.completedIds.filter(id => id !== fileId);
+            if (Array.isArray(appState.folders)) {
+              appState.folders = appState.folders.filter(fl =>
+                fl && appState.files.some(rf =>
+                  rf && !rf.isSystemMeta &&
+                  rf.subject === fl.subject &&
+                  rf.category === fl.category &&
+                  folderNumEquals(rf.folderNum, fl.folderNum)
+                )
+              );
+            }
             saveAppState();
-            renderExplorerContent();
+            if (
+              appState.currentFolderNum !== null &&
+              !appState.files.some(rf =>
+                rf &&
+                rf.subject === appState.currentSubject &&
+                rf.category === appState.currentCategory &&
+                folderNumEquals(rf.folderNum, appState.currentFolderNum)
+              )
+            ) {
+              navigateToHierarchy(appState.currentSubject, appState.currentCategory, null);
+            } else {
+              renderExplorerContent();
+            }
             updateLibraryCounters();
             showToast('جاري حذف الملف نهائياً من Google Drive...', 'info');
 

@@ -420,9 +420,12 @@ function syncDriveWithDatabase() {
         updatedRecord.format = dFile.format;
         updatedRecord.date = dFile.dateFormatted;
         delete updatedRecord.adminFormat;
-      } else if (prev.adminFormat) {
-        // الحفاظ على الصيغة التي اختارها المسؤول صراحة من الموقع
+      } else if (prev.adminFormat && !(prev.adminFormat === 'المصدر' && dFile.format !== 'المصدر' && normalizeArabic(dFile.fileName).indexOf('تفريغ') === -1 && normalizeArabic(dFile.fileName).indexOf('مصدر') === -1)) {
+        // الحفاظ على الصيغة التي اختارها المسؤول صراحة من الموقع مع تصحيح الملفات التي تُركت على خيار "المصدر" الافتراضي بالخطأ رغم أن اسمها صريح (مثل "محاضرة 12 معدية شرح.pdf")
         updatedRecord.format = prev.adminFormat;
+      } else if (prev.adminFormat === 'المصدر' && dFile.format !== 'المصدر') {
+        updatedRecord.format = dFile.format;
+        updatedRecord.adminFormat = dFile.format;
       } else if (prev.format === 'المصدر' && dFile.format !== 'المصدر') {
         // تصحيح تلقائي لأي ملفات قديمة كانت مصنفة كـ "المصدر" بالخطأ (مثل "محاضرة 2 باطنة تلخييص.pdf")
         updatedRecord.format = dFile.format;
@@ -625,7 +628,13 @@ function handleSaveStudyFileFromSite(item, fileUpload) {
   const subConfig = getSubjectConfigById(subjectId);
   const categoryName = (item.category === 'سكاشن') ? 'سكاشن' : 'محاضرات';
   const folderNum = normalizeFolderNumServer(item.folderNum) || 1;
-  const format = item.format || 'المصدر';
+  let format = item.format || 'المصدر';
+  // إذا نسي المسؤول تغيير الصيغة عن "المصدر" وكان اسم الملف صريحاً (شرح / تلخيص / خريطة ذهنية) نصححها تلقائياً
+  const checkNameForFmt = String((fileUpload && (fileUpload.fileName || fileUpload.name)) || item.title || '');
+  const autoDetectedFmt = detectStudyFormat(checkNameForFmt);
+  if (format === 'المصدر' && autoDetectedFmt !== 'المصدر' && normalizeArabic(checkNameForFmt).indexOf('تفريغ') === -1 && normalizeArabic(checkNameForFmt).indexOf('مصدر') === -1) {
+    format = autoDetectedFmt;
+  }
 
   // الوصول إلى المجلد المخصص (أو إنشاؤه تلقائياً):
   // VET_KSU_33_Library -> [المادة] -> [محاضرات أو سكاشن] -> [محاضرة X أو سكشن X]
@@ -966,11 +975,25 @@ function detectStudyFormat(fileName) {
   return 'المصدر';
 }
 
+function hashAdminPasscodeServer(inputStr) {
+  const salted = 'vet_ksu_33_salt_2027::' + String(inputStr || '').trim().toLowerCase() + '::seniors';
+  let h1 = 0x811c9dc5;
+  let h2 = 5381;
+  for (let i = 0; i < salted.length; i++) {
+    const c = salted.charCodeAt(i);
+    h1 ^= c;
+    h1 = Math.imul(h1, 0x01000193) >>> 0;
+    h2 = ((Math.imul(h2, 33) + c) >>> 0);
+  }
+  return ('00000000' + h1.toString(16)).slice(-8) + ('00000000' + h2.toString(16)).slice(-8);
+}
+
 function verifyAdminPasscodeServer(passcode) {
-  const allowed = ['33', 'vet33', '2027', 'vetksu33', 'admin'];
   const clean = String(passcode || '').trim().toLowerCase();
-  if (allowed.indexOf(clean) !== -1) return true;
+  if (!clean) return false;
   if (CONFIG.ADMIN_HASHES && CONFIG.ADMIN_HASHES.indexOf(clean) !== -1) return true;
+  const computedHash = hashAdminPasscodeServer(clean);
+  if (CONFIG.ADMIN_HASHES && CONFIG.ADMIN_HASHES.indexOf(computedHash) !== -1) return true;
   return false;
 }
 
@@ -1190,10 +1213,26 @@ function writeDbToMemoryCache(jsonStr) {
   } catch (e) {}
 }
 
+function healDatabaseRecordsInPlace(filesArr) {
+  if (!Array.isArray(filesArr)) return filesArr;
+  filesArr.forEach(rf => {
+    if (!rf || rf.isSystemMeta || String(rf.id || '').indexOf('_sys_') === 0) return;
+    const checkName = String(rf.originalFileName || rf.title || '');
+    const normName = normalizeArabic(checkName);
+    const detected = detectStudyFormat(checkName);
+    if (rf.format === 'المصدر' && detected !== 'المصدر' && normName.indexOf('تفريغ') === -1 && normName.indexOf('مصدر') === -1) {
+      rf.format = detected;
+      rf.adminFormat = detected;
+    }
+  });
+  return filesArr;
+}
+
 function readDatabaseState(rootFolder, skipMemoryCache) {
   if (!skipMemoryCache) {
     const memCached = readDbFromMemoryCache();
     if (memCached && Array.isArray(memCached.files) && memCached.files.length > 0) {
+      healDatabaseRecordsInPlace(memCached.files);
       return memCached;
     }
   }
@@ -1224,15 +1263,18 @@ function readDatabaseState(rootFolder, skipMemoryCache) {
     }
 
     if (raw) {
-      writeDbToMemoryCache(raw);
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
+        healDatabaseRecordsInPlace(parsed);
         return { files: parsed, folders: [] };
       }
       if (parsed && typeof parsed === 'object') {
+        const filesList = Array.isArray(parsed.files) ? healDatabaseRecordsInPlace(parsed.files) : [];
+        const foldersList = Array.isArray(parsed.folders) ? parsed.folders : [];
+        writeDbToMemoryCache(JSON.stringify({ ok: true, files: filesList, folders: foldersList }));
         return {
-          files: Array.isArray(parsed.files) ? parsed.files : [],
-          folders: Array.isArray(parsed.folders) ? parsed.folders : []
+          files: filesList,
+          folders: foldersList
         };
       }
     }
@@ -1241,6 +1283,9 @@ function readDatabaseState(rootFolder, skipMemoryCache) {
 }
 
 function writeDatabaseState(rootFolder, stateObj) {
+  if (stateObj && Array.isArray(stateObj.files)) {
+    healDatabaseRecordsInPlace(stateObj.files);
+  }
   const jsonStr = JSON.stringify(stateObj, null, 2);
   writeDbToMemoryCache(jsonStr);
 
