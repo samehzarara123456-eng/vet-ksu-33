@@ -19,24 +19,61 @@
   <script>
     window.__EARLY_GAS_URL = 'https://script.google.com/macros/s/AKfycbxjlsN__9eXZvIuGLMJW0rCcpCiggFIdzdatlVXKuAy-34wGQN4b0k2iNSkP1SBI8S54A/exec';
     window.__earlyDriveFetchPromise = (typeof fetch === 'function')
-      ? fetch(window.__EARLY_GAS_URL + '?action=sync&force=false&t=' + Date.now(), {
-          method: 'GET',
-          redirect: 'follow',
-          cache: 'no-store'
-        }).then(function(r) { return r && r.ok ? r.json() : null; }).catch(function() { return null; })
+      ? (function() {
+          var ctrl = (typeof AbortController === 'function') ? new AbortController() : null;
+          var timer = null;
+          var clear = function() { if (timer) { clearTimeout(timer); timer = null; } };
+          var opts = { method: 'GET', redirect: 'follow', cache: 'no-store' };
+          if (ctrl) opts.signal = ctrl.signal;
+          var req = fetch(window.__EARLY_GAS_URL + '?action=sync&force=false&t=' + Date.now(), opts)
+            .then(function(r) { return (r && r.ok) ? r.json() : null; })
+            .then(function(data) { clear(); return data; })
+            .catch(function() { clear(); return null; });
+          var timeoutPromise = new Promise(function(resolve) {
+            timer = setTimeout(function() {
+              timer = null;
+              if (ctrl) { try { ctrl.abort(); } catch (e) {} }
+              resolve(null);
+            }, 14000);
+          });
+          return Promise.race([req, timeoutPromise]);
+        })()
       : null;
   </script>
 
   <!-- Google Fonts: Non-blocking load so slow mobile networks never hang on a blank screen -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" media="print" onload="this.onload=null;this.media='all'">
   <noscript><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet"></noscript>
   
   <!-- Tailwind CSS (Pre-compiled into ./css/style.css for instant loading & zero CDN runtime overhead) -->
 
-  <!-- Lucide Icons (jsDelivr CDN + unpkg fallback + onload hook so icons always render) -->
-  <script defer src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js" onload="if(window.lucide)window.lucide.createIcons();" onerror="var s=document.createElement('script');s.src='https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js';s.onload=function(){if(window.lucide)window.lucide.createIcons();};document.head.appendChild(s);"></script>
+  <!-- Lucide Icons (Non-blocking async load + unpkg fallback + race-safe hydration hook) -->
+  <script>
+    window.__renderLucideIcons = function() {
+      if (!window.lucide || typeof window.lucide.createIcons !== 'function') return;
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+          if (window.lucide && typeof window.lucide.createIcons === 'function') {
+            window.lucide.createIcons();
+          }
+        }, { once: true });
+      } else {
+        window.lucide.createIcons();
+      }
+    };
+    window.__loadLucideFallback = function() {
+      if (window.__lucideFallbackLoaded) return;
+      window.__lucideFallbackLoaded = true;
+      var s = document.createElement('script');
+      s.async = true;
+      s.src = 'https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js';
+      s.onload = window.__renderLucideIcons;
+      document.head.appendChild(s);
+    };
+  </script>
+  <script async src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js" onload="window.__renderLucideIcons()" onerror="window.__loadLucideFallback()"></script>
 
   <link rel="stylesheet" href="./css/style.css" />
 </head>
@@ -86,7 +123,7 @@
   <div id="bg-canvas-container" aria-hidden="true"></div>
 
   <!-- Toast Notification Container -->
-  <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:right-auto z-50 flex flex-col gap-2.5 sm:max-w-sm pointer-events-none"></div>
+  <div id="toast-container" role="status" aria-live="polite" class="fixed bottom-4 left-4 right-4 sm:right-auto z-[200] flex flex-col gap-2.5 sm:max-w-sm pointer-events-none"></div>
 
     <!-- Floating Edge Tab docked to the extreme right edge of the screen (اقصى اليمين) -->
   <button type="button" id="sidebar-edge-tab" class="fixed right-0 top-1/2 -translate-y-1/2 z-[85] px-2 py-3.5 rounded-l-2xl bg-slate-900/95 hover:bg-slate-850 text-amber-300 border-t border-b border-l border-amber-500/50 shadow-2xl backdrop-blur-md flex flex-col items-center gap-2 group transition-all duration-300 hover:pr-3 cursor-pointer" title="إظهار / إخفاء شريط الوصول السريع">
@@ -99,7 +136,7 @@
   <div class="relative z-10 flex flex-col min-h-screen">
 
     <!-- Top Navigation Header (Mobile-Optimized Single/Clean Two-Row Layout) -->
-    <header class="relative z-20 glass-panel border-b border-amber-500/25 px-3 sm:px-6 lg:px-10 py-2.5 sm:py-3.5 transition-all duration-300">
+    <header class="relative z-20 glass-panel border-0 border-b border-amber-500/25 px-3 sm:px-6 lg:px-10 py-2.5 sm:py-3.5 transition-all duration-300">
       <div class="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
         
         <!-- Row 1 on Mobile: Brand Identity + Quick Icon Toggles -->
@@ -221,7 +258,7 @@
             <i data-lucide="download" class="w-3.5 h-3.5 shrink-0"></i>
             <span class="truncate">تثبيت كبرنامج بالخلفية</span>
           </button>
-          <button type="button" id="dismiss-phone-notif-banner-btn" class="w-8 h-8 shrink-0 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 flex items-center justify-center transition" title="إخفاء مؤقت">
+          <button type="button" id="dismiss-phone-notif-banner-btn" class="w-8 h-8 shrink-0 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/80 flex items-center justify-center transition" title="إخفاء مؤقت" aria-label="إخفاء مؤقت">
             <i data-lucide="x" class="w-4 h-4"></i>
           </button>
         </div>
@@ -368,7 +405,7 @@
 
 
     <!-- Footer -->
-    <footer class="glass-panel border-t border-slate-800/80 py-5 px-4 sm:px-6 lg:px-10 mt-auto">
+    <footer class="glass-panel border-0 border-t border-slate-800/80 py-5 px-4 sm:px-6 lg:px-10 mt-auto">
       <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
         <div class="flex items-center gap-2.5">
           <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-500 to-emerald-600 flex items-center justify-center text-slate-950 font-black">33</div>
@@ -421,10 +458,12 @@
       <input 
         type="text" 
         id="search-input" 
+        autocomplete="off"
+        aria-label="بحث في المقررات والملفات"
         placeholder="بحث في المقررات والملفات..." 
         class="w-full pr-10 pl-9 py-2 rounded-2xl bg-slate-900/90 border border-slate-700/80 focus:border-amber-400 focus:outline-none text-xs text-white placeholder-slate-400 transition shadow-inner"
       />
-      <button type="button" id="clear-search-btn" class="hidden absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1" title="مسح البحث">
+      <button type="button" id="clear-search-btn" class="hidden absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1" title="مسح البحث" aria-label="مسح البحث">
         <i data-lucide="x-circle" class="w-4 h-4"></i>
       </button>
     </div>
@@ -466,7 +505,7 @@
   <!-- ===================================================================== -->
   <!-- MODAL 1: LECTURE / SECTION FILE PREVIEW & DOWNLOAD MODAL              -->
   <!-- ===================================================================== -->
-  <div id="preview-modal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-3 sm:p-4">
+  <div id="preview-modal" role="dialog" aria-modal="true" aria-labelledby="preview-title" class="hidden fixed inset-0 z-[160] modal-backdrop flex items-center justify-center p-3 sm:p-4">
     <div class="glass-panel modal-card-scroll rounded-3xl max-w-3xl w-full border border-amber-500/40 shadow-2xl">
       
       <!-- Sticky Modal Header -->
@@ -475,7 +514,7 @@
           <div class="flex flex-wrap items-center gap-1.5 mb-2" id="preview-badges"></div>
           <h3 id="preview-title" class="text-base sm:text-xl font-black text-white leading-snug">عنوان الملف</h3>
         </div>
-        <button type="button" id="close-preview-modal-btn" class="w-9 h-9 rounded-xl bg-slate-800/90 hover:bg-rose-500/20 text-slate-300 hover:text-rose-400 border border-slate-700 flex items-center justify-center transition shrink-0" title="إغلاق">
+        <button type="button" id="close-preview-modal-btn" class="w-9 h-9 rounded-xl bg-slate-800/90 hover:bg-rose-500/20 text-slate-300 hover:text-rose-400 border border-slate-700 flex items-center justify-center transition shrink-0" title="إغلاق" aria-label="إغلاق">
           <i data-lucide="x" class="w-5 h-5"></i>
         </button>
       </div>
@@ -546,7 +585,7 @@
             <span id="modal-complete-text">تحديد كمذاكر</span>
           </button>
 
-          <button type="button" id="modal-share-btn" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 transition" title="نسخ مسار وتفاصيل الملف">
+          <button type="button" id="modal-share-btn" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 transition" title="نسخ مسار وتفاصيل الملف" aria-label="نسخ مسار وتفاصيل الملف">
             <i data-lucide="share-2" class="w-4 h-4"></i>
           </button>
         </div>
@@ -558,7 +597,7 @@
   <!-- ===================================================================== -->
   <!-- MODAL 2: ADMIN AUTHENTICATION MODAL (Restricted Publishing Gate)      -->
   <!-- ===================================================================== -->
-  <div id="admin-login-modal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-3 sm:p-4">
+  <div id="admin-login-modal" role="dialog" aria-modal="true" class="hidden fixed inset-0 z-[160] modal-backdrop flex items-center justify-center p-3 sm:p-4">
     <div class="glass-panel modal-card-scroll rounded-3xl max-w-md w-full border border-emerald-500/40 shadow-2xl">
       
       <div class="p-4 sm:p-6 border-b border-slate-800 flex items-center justify-between gap-3 shrink-0 bg-slate-950/60">
@@ -571,7 +610,7 @@
             <p class="text-[11px] text-slate-400">النشر متاح فقط للمسؤولين (Admin Only)</p>
           </div>
         </div>
-        <button type="button" id="close-admin-login-btn" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition shrink-0">
+        <button type="button" id="close-admin-login-btn" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition shrink-0" title="إغلاق" aria-label="إغلاق">
           <i data-lucide="x" class="w-5 h-5"></i>
         </button>
       </div>
@@ -582,6 +621,7 @@
           <input 
             type="text" 
             id="admin-name-input" 
+            autocomplete="username"
             value="مسؤول الدفعة" 
             class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-xs sm:text-sm text-white focus:border-emerald-400 focus:outline-none"
           />
@@ -613,7 +653,7 @@
   <!-- Only 4 Required Fields: القسم, القسم الفرعي, رقم المجلد, صيغة الملف   -->
   <!-- Format Options: المصدر , شرح , تلخيص , خريطه ذهنية                    -->
   <!-- ===================================================================== -->
-  <div id="publish-modal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-2.5 sm:p-4">
+  <div id="publish-modal" role="dialog" aria-modal="true" aria-labelledby="publish-modal-title" class="hidden fixed inset-0 z-[160] modal-backdrop flex items-center justify-center p-2.5 sm:p-4">
     <div class="glass-panel modal-card-scroll rounded-3xl max-w-2xl w-full border border-amber-500/40 shadow-2xl">
       
       <!-- Sticky Top Header (Never Clipped on Phone!) -->
@@ -627,13 +667,13 @@
             <p class="text-[11px] text-amber-300 font-semibold truncate">الخانات الإجبارية فقط (*) هي القسم والقسم الفرعي ورقم المجلد وصيغة الملف</p>
           </div>
         </div>
-        <button type="button" id="close-publish-modal-btn" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition shrink-0" title="إغلاق">
+        <button type="button" id="close-publish-modal-btn" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition shrink-0" title="إغلاق" aria-label="إغلاق">
           <i data-lucide="x" class="w-5 h-5"></i>
         </button>
       </div>
 
       <!-- Scrollable Form Body -->
-      <form id="publish-form" class="modal-body-scroll p-4 sm:p-6 space-y-4">
+      <form id="publish-form" class="modal-body-scroll px-4 pt-4 sm:px-6 sm:pt-6 space-y-4">
         <input type="hidden" id="edit-item-id" value="" />
 
         <!-- MANDATORY SECTION: The 4 Required Fields Only -->
@@ -750,7 +790,7 @@
         </div>
 
         <!-- Sticky Submit Buttons Inside Form Bottom -->
-        <div class="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-800 sticky bottom-0 bg-slate-950/95 py-2.5 -mx-4 px-4 sm:-mx-6 sm:px-6">
+        <div class="flex items-center justify-end gap-2.5 border-t border-slate-800 sticky bottom-0 bg-slate-950/95 py-3 -mx-4 px-4 sm:-mx-6 sm:px-6">
           <button type="button" id="cancel-publish-btn" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition">
             إلغاء
           </button>
@@ -765,21 +805,26 @@
   <!-- ===================================================================== -->
   <!-- MODAL 4: NOTIFICATIONS CENTER MODAL (Publish History & Browser Push)  -->
   <!-- ===================================================================== -->
-  <div id="notifications-modal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-2.5 sm:p-4">
+  <div id="notifications-modal" role="dialog" aria-modal="true" class="hidden fixed inset-0 z-[160] modal-backdrop flex items-center justify-center p-2.5 sm:p-4">
     <div class="glass-panel modal-card-scroll rounded-3xl max-w-xl w-full border border-amber-500/40 shadow-2xl">
       
-      <!-- Sticky Header -->
-      <div class="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between gap-3 shrink-0 bg-slate-950/80">
-        <div class="flex items-center gap-2.5 min-w-0">
-          <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-amber-500 to-emerald-500 flex items-center justify-center text-slate-950 shadow-lg shrink-0">
-            <i data-lucide="bell-ring" class="w-5 h-5 sm:w-6 sm:h-6"></i>
+      <!-- Sticky Header (Mobile-safe two-row wrap so close button & title never clip) -->
+      <div class="p-4 sm:p-5 border-b border-slate-800 space-y-2.5 shrink-0 bg-slate-950/80">
+        <div class="flex items-center justify-between gap-2.5">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-amber-500 to-emerald-500 flex items-center justify-center text-slate-950 shadow-lg shrink-0">
+              <i data-lucide="bell-ring" class="w-5 h-5 sm:w-6 sm:h-6"></i>
+            </div>
+            <div class="min-w-0">
+              <h3 class="text-sm sm:text-lg font-black text-white truncate">مركز الإشعارات والتحديثات</h3>
+              <p class="text-[11px] text-slate-400 truncate">سجل الملفات المنشورة حديثاً مع تاريخ ووقت النشر</p>
+            </div>
           </div>
-          <div class="min-w-0">
-            <h3 class="text-sm sm:text-lg font-black text-white truncate">مركز الإشعارات والتحديثات</h3>
-            <p class="text-[11px] text-slate-400 truncate">سجل الملفات المنشورة حديثاً مع تاريخ ووقت النشر</p>
-          </div>
+          <button type="button" id="close-notifications-modal-btn" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition shrink-0" title="إغلاق" aria-label="إغلاق">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
         </div>
-        <div class="flex items-center gap-1.5 shrink-0">
+        <div class="flex flex-wrap items-center gap-1.5">
           <button type="button" id="test-phone-notif-btn" class="px-2.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[11px] font-extrabold flex items-center gap-1 transition whitespace-nowrap" title="إرسال إشعار تجريبي لشريط إشعارات الهاتف">
             <i data-lucide="bell-ring" class="w-3.5 h-3.5"></i>
             <span>تجربة إشعار الهاتف</span>
@@ -787,9 +832,6 @@
           <button type="button" id="enable-browser-notif-btn" class="px-2.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-[11px] font-extrabold flex items-center gap-1 transition whitespace-nowrap" title="تفعيل إشعارات المتصفح والهاتف">
             <i data-lucide="smartphone" class="w-3.5 h-3.5"></i>
             <span id="browser-notif-btn-text">تفعيل إشعارات الجهاز</span>
-          </button>
-          <button type="button" id="close-notifications-modal-btn" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition shrink-0" title="إغلاق">
-            <i data-lucide="x" class="w-5 h-5"></i>
           </button>
         </div>
       </div>
@@ -813,7 +855,7 @@
   <!-- ===================================================================== -->
   <!-- MODAL 5: ABOUT SECTION & FORMATS GUIDE MODAL (EDITABLE BY ADMIN)     -->
   <!-- ===================================================================== -->
-  <div id="about-modal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-3 sm:p-4">
+  <div id="about-modal" role="dialog" aria-modal="true" class="hidden fixed inset-0 z-[160] modal-backdrop flex items-center justify-center p-3 sm:p-4">
     <div class="glass-panel modal-card-scroll rounded-3xl max-w-3xl w-full border border-amber-500/40 shadow-2xl">
       
       <!-- Sticky Modal Header -->
@@ -835,7 +877,7 @@
             <span id="about-edit-btn-text">تعديل المحتوى</span>
           </button>
           
-          <button type="button" id="close-about-modal-btn" class="w-9 h-9 rounded-xl bg-slate-800/90 hover:bg-rose-500/20 text-slate-300 hover:text-rose-400 border border-slate-700 flex items-center justify-center transition" title="إغلاق">
+          <button type="button" id="close-about-modal-btn" class="w-9 h-9 rounded-xl bg-slate-800/90 hover:bg-rose-500/20 text-slate-300 hover:text-rose-400 border border-slate-700 flex items-center justify-center transition" title="إغلاق" aria-label="إغلاق">
             <i data-lucide="x" class="w-5 h-5"></i>
           </button>
         </div>
@@ -854,17 +896,17 @@
         </div>
 
         <div class="space-y-1.5">
-          <label class="text-xs font-bold text-slate-300">نص الترحيب والبداية:</label>
+          <label for="edit-about-greeting" class="text-xs font-bold text-slate-300">نص الترحيب والبداية:</label>
           <input type="text" id="edit-about-greeting" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white font-medium focus:border-amber-400 focus:outline-none" />
         </div>
 
         <div class="space-y-1.5">
-          <label class="text-xs font-bold text-slate-300">الآية الكريمة أو الدعاء:</label>
+          <label for="edit-about-verse" class="text-xs font-bold text-slate-300">الآية الكريمة أو الدعاء:</label>
           <input type="text" id="edit-about-verse" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white font-medium focus:border-amber-400 focus:outline-none" />
         </div>
 
         <div class="space-y-1.5">
-          <label class="text-xs font-bold text-slate-300">ملاحظة نموذج الذكاء الاصطناعي:</label>
+          <label for="edit-about-model-note" class="text-xs font-bold text-slate-300">ملاحظة نموذج الذكاء الاصطناعي:</label>
           <input type="text" id="edit-about-model-note" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white font-medium focus:border-amber-400 focus:outline-none" />
         </div>
 
@@ -872,39 +914,39 @@
           <p class="text-xs font-black text-amber-300">شرح أنواع الملفات الأربعة:</p>
 
           <div class="space-y-1.5">
-            <label class="text-xs font-bold text-emerald-400">1. شرح [المصدر]:</label>
+            <label for="edit-about-source" class="text-xs font-bold text-emerald-400">1. شرح [المصدر]:</label>
             <textarea id="edit-about-source" rows="2" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white font-medium focus:border-emerald-400 focus:outline-none"></textarea>
           </div>
 
           <div class="space-y-1.5">
-            <label class="text-xs font-bold text-cyan-400">2. شرح [الشرح]:</label>
+            <label for="edit-about-explain" class="text-xs font-bold text-cyan-400">2. شرح [الشرح]:</label>
             <textarea id="edit-about-explain" rows="2" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white font-medium focus:border-cyan-400 focus:outline-none"></textarea>
           </div>
 
           <div class="space-y-1.5">
-            <label class="text-xs font-bold text-amber-400">3. شرح [التلخيص]:</label>
+            <label for="edit-about-summary" class="text-xs font-bold text-amber-400">3. شرح [التلخيص]:</label>
             <textarea id="edit-about-summary" rows="2" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white font-medium focus:border-amber-400 focus:outline-none"></textarea>
           </div>
 
           <div class="space-y-1.5">
-            <label class="text-xs font-bold text-purple-400">4. شرح [الخريطة الذهنية]:</label>
+            <label for="edit-about-mindmap" class="text-xs font-bold text-purple-400">4. شرح [الخريطة الذهنية]:</label>
             <textarea id="edit-about-mindmap" rows="2" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white font-medium focus:border-purple-400 focus:outline-none"></textarea>
           </div>
         </div>
 
         <div class="pt-2 border-t border-slate-800 space-y-3">
           <div class="space-y-1.5">
-            <label class="text-xs font-bold text-emerald-300">عنوان ملاحظة الدقة (Shield Note Title):</label>
+            <label for="edit-about-ai-title" class="text-xs font-bold text-emerald-300">عنوان ملاحظة الدقة (Shield Note Title):</label>
             <input type="text" id="edit-about-ai-title" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white font-medium focus:border-emerald-400 focus:outline-none" />
           </div>
 
           <div class="space-y-1.5">
-            <label class="text-xs font-bold text-emerald-300">نص ملاحظة الدقة (Shield Note Content):</label>
+            <label for="edit-about-ai-desc" class="text-xs font-bold text-emerald-300">نص ملاحظة الدقة (Shield Note Content):</label>
             <textarea id="edit-about-ai-desc" rows="2" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white font-medium focus:border-emerald-400 focus:outline-none"></textarea>
           </div>
         </div>
 
-        <div class="pt-3 border-t border-slate-800 flex items-center justify-between gap-3">
+        <div class="pt-3 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3">
           <button type="button" id="reset-about-defaults-btn" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition">
             استعادة النصوص الأصلية
           </button>

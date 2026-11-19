@@ -7611,6 +7611,12 @@
       lastRenderedSignature: '',
       isHandlingPopState: false,
       isSyncing: false,
+      isSavingAction: false,
+      activeSaveActions: 0,
+      syncMutationEpoch: 0,
+      lastMutationTime: 0,
+      lastRemoteSyncAt: 0,
+      isPhoneNotifBannerDismissed: false,
       deletedFileIds: new Set()
     };
 
@@ -7619,7 +7625,7 @@
       window.appState = appState;
     }
 
-    // Play a gentle notification chime using Web Audio API
+    // Play a gentle notification chime using Web Audio API (closes AudioContext after playback to avoid browser limit exhaustion)
     function playNotificationChime() {
       try {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -7634,6 +7640,15 @@
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
         osc.connect(gain);
         gain.connect(ctx.destination);
+        const closeCtxSafely = () => {
+          try {
+            if (ctx.state !== 'closed' && typeof ctx.close === 'function') {
+              ctx.close().catch(() => {});
+            }
+          } catch (e) {}
+        };
+        osc.onended = closeCtxSafely;
+        setTimeout(closeCtxSafely, 700);
         osc.start();
         osc.stop(ctx.currentTime + 0.45);
       } catch (e) {}
@@ -7708,7 +7723,8 @@
             let lastSyncedEp = '';
             try { lastSyncedEp = localStorage.getItem('vet33_push_sub_synced_ep') || ''; } catch (e) {}
 
-            if (forceSync || !alreadyInList || lastSyncedEp !== subJson.endpoint) {
+            const shouldSyncMissingFromRemote = appState.hasInitializedRemote && !alreadyInList;
+            if (forceSync || shouldSyncMissingFromRemote || lastSyncedEp !== subJson.endpoint) {
               const filtered = existingEndpoints.filter(s => s && s.endpoint && s.endpoint !== subJson.endpoint);
               const merged = [...filtered, {
                 endpoint: subJson.endpoint,
@@ -7728,7 +7744,7 @@
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                 body: JSON.stringify({ action: 'save', item: sysRecord, file: sysRecord })
               })
-                .then(r => r.json())
+                .then(r => (r && r.ok ? r.json() : null))
                 .then(d => {
                   if (d && (d.ok || d.status === 'success')) {
                     try { localStorage.setItem('vet33_push_sub_synced_ep', subJson.endpoint); } catch (e) {}
@@ -7766,7 +7782,7 @@
             targets: pushTargets
           })
         })
-          .then(res => res.json())
+          .then(res => (res && res.ok ? res.json() : null))
           .then(data => {
             if (data && Array.isArray(data.expiredEndpoints) && data.expiredEndpoints.length > 0) {
               appState.pushSubscriptions = (appState.pushSubscriptions || []).filter(
@@ -7789,7 +7805,7 @@
       if (reg.active) return reg;
 
       const worker = reg.installing || reg.waiting;
-      if (worker) {
+      if (worker && worker.state !== 'activated' && worker.state !== 'redundant') {
         await new Promise((resolve) => {
           const timer = setTimeout(resolve, timeoutMs);
           worker.addEventListener('statechange', () => {
@@ -7803,7 +7819,7 @@
       return reg.active ? reg : null;
     }
 
-    // Register ./sw.js Service Worker (with cache-busting v=33) and activate background sync + Web Push
+    // Register ./sw.js Service Worker (with cache-busting v=43) and activate background sync + Web Push
     async function registerBackgroundServiceWorker() {
       if (!('serviceWorker' in navigator)) return null;
       if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
@@ -7811,7 +7827,7 @@
       }
 
       try {
-        let reg = await navigator.serviceWorker.register('./sw.js?v=42', {
+        let reg = await navigator.serviceWorker.register('./sw.js?v=43', {
           scope: './',
           updateViaCache: 'none'
         });
@@ -8022,6 +8038,10 @@
       const btn = document.getElementById('enable-browser-notif-btn');
       const banner = document.getElementById('phone-notif-banner');
       const isGranted = ('Notification' in window && Notification.permission === 'granted');
+      let isDismissed = Boolean(appState.isPhoneNotifBannerDismissed);
+      if (!isDismissed) {
+        try { isDismissed = sessionStorage.getItem('vet33_notif_banner_dismissed') === '1'; } catch (e) {}
+      }
 
       if (btnText && btn) {
         if (isGranted) {
@@ -8029,11 +8049,12 @@
           btn.className = 'px-2.5 py-1.5 rounded-xl bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 text-[11px] font-extrabold flex items-center gap-1 transition whitespace-nowrap';
         } else {
           btnText.textContent = 'تفعيل إشعارات الهاتف';
+          btn.className = 'px-2.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-[11px] font-extrabold flex items-center gap-1 transition whitespace-nowrap';
         }
       }
 
       if (banner) {
-        banner.classList.toggle('hidden', isGranted);
+        banner.classList.toggle('hidden', isGranted || isDismissed);
       }
     }
 
@@ -8048,6 +8069,38 @@
         .replace(/'/g, '&#39;');
     }
 
+    // Helper: Sanitize external URLs (blocks javascript:, vbscript:, data:, etc.; normalizes schemeless domains like t.me/...)
+    function sanitizeExternalUrl(rawUrl) {
+      const s = String(rawUrl || '').trim();
+      if (!s) return '';
+      // Reject control characters or explicit unsafe schemes
+      if (/[\u0000-\u001F\u007F]/.test(s)) return '';
+      if (/^(?:javascript|vbscript|data|file|blob):/i.test(s)) return '';
+      const hasScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(s);
+      if (hasScheme && !/^https?:/i.test(s)) return '';
+      const candidate = hasScheme ? s : (s.startsWith('//') ? ('https:' + s) : ('https://' + s));
+      try {
+        const parsed = new URL(candidate);
+        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return '';
+        if (!parsed.hostname || !parsed.hostname.includes('.')) return '';
+        return parsed.href;
+      } catch (e) {
+        return '';
+      }
+    }
+
+    // Helper: Safely detect Telegram URLs by hostname (prevents substring spoofing)
+    function isTelegramUrl(rawUrl) {
+      const safe = sanitizeExternalUrl(rawUrl);
+      if (!safe) return false;
+      try {
+        const host = new URL(safe).hostname.toLowerCase();
+        return host === 't.me' || host.endsWith('.t.me') || host === 'telegram.me' || host.endsWith('.telegram.me') || host === 'telegram.org' || host.endsWith('.telegram.org');
+      } catch (e) {
+        return false;
+      }
+    }
+
     // Render Notifications Center List & Unread Badge
     function updateNotificationsUI() {
       const badge = document.getElementById('notif-unread-badge');
@@ -8055,7 +8108,7 @@
       const totalLabel = document.getElementById('notifications-total-label');
       if (!badge || !listEl || !totalLabel) return;
 
-      const allFiles = Array.isArray(appState.files) ? appState.files : [];
+      const allFiles = Array.isArray(appState.files) ? appState.files.filter(f => f && f.id) : [];
       const unreadFiles = allFiles.filter(f => !appState.seenNotificationIds.includes(f.id));
 
       if (unreadFiles.length > 0) {
@@ -8092,7 +8145,7 @@
           <div data-notif-file-id="${escapeHTML(file.id)}" class="notif-item p-3.5 rounded-2xl border transition cursor-pointer flex items-start justify-between gap-3 ${isUnread ? 'bg-amber-500/10 border-amber-500/45 hover:bg-amber-500/15' : 'bg-slate-900/80 border-slate-800 hover:border-slate-700'}">
             <div class="flex items-start gap-3 min-w-0">
               <div class="w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 mt-0.5 ${fmt.badgeClass}">
-                <i data-lucide="${fmt.icon}" class="w-5 h-5"></i>
+                <i data-lucide="${escapeHTML(fmt.icon)}" class="w-5 h-5"></i>
               </div>
               <div class="min-w-0 space-y-1">
                 <div class="flex flex-wrap items-center gap-1.5">
@@ -8124,15 +8177,19 @@
       listEl.querySelectorAll('.notif-item').forEach(el => {
         el.addEventListener('click', () => {
           const fId = el.getAttribute('data-notif-file-id');
-          const targetFile = appState.files.find(f => f.id === fId);
+          const targetFile = appState.files.find(f => f && f.id === fId);
           if (!targetFile) return;
           if (!appState.seenNotificationIds.includes(fId)) {
             appState.seenNotificationIds.push(fId);
             saveAppState();
           }
-          document.getElementById('notifications-modal').classList.add('hidden');
+          closeNotificationsModal();
           appState.onlySavedFilter = false;
           appState.searchQuery = '';
+          const sInput = document.getElementById('search-input');
+          if (sInput) sInput.value = '';
+          const cBtn = document.getElementById('clear-search-btn');
+          if (cBtn) cBtn.classList.add('hidden');
           navigateToHierarchy(targetFile.subject, targetFile.category, normalizeFolderNumValue(targetFile.folderNum));
           openPreviewModal(targetFile.id);
           updateNotificationsUI();
@@ -8241,23 +8298,34 @@
       return String(str || '')
         .toLowerCase()
         .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+        .replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
         .replace(/[أإآ]/g, 'ا')
         .replace(/ة/g, 'ه')
         .replace(/ى/g, 'ي')
-        .replace(/[\u064B-\u065F_\-]+/g, ' ')
+        .replace(/[\u064B-\u065F\u0670\u0640]/g, '')
+        .replace(/[_\-]+/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
     }
 
     function detectAppFormatFromDriveFile(f) {
       const raw = normalizeArabicSearch((f && (f.format || f.badge || f.type || '')) + ' ' + (f && (f.name || f.title || '')));
-      if (raw.includes('خريط') || raw.includes('ذهني') || raw.includes('زهني') || raw.includes('mindmap') || raw.includes('mind')) {
+      if (
+        raw.includes('خريط') ||
+        raw.includes('خرائط') ||
+        raw.includes('خرايط') ||
+        raw.includes('ذهني') ||
+        raw.includes('زهني') ||
+        /\bmind\s*map\b/.test(raw) ||
+        /\bmindmap\b/.test(raw) ||
+        /\bmind\b/.test(raw)
+      ) {
         return 'خريطه ذهنية';
       }
-      if (/تلخي+ص/.test(raw) || raw.includes('ملخص') || raw.includes('مختصر') || raw.includes('summary')) {
+      if (/تلخي+ص/.test(raw) || raw.includes('ملخص') || raw.includes('مختصر') || /\bsummary\b/.test(raw)) {
         return 'تلخيص';
       }
-      if (raw.includes('شرح') || raw.includes('تفصيلي') || raw.includes('explanation') || raw.includes('explain')) {
+      if (raw.includes('شرح') || raw.includes('تفصيلي') || /\b(?:explanation|explain)\b/.test(raw)) {
         return 'شرح';
       }
       return 'المصدر';
@@ -8265,9 +8333,12 @@
 
     function normalizeFolderNumValue(val) {
       if (val === null || val === undefined) return null;
-      let s = String(val).replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).trim();
-      s = s.replace(/^(?:محاضرات|محاضرة|محاضره|سكاشن|سكشن|مجلد|عملي|lecture|section)\s*/i, '').trim();
-      s = s.replace(/(\d+)\s*[-–—]\s*(\d+)/g, '$1-$2');
+      let s = String(val)
+        .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+        .replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
+        .trim();
+      s = s.replace(/^(?:المحاضرات|محاضرات|المحاضرة|المحاضره|محاضرة|محاضره|السكاشن|سكاشن|السكشن|سكشن|المجلد|مجلد|عملي|رقم|lecture|section)\s*/i, '').trim();
+      s = s.replace(/(\d+)\s*[-–—]\s*(?=\d)/g, '$1-');
       if (!s) return null;
       if (/^\d+$/.test(s)) {
         const n = parseInt(s, 10);
@@ -8293,7 +8364,10 @@
     }
 
     function extractNumFromAnyString(str) {
-      const s = String(str || '').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).trim();
+      const s = String(str || '')
+        .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+        .replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
+        .trim();
       if (!s) return null;
       const rangeMatch = s.match(/(\d+\s*(?:[-–—+,،/&]|و|إلى|الى)\s*\d+(?:\s*(?:[-–—+,،/&]|و|إلى|الى)\s*\d+)*)/);
       if (rangeMatch && rangeMatch[1]) {
@@ -8301,6 +8375,38 @@
       }
       const m = s.match(/(\d+)/);
       return m ? parseInt(m[1], 10) : null;
+    }
+
+    // Safer lecture/section folder number extraction for filename auto-detect (ignores dates, years like 2026, and timestamps)
+    function extractLectureNumFromFileName(fileName) {
+      let s = String(fileName || '')
+        .replace(/\.[^/.]+$/, '')
+        .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+        .replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
+        .trim();
+      if (!s) return null;
+      // Prefer numbers explicitly following lecture/section keywords
+      const kwMatch = s.match(/(?:محاضرات|محاضرة|محاضره|سكاشن|سكشن|مجلد|lecture|lec|section|sec)\s*[#:\-_]?\s*(\d{1,2}(?:\s*(?:[-–—+,،/&]|و|إلى|الى)\s*\d{1,2})*)/i);
+      if (kwMatch && kwMatch[1]) {
+        return normalizeFolderNumValue(kwMatch[1]);
+      }
+      // Strip ISO/slash dates and 4+ digit numbers (years/timestamps) before fallback matching
+      const stripped = s
+        .replace(/\b\d{4}[-/.]\d{1,2}[-/.]\d{1,2}\b/g, ' ')
+        .replace(/\b\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}\b/g, ' ')
+        .replace(/\b\d{4,}\b/g, ' ')
+        .trim();
+      if (!stripped) return null;
+      const rangeMatch = stripped.match(/(\d{1,2}\s*(?:[-–—+,،/&]|و|إلى|الى)\s*\d{1,2}(?:\s*(?:[-–—+,،/&]|و|إلى|الى)\s*\d{1,2})*)/);
+      if (rangeMatch && rangeMatch[1]) {
+        return normalizeFolderNumValue(rangeMatch[1]);
+      }
+      const m = stripped.match(/\b(\d{1,2})\b/);
+      if (m && m[1]) {
+        const n = parseInt(m[1], 10);
+        return n >= 1 && n <= 99 ? n : null;
+      }
+      return null;
     }
 
     function detectSubjectFromFileName(fileName) {
@@ -8323,18 +8429,19 @@
     }
 
     function normalizeDriveApiPayload(apiResponse) {
-      if (!apiResponse) return { files: null, folders: [] };
+      if (!apiResponse) return { files: null, folders: [], hasFoldersField: false };
 
       // Case 1: Direct array of files
       if (Array.isArray(apiResponse)) {
-        return { files: apiResponse, folders: [] };
+        return { files: apiResponse, folders: [], hasFoldersField: false };
       }
 
       // Case 2: Version 2 GasCode response ({ ok: true, files: [...], folders: [...] })
       if (Array.isArray(apiResponse.files)) {
         return {
           files: apiResponse.files,
-          folders: Array.isArray(apiResponse.folders) ? apiResponse.folders : []
+          folders: Array.isArray(apiResponse.folders) ? apiResponse.folders : [],
+          hasFoldersField: Array.isArray(apiResponse.folders)
         };
       }
 
@@ -8375,14 +8482,21 @@
                   if (!dId) return;
                   const fNum = topicNum || extractNumFromAnyString(df.name || df.title) || 1;
                   const fmt = detectAppFormatFromDriveFile(df);
-                  const extUpper = String(df.extension || (df.name ? df.name.split('.').pop() : 'PDF') || 'PDF').toUpperCase();
+                  const extUpper = String(df.extension || (df.name && df.name.includes('.') ? df.name.split('.').pop() : 'PDF') || 'PDF').toUpperCase();
                   const sizeLabel = df.sizeFormatted ? `${extUpper} • ${df.sizeFormatted}` : extUpper;
                   const dateIso = df.updatedAt || df.createdAt || new Date().toISOString();
                   let dateStr = '';
+                  let modTimeMs = Date.now();
                   try {
-                    const dObj = new Date(dateIso); dateStr = `${dObj.getFullYear()}/${String(dObj.getMonth() + 1).padStart(2, '0')}/${String(dObj.getDate()).padStart(2, '0')}`;
+                    const dObj = new Date(dateIso);
+                    if (!isNaN(dObj.getTime())) {
+                      modTimeMs = dObj.getTime();
+                      dateStr = `${dObj.getFullYear()}/${String(dObj.getMonth() + 1).padStart(2, '0')}/${String(dObj.getDate()).padStart(2, '0')}`;
+                    } else {
+                      dateStr = String(dateIso).slice(0, 10);
+                    }
                   } catch (e) {
-                    dateStr = dateIso.slice(0, 10);
+                    dateStr = String(dateIso).slice(0, 10);
                   }
                   const prev = existingMap[dId] || existingMap['drive_' + dId] || {};
                   const cleanRawTitle = String(df.title || df.name || '').replace(/\.[^/.]+$/, '').replace(/\s*-\s*(المصدر|شرح|تلخيص|خريطه ذهنية|خريطة ذهنية)$/i, '').trim();
@@ -8392,7 +8506,7 @@
                     driveFileId: dId,
                     title: cleanRawTitle || df.title || df.name,
                     originalFileName: df.name || df.title,
-                    driveModifiedTime: new Date(dateIso).getTime() || Date.now(),
+                    driveModifiedTime: modTimeMs,
                     subject: appSubId,
                     category: categoryAr,
                     folderNum: normalizeFolderNumValue(fNum) || 1,
@@ -8425,10 +8539,10 @@
         });
 
         mappedFiles.sort((a, b) => (b.driveModifiedTime || 0) - (a.driveModifiedTime || 0));
-        return { files: mappedFiles, folders: mappedFolders };
+        return { files: mappedFiles, folders: mappedFolders, hasFoldersField: true };
       }
 
-      return { files: null, folders: [] };
+      return { files: null, folders: [], hasFoldersField: false };
     }
 
     // Helper for Issue #7: Preserve optimistic local download increments while background sync is in-flight
@@ -8444,8 +8558,15 @@
     }
 
     function reconcileRemoteDownloadsWithPending(remoteFiles) {
-      if (!Array.isArray(remoteFiles) || !appState.pendingDownloadsMap) return;
+      if (!appState.pendingDownloadsMap) return;
       const now = Date.now();
+      Object.keys(appState.pendingDownloadsMap).forEach(k => {
+        const entry = appState.pendingDownloadsMap[k];
+        if (!entry || now > entry.expiresAt) {
+          delete appState.pendingDownloadsMap[k];
+        }
+      });
+      if (!Array.isArray(remoteFiles)) return;
       remoteFiles.forEach(rf => {
         if (!rf || !rf.id) return;
         const pById = appState.pendingDownloadsMap[rf.id];
@@ -8460,6 +8581,81 @@
           rf.downloadsCount = rf.downloads;
         }
       });
+    }
+
+    const DELETED_TOMBSTONE_STORAGE_KEY = 'vet33_deleted_tombstones_v1';
+    const DELETED_TOMBSTONE_TTL_MS = 120000;
+
+    function loadDeletedTombstones() {
+      if (!appState.deletedFileIds) appState.deletedFileIds = new Set();
+      try {
+        const raw = localStorage.getItem(DELETED_TOMBSTONE_STORAGE_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return;
+        const now = Date.now();
+        const active = {};
+        Object.keys(parsed).forEach(id => {
+          const exp = Number(parsed[id]) || 0;
+          if (id && exp > now) {
+            active[id] = exp;
+            appState.deletedFileIds.add(id);
+          }
+        });
+        if (Object.keys(active).length > 0) {
+          localStorage.setItem(DELETED_TOMBSTONE_STORAGE_KEY, JSON.stringify(active));
+        } else {
+          localStorage.removeItem(DELETED_TOMBSTONE_STORAGE_KEY);
+        }
+      } catch (e) {}
+    }
+
+    function recordDeletedFileIds(ids) {
+      if (!appState.deletedFileIds) appState.deletedFileIds = new Set();
+      const validIds = (ids || []).map(x => String(x || '').trim()).filter(Boolean);
+      validIds.forEach(id => appState.deletedFileIds.add(id));
+      try {
+        const now = Date.now();
+        let map = {};
+        const raw = localStorage.getItem(DELETED_TOMBSTONE_STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            Object.keys(parsed).forEach(k => {
+              if (Number(parsed[k]) > now) map[k] = Number(parsed[k]);
+            });
+          }
+        }
+        validIds.forEach(id => { map[id] = now + DELETED_TOMBSTONE_TTL_MS; });
+        localStorage.setItem(DELETED_TOMBSTONE_STORAGE_KEY, JSON.stringify(map));
+      } catch (e) {}
+    }
+
+    function unmarkDeletedFileIds(ids) {
+      const validIds = (ids || []).map(x => String(x || '').trim()).filter(Boolean);
+      if (appState.deletedFileIds) {
+        validIds.forEach(id => appState.deletedFileIds.delete(id));
+      }
+      try {
+        const raw = localStorage.getItem(DELETED_TOMBSTONE_STORAGE_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          validIds.forEach(id => { delete parsed[id]; });
+          if (Object.keys(parsed).length > 0) {
+            localStorage.setItem(DELETED_TOMBSTONE_STORAGE_KEY, JSON.stringify(parsed));
+          } else {
+            localStorage.removeItem(DELETED_TOMBSTONE_STORAGE_KEY);
+          }
+        }
+      } catch (e) {}
+    }
+
+    function isFileDeletedLocally(rf) {
+      if (!rf || !appState.deletedFileIds || appState.deletedFileIds.size === 0) return false;
+      if (rf.id && appState.deletedFileIds.has(rf.id)) return true;
+      if (rf.driveFileId && (appState.deletedFileIds.has(rf.driveFileId) || appState.deletedFileIds.has('drive_' + rf.driveFileId))) return true;
+      return false;
     }
 
     // Helper for Issue #5: Migrate temporary `file_<timestamp>` ID to permanent `drive_<driveFileId>` ID
@@ -8540,9 +8736,11 @@
     function applyNormalizedRemoteDatabase(normalized, silent = true) {
       if (!normalized || !Array.isArray(normalized.files)) return false;
       const rawRemoteList = normalized.files;
-      const nextFolders = (Array.isArray(normalized.folders) && normalized.folders.length > 0)
+      const nextFolders = (normalized.hasFoldersField && Array.isArray(normalized.folders))
         ? normalized.folders
-        : (appState.folders && appState.folders.length > 0 ? appState.folders : generateDefaultFoldersDatabase());
+        : ((Array.isArray(normalized.folders) && normalized.folders.length > 0)
+            ? normalized.folders
+            : (appState.folders && appState.folders.length > 0 ? appState.folders : generateDefaultFoldersDatabase()));
 
       const sysSubEntry = rawRemoteList.find(rf => rf && rf.id === SYS_PUSH_SUBS_ID);
       if (sysSubEntry && Array.isArray(sysSubEntry.subs)) {
@@ -8556,11 +8754,11 @@
 
       const remoteFiles = rawRemoteList.filter(rf => {
         if (!rf || !rf.id || rf.isSystemMeta || String(rf.id).startsWith('_sys_')) return false;
-        if (appState.deletedFileIds && (appState.deletedFileIds.has(rf.id) || (rf.driveFileId && appState.deletedFileIds.has(rf.driveFileId)))) return false;
+        if (isFileDeletedLocally(rf)) return false;
         const checkTitleOrName = String(rf.originalFileName || rf.title || '');
         const normTitleOrName = normalizeArabicSearch(checkTitleOrName);
         const inferredFmt = detectAppFormatFromDriveFile({ name: checkTitleOrName });
-        if (rf.format === 'المصدر' && inferredFmt !== 'المصدر' && !normTitleOrName.includes('تفريغ') && !normTitleOrName.includes('مصدر')) {
+        if (!rf.explicitAdminFormat && rf.format === 'المصدر' && inferredFmt !== 'المصدر' && !normTitleOrName.includes('تفريغ') && !normTitleOrName.includes('مصدر')) {
           rf.format = inferredFmt;
           rf.adminFormat = inferredFmt;
         }
@@ -8594,12 +8792,16 @@
       const hasDataChanged = isFirstRemoteSync || (newSignature !== appState.lastRenderedSignature);
 
       const pendingLocalUploads = (appState.files || []).filter(f => f && f.isPendingUpload);
-      const mergedRemoteFiles = [...pendingLocalUploads, ...remoteFiles.filter(rf => !pendingLocalUploads.some(p => p.id === rf.id))];
+      const mergedRemoteFiles = [
+        ...pendingLocalUploads,
+        ...remoteFiles.filter(rf => !pendingLocalUploads.some(p => p.id === rf.id || (p.driveFileId && rf.driveFileId && p.driveFileId === rf.driveFileId)))
+      ];
 
       appState.folders = nextFolders;
       appState.aboutContent = nextAboutContent;
       appState.files = mergedRemoteFiles;
       appState.hasInitializedRemote = true;
+      appState.lastRemoteSyncAt = Date.now();
 
       if (hasDataChanged) {
         appState.lastRenderedSignature = newSignature;
@@ -8613,6 +8815,11 @@
         renderExplorerContent();
         updateLibraryCounters();
         updateNotificationsUI();
+        const aboutModalEl = document.getElementById('about-modal');
+        const aboutFormEl = document.getElementById('about-edit-form');
+        if (aboutModalEl && !aboutModalEl.classList.contains('hidden') && (!aboutFormEl || aboutFormEl.classList.contains('hidden'))) {
+          renderAboutView();
+        }
       }
 
       checkPendingNotificationHash();
@@ -8648,14 +8855,21 @@
 
     async function fetchDatabaseFromDrive(silent = false, forceDriveScan = false) {
       if (appState.isSavingAction) return;
+      // Avoid burst duplicate silent polls when focus + visibilitychange fire together
+      if (silent && !forceDriveScan && appState.hasInitializedRemote && (Date.now() - (appState.lastRemoteSyncAt || 0) < 5000)) {
+        return;
+      }
       if (appState.isSyncing) {
-        appState.pendingSyncAfterCurrent = {
-          silent: silent && (appState.pendingSyncAfterCurrent ? appState.pendingSyncAfterCurrent.silent : true),
-          forceDriveScan: forceDriveScan || (appState.pendingSyncAfterCurrent ? appState.pendingSyncAfterCurrent.forceDriveScan : false)
-        };
+        if (!silent || forceDriveScan) {
+          appState.pendingSyncAfterCurrent = {
+            silent: silent && (appState.pendingSyncAfterCurrent ? appState.pendingSyncAfterCurrent.silent : true),
+            forceDriveScan: forceDriveScan || (appState.pendingSyncAfterCurrent ? appState.pendingSyncAfterCurrent.forceDriveScan : false)
+          };
+        }
         return;
       }
       appState.isSyncing = true;
+      const startEpoch = appState.syncMutationEpoch || 0;
       if (!silent) {
         setCloudSyncStatus('syncing', 'جاري الجلب...');
       }
@@ -8669,10 +8883,18 @@
         if (!appState.hasInitializedRemote && forceFlag === 'false' && window.__earlyDriveFetchPromise) {
           const earlyPromise = window.__earlyDriveFetchPromise;
           window.__earlyDriveFetchPromise = null;
+          let earlyTimer = null;
           try {
-            data = await earlyPromise;
+            data = await Promise.race([
+              earlyPromise,
+              new Promise((resolve) => {
+                earlyTimer = setTimeout(() => resolve(null), 15000);
+              })
+            ]);
           } catch (e) {
             data = null;
+          } finally {
+            if (earlyTimer) clearTimeout(earlyTimer);
           }
         }
 
@@ -8682,7 +8904,15 @@
             redirect: 'follow',
             cache: 'no-store'
           }, timeoutMs);
+          if (!res || !res.ok) {
+            throw new Error(`HTTP ${res ? res.status : 0}`);
+          }
           data = await res.json();
+        }
+
+        // Discard stale GET response if an admin mutation occurred while this fetch was in-flight
+        if (appState.isSavingAction || (appState.syncMutationEpoch || 0) !== startEpoch) {
+          return;
         }
 
         const normalized = normalizeDriveApiPayload(data);
@@ -8701,26 +8931,12 @@
           setCloudSyncStatus('online', 'متصل بـ Drive');
         }
       } catch (err) {
-        // Fallback: Try local vet_ksu_33_db.json if remote failed on first load
-        if (!appState.hasInitializedRemote) {
-          try {
-            const localRes = await fetch('./vet_ksu_33_db.json?t=' + Date.now());
-            if (localRes && localRes.ok) {
-              const localData = await localRes.json();
-              const localNorm = normalizeDriveApiPayload(localData);
-              if (localNorm && Array.isArray(localNorm.files) && localNorm.files.length > 0) {
-                applyNormalizedRemoteDatabase(localNorm, true);
-              }
-            }
-          } catch (localErr) {}
-
-          // Automatic retry on weak mobile connection
-          if (initialSyncRetryCount < 3) {
-            initialSyncRetryCount++;
-            setTimeout(() => {
-              fetchDatabaseFromDrive(true, false);
-            }, 2500 * initialSyncRetryCount);
-          }
+        // Automatic retry on weak mobile connection (INITIAL_FILES_SNAPSHOT is already loaded locally)
+        if (!appState.hasInitializedRemote && initialSyncRetryCount < 3) {
+          initialSyncRetryCount++;
+          setTimeout(() => {
+            fetchDatabaseFromDrive(true, false);
+          }, 2500 * initialSyncRetryCount);
         }
         setCloudSyncStatus('error', 'وضع محلي');
         if (!silent) {
@@ -8739,7 +8955,11 @@
     }
 
     async function syncActionToDrive(payload) {
+      appState.activeSaveActions = (appState.activeSaveActions || 0) + 1;
       appState.isSavingAction = true;
+      appState.syncMutationEpoch = (appState.syncMutationEpoch || 0) + 1;
+      appState.lastMutationTime = Date.now();
+      const actionEpoch = appState.syncMutationEpoch;
       const statusMsg = payload && (payload.action === 'delete' || payload.action === 'deleteFile') ? 'جاري الحذف...' : 'جاري الحفظ...';
       setCloudSyncStatus('syncing', statusMsg);
       const enrichedPayload = Object.assign({}, payload || {});
@@ -8758,51 +8978,80 @@
           },
           body: JSON.stringify(enrichedPayload)
         }, timeoutMs);
+        if (!res || !res.ok) {
+          setCloudSyncStatus('error', 'خطأ في الحفظ');
+          return { ok: false, rejectedByServer: false, error: `HTTP ${res ? res.status : 0}` };
+        }
         const data = await res.json();
         if (data && (data.ok || data.status === 'success')) {
           // Issue #5 Fix: If server assigned a new permanent `drive_<id>` to a newly uploaded file, migrate its temporary ID in savedIds & completedIds first
-          if (tempOutgoingId && data.file && data.file.id && tempOutgoingId !== data.file.id) {
-            migrateTemporaryFileId(tempOutgoingId, data.file.id);
+          const returnedFileId = (data.file && data.file.id) ? data.file.id : '';
+          if (tempOutgoingId && returnedFileId && tempOutgoingId !== returnedFileId) {
+            migrateTemporaryFileId(tempOutgoingId, returnedFileId);
           }
 
           const normalized = normalizeDriveApiPayload(data);
-          if (Array.isArray(normalized.folders)) {
-            appState.folders = normalized.folders;
-          }
-          if (Array.isArray(normalized.files)) {
-            const sysSubEntry = normalized.files.find(rf => rf && rf.id === SYS_PUSH_SUBS_ID);
-            if (sysSubEntry && Array.isArray(sysSubEntry.subs)) {
-              appState.pushSubscriptions = sysSubEntry.subs;
+          // Only overwrite in-memory collections if no newer concurrent save superseded this action
+          if ((appState.syncMutationEpoch || 0) === actionEpoch) {
+            if (normalized.hasFoldersField && Array.isArray(normalized.folders)) {
+              appState.folders = normalized.folders;
             }
-            const sysAboutEntry = normalized.files.find(rf => rf && rf.id === SYS_ABOUT_CONTENT_ID);
-            if (sysAboutEntry && sysAboutEntry.aboutContent && typeof sysAboutEntry.aboutContent === 'object') {
-              appState.aboutContent = { ...DEFAULT_ABOUT_CONTENT, ...sysAboutEntry.aboutContent };
+            if (Array.isArray(normalized.files)) {
+              const sysSubEntry = normalized.files.find(rf => rf && rf.id === SYS_PUSH_SUBS_ID);
+              if (sysSubEntry && Array.isArray(sysSubEntry.subs)) {
+                appState.pushSubscriptions = sysSubEntry.subs;
+              }
+              const sysAboutEntry = normalized.files.find(rf => rf && rf.id === SYS_ABOUT_CONTENT_ID);
+              if (sysAboutEntry && sysAboutEntry.aboutContent && typeof sysAboutEntry.aboutContent === 'object') {
+                appState.aboutContent = { ...DEFAULT_ABOUT_CONTENT, ...sysAboutEntry.aboutContent };
+              }
+              const remoteFiles = normalized.files.filter(rf => {
+                if (!rf || !rf.id || rf.isSystemMeta || String(rf.id).startsWith('_sys_')) return false;
+                if (isFileDeletedLocally(rf)) return false;
+                return true;
+              });
+              reconcileRemoteDownloadsWithPending(remoteFiles);
+              const otherPendingUploads = (appState.files || []).filter(
+                f => f && f.isPendingUpload && f.id !== tempOutgoingId && (!returnedFileId || f.id !== returnedFileId)
+              );
+              appState.files = [
+                ...otherPendingUploads,
+                ...remoteFiles.filter(rf => !otherPendingUploads.some(p => p.id === rf.id))
+              ];
+              appState.hasInitializedRemote = true;
+              appState.lastRemoteSyncAt = Date.now();
+              appState.lastRenderedSignature = computeDatabaseSignature(appState.files, appState.folders, appState.aboutContent);
+              saveAppState();
+              renderQuickSubjectBar();
+              renderBreadcrumbBar();
+              renderExplorerContent();
+              updateLibraryCounters();
+              updateNotificationsUI();
+              const aboutModalEl = document.getElementById('about-modal');
+              const aboutFormEl = document.getElementById('about-edit-form');
+              if (aboutModalEl && !aboutModalEl.classList.contains('hidden') && (!aboutFormEl || aboutFormEl.classList.contains('hidden'))) {
+                renderAboutView();
+              }
             }
-            const remoteFiles = normalized.files.filter(rf => {
-              if (!rf || !rf.id || rf.isSystemMeta || String(rf.id).startsWith('_sys_')) return false;
-              if (appState.deletedFileIds && (appState.deletedFileIds.has(rf.id) || (rf.driveFileId && appState.deletedFileIds.has(rf.driveFileId)))) return false;
-              return true;
-            });
-            reconcileRemoteDownloadsWithPending(remoteFiles);
-            appState.files = remoteFiles;
-            appState.lastRenderedSignature = computeDatabaseSignature(appState.files, appState.folders, appState.aboutContent);
-            saveAppState();
-            renderQuickSubjectBar();
-            renderBreadcrumbBar();
-            renderExplorerContent();
-            updateLibraryCounters();
-            updateNotificationsUI();
           }
+          appState.lastMutationTime = Date.now();
           setCloudSyncStatus('online', `متصل (${appState.files.length})`);
           return { ok: true, data };
         }
         setCloudSyncStatus('error', 'خطأ في الحفظ');
-        return { ok: false, error: (data && data.error) || 'Unknown error' };
+        return {
+          ok: false,
+          rejectedByServer: true,
+          status: (data && data.status) || 'error',
+          error: (data && (data.error || data.message)) || 'Unknown error'
+        };
       } catch (err) {
         setCloudSyncStatus('error', 'حُفظ محلياً');
-        return { ok: false, error: err.message };
+        return { ok: false, rejectedByServer: false, error: (err && err.message) ? err.message : 'Network error' };
       } finally {
-        appState.isSavingAction = false;
+        appState.activeSaveActions = Math.max(0, (appState.activeSaveActions || 1) - 1);
+        appState.isSavingAction = appState.activeSaveActions > 0;
+        appState.lastMutationTime = Date.now();
       }
     }
 
@@ -8909,9 +9158,12 @@
       }
     }
 
-    // Surgically update bookmark button classes and icon fill across the DOM
+    // Surgically update bookmark button classes and icon fill across the DOM (immune to CSS selector injection)
     function updateSaveButtonsUI(fileId, isSaved) {
-      const buttons = document.querySelectorAll(`[data-file-action="toggle-save"][data-file-id="${fileId}"], [data-file-action="toggle-save"][data-id="${fileId}"]`);
+      const targetId = String(fileId ?? '');
+      const buttons = Array.from(document.querySelectorAll('[data-file-action="toggle-save"]')).filter(
+        btn => btn.getAttribute('data-file-id') === targetId || btn.getAttribute('data-id') === targetId
+      );
       buttons.forEach(btn => {
         btn.className = `p-2 rounded-xl ${isSaved ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40' : 'bg-slate-800/80 text-slate-400 hover:text-amber-300 border border-slate-700'} transition`;
         btn.title = isSaved ? 'إزالة من المحفوظات' : 'حفظ في مكتبتي';
@@ -8959,15 +9211,20 @@
       }
     }
 
-    // Surgically update completed status styling across the DOM
+    // Surgically update completed status styling across the DOM (immune to CSS selector injection)
     function updateCompleteButtonsUI(fileId, isCompleted) {
-      const buttons = document.querySelectorAll(`[data-file-action="toggle-complete"][data-file-id="${fileId}"], [data-file-action="toggle-complete"][data-id="${fileId}"]`);
+      const targetId = String(fileId ?? '');
+      const buttons = Array.from(document.querySelectorAll('[data-file-action="toggle-complete"]')).filter(
+        btn => btn.getAttribute('data-file-id') === targetId || btn.getAttribute('data-id') === targetId
+      );
       buttons.forEach(btn => {
         btn.className = `p-2 rounded-xl ${isCompleted ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-slate-800/80 text-slate-400 hover:text-emerald-300 border border-slate-700'} transition`;
         btn.title = isCompleted ? 'تمت المذاكرة' : 'تحديد كمذاكر';
       });
 
-      const articles = document.querySelectorAll(`article[data-file-id="${fileId}"]`);
+      const articles = Array.from(document.querySelectorAll('article[data-file-id]')).filter(
+        art => art.getAttribute('data-file-id') === targetId
+      );
       articles.forEach(art => {
         if (isCompleted) {
           art.classList.remove('border-slate-800');
@@ -9013,46 +9270,49 @@
         localStorage.removeItem('ksu_vet33_saved_v3');
         localStorage.removeItem('ksu_vet33_completed_v3');
 
-        const storedFiles = safeParseArray(localStorage.getItem('ksu_vet33_files_v5'), [])
-          .filter(rf => rf && rf.id && !rf.isSystemMeta && !String(rf.id).startsWith('_sys_'));
-        const defaultFiles = generateDefaultFilesDatabase();
-        if (storedFiles.length > 0) {
-          const seenIds = new Set(storedFiles.map(f => f.id));
-          const mergedStartupFiles = [...storedFiles];
-          defaultFiles.forEach(df => {
-            if (df && df.id && !seenIds.has(df.id)) {
-              mergedStartupFiles.push(df);
-            }
-          });
-          mergedStartupFiles.forEach(rf => {
-            const checkTitleOrName = String(rf.originalFileName || rf.title || '');
-            const normTitleOrName = normalizeArabicSearch(checkTitleOrName);
-            const inferredFmt = detectAppFormatFromDriveFile({ name: checkTitleOrName });
-            if (rf.format === 'المصدر' && inferredFmt !== 'المصدر' && !normTitleOrName.includes('تفريغ') && !normTitleOrName.includes('مصدر')) {
-              rf.format = inferredFmt;
-              rf.adminFormat = inferredFmt;
-            }
-          });
-          mergedStartupFiles.sort((a, b) => (Number(b.driveModifiedTime) || 0) - (Number(a.driveModifiedTime) || 0));
-          appState.files = mergedStartupFiles;
-        } else {
-          appState.files = defaultFiles;
+        loadDeletedTombstones();
+
+        const rawStoredFiles = localStorage.getItem('ksu_vet33_files_v5');
+        let parsedStoredFiles = null;
+        if (rawStoredFiles !== null) {
+          try {
+            const p = JSON.parse(rawStoredFiles);
+            if (Array.isArray(p)) parsedStoredFiles = p;
+          } catch (e) {}
         }
 
-        const storedFolders = safeParseArray(localStorage.getItem('ksu_vet33_folders_v5'), []);
-        const defaultFolders = generateDefaultFoldersDatabase();
-        if (storedFolders.length > 0) {
-          const seenFolderIds = new Set(storedFolders.map(fl => fl.id));
-          const mergedStartupFolders = [...storedFolders];
-          defaultFolders.forEach(dfl => {
-            if (dfl && dfl.id && !seenFolderIds.has(dfl.id)) {
-              mergedStartupFolders.push(dfl);
-            }
-          });
-          appState.folders = mergedStartupFolders;
+        if (parsedStoredFiles !== null) {
+          // Trust cached synced state without merging INITIAL_FILES_SNAPSHOT back over deleted files
+          const startupFiles = parsedStoredFiles
+            .filter(rf => rf && rf.id && !rf.isSystemMeta && !String(rf.id).startsWith('_sys_') && !isFileDeletedLocally(rf))
+            .map(rf => {
+              const copy = Object.assign({}, rf);
+              delete copy.isPendingUpload;
+              const checkTitleOrName = String(copy.originalFileName || copy.title || '');
+              const normTitleOrName = normalizeArabicSearch(checkTitleOrName);
+              const inferredFmt = detectAppFormatFromDriveFile({ name: checkTitleOrName });
+              if (!copy.explicitAdminFormat && copy.format === 'المصدر' && inferredFmt !== 'المصدر' && !normTitleOrName.includes('تفريغ') && !normTitleOrName.includes('مصدر')) {
+                copy.format = inferredFmt;
+                copy.adminFormat = inferredFmt;
+              }
+              return copy;
+            });
+          startupFiles.sort((a, b) => (Number(b.driveModifiedTime) || 0) - (Number(a.driveModifiedTime) || 0));
+          appState.files = startupFiles;
         } else {
-          appState.folders = defaultFolders;
+          appState.files = generateDefaultFilesDatabase().filter(df => df && df.id && !isFileDeletedLocally(df));
         }
+
+        const rawStoredFolders = localStorage.getItem('ksu_vet33_folders_v5');
+        let parsedStoredFolders = null;
+        if (rawStoredFolders !== null) {
+          try {
+            const pf = JSON.parse(rawStoredFolders);
+            if (Array.isArray(pf)) parsedStoredFolders = pf;
+          } catch (e) {}
+        }
+        appState.folders = parsedStoredFolders !== null ? parsedStoredFolders : generateDefaultFoldersDatabase();
+
         loadSavedFilesFromStorage();
         loadCompletedFilesFromStorage();
         appState.seenNotificationIds = safeParseArray(localStorage.getItem('ksu_vet33_seen_notifs_v4'), []);
@@ -9069,8 +9329,18 @@
           appState.notifiedPushFileIds = [];
         }
 
-        const storedAbout = localStorage.getItem('ksu_vet33_about_content_v1');
-        appState.aboutContent = storedAbout ? { ...DEFAULT_ABOUT_CONTENT, ...JSON.parse(storedAbout) } : { ...DEFAULT_ABOUT_CONTENT };
+        appState.aboutContent = { ...DEFAULT_ABOUT_CONTENT };
+        try {
+          const storedAbout = localStorage.getItem('ksu_vet33_about_content_v1');
+          if (storedAbout) {
+            const parsedAbout = JSON.parse(storedAbout);
+            if (parsedAbout && typeof parsedAbout === 'object' && !Array.isArray(parsedAbout)) {
+              appState.aboutContent = { ...DEFAULT_ABOUT_CONTENT, ...parsedAbout };
+            }
+          }
+        } catch (aboutParseErr) {
+          appState.aboutContent = { ...DEFAULT_ABOUT_CONTENT };
+        }
 
         // Load Admin Session (vet33_admin_session_v1 and legacy ksu_vet33_admin_session_v4)
         try {
@@ -9108,7 +9378,13 @@
     function saveAppState() {
       try {
         if (Array.isArray(appState.files) && (appState.files.length > 0 || appState.hasInitializedRemote)) {
-          localStorage.setItem('ksu_vet33_files_v5', JSON.stringify(appState.files));
+          const persistableFiles = appState.files.map(f => {
+            if (!f || !f.isPendingUpload) return f;
+            const copy = Object.assign({}, f);
+            delete copy.isPendingUpload;
+            return copy;
+          });
+          localStorage.setItem('ksu_vet33_files_v5', JSON.stringify(persistableFiles));
         }
         if (Array.isArray(appState.folders) && (appState.folders.length > 0 || appState.hasInitializedRemote)) {
           localStorage.setItem('ksu_vet33_folders_v5', JSON.stringify(appState.folders));
@@ -9157,7 +9433,7 @@
       toast.className = `pointer-events-auto flex items-center gap-2.5 px-4 py-3 rounded-2xl border shadow-xl backdrop-blur-md transition-all duration-300 text-xs font-bold ${colors[type] || colors.success}`;
       toast.innerHTML = `
         <span class="w-2.5 h-2.5 rounded-full bg-current shrink-0 animate-ping"></span>
-        <span class="flex-1 leading-relaxed">${message}</span>
+        <span class="flex-1 leading-relaxed">${escapeHTML(message)}</span>
       `;
       container.appendChild(toast);
 
@@ -9208,27 +9484,79 @@
     }
 
     function updateLibraryCounters() {
-      const allFolders = Array.isArray(appState.folders) ? appState.folders : [];
+      const allFiles = Array.isArray(appState.files) ? appState.files.filter(f => f && f.id) : [];
+      const allFolders = Array.isArray(appState.folders) ? appState.folders.filter(Boolean) : [];
       const lecturesCount = new Set([
-        ...appState.files.filter(f => f.category === 'محاضرات').map(f => `${f.subject}-${normalizeFolderNumValue(f.folderNum)}`),
-        ...allFolders.filter(fl => fl.category === 'محاضرات').map(fl => `${fl.subject}-${normalizeFolderNumValue(fl.folderNum)}`)
-      ]).size;
+        ...allFiles.filter(f => f.category === 'محاضرات').map(f => {
+          const n = normalizeFolderNumValue(f.folderNum);
+          return n !== null && n !== '' ? `${f.subject}-${n}` : '';
+        }),
+        ...allFolders.filter(fl => fl.category === 'محاضرات').map(fl => {
+          const n = normalizeFolderNumValue(fl.folderNum);
+          return n !== null && n !== '' ? `${fl.subject}-${n}` : '';
+        })
+      ].filter(Boolean)).size;
       const sectionsCount = new Set([
-        ...appState.files.filter(f => f.category === 'سكاشن').map(f => `${f.subject}-${normalizeFolderNumValue(f.folderNum)}`),
-        ...allFolders.filter(fl => fl.category === 'سكاشن').map(fl => `${fl.subject}-${normalizeFolderNumValue(fl.folderNum)}`)
-      ]).size;
+        ...allFiles.filter(f => f.category === 'سكاشن').map(f => {
+          const n = normalizeFolderNumValue(f.folderNum);
+          return n !== null && n !== '' ? `${f.subject}-${n}` : '';
+        }),
+        ...allFolders.filter(fl => fl.category === 'سكاشن').map(fl => {
+          const n = normalizeFolderNumValue(fl.folderNum);
+          return n !== null && n !== '' ? `${fl.subject}-${n}` : '';
+        })
+      ].filter(Boolean)).size;
       const statFilesEl = document.getElementById('stat-files-count');
-      if (statFilesEl) statFilesEl.textContent = appState.files.length;
-      document.getElementById('stat-lectures-count').textContent = lecturesCount;
-      document.getElementById('stat-sections-count').textContent = sectionsCount;
-      document.getElementById('saved-count-badge').textContent = appState.savedIds.length;
+      if (statFilesEl) statFilesEl.textContent = allFiles.length;
+      const statLecturesEl = document.getElementById('stat-lectures-count');
+      if (statLecturesEl) statLecturesEl.textContent = lecturesCount;
+      const statSectionsEl = document.getElementById('stat-sections-count');
+      if (statSectionsEl) statSectionsEl.textContent = sectionsCount;
+      const savedCountBadge = document.getElementById('saved-count-badge');
+      if (savedCountBadge) savedCountBadge.textContent = appState.savedIds.length;
       const sidebarSavedBadge = document.getElementById('sidebar-saved-badge');
       if (sidebarSavedBadge) sidebarSavedBadge.textContent = appState.savedIds.length;
 
-      const total = appState.files.length || 1;
-      const done = appState.completedIds.filter(id => appState.files.some(f => f.id === id)).length;
+      const total = allFiles.length || 1;
+      const fileIdSet = new Set(allFiles.map(f => f.id));
+      const done = (appState.completedIds || []).filter(id => fileIdSet.has(id)).length;
       const pct = done > 0 ? Math.max(1, Math.min(100, Math.round((done / total) * 100))) : 0;
-      document.getElementById('study-progress-text').textContent = `${pct}%`;
+      const studyProgressEl = document.getElementById('study-progress-text');
+      if (studyProgressEl) studyProgressEl.textContent = `${pct}%`;
+    }
+
+    // Centralized body scroll lock manager across all modals, sidebar, and intro overlay
+    function syncBodyScrollLock() {
+      const anyModalOpen = ['preview-modal', 'publish-modal', 'admin-login-modal', 'notifications-modal', 'about-modal'].some(id => {
+        const el = document.getElementById(id);
+        return Boolean(el && !el.classList.contains('hidden'));
+      });
+      const sidebar = document.getElementById('quick-access-sidebar');
+      const mobileSidebarOpen = Boolean(sidebar && sidebar.classList.contains('sidebar-open') && window.innerWidth < 1024);
+      const introOverlay = document.getElementById('intro-video-overlay');
+      const introOpen = Boolean(
+        introOverlay &&
+        introOverlay.classList.contains('active') &&
+        !introOverlay.classList.contains('hidden') &&
+        !introOverlay.classList.contains('intro-hidden') &&
+        introOverlay.style.display !== 'none'
+      );
+
+      if (anyModalOpen || mobileSidebarOpen || introOpen) {
+        document.body.classList.add('overflow-hidden');
+        document.body.style.overflow = 'hidden';
+      } else {
+        document.body.classList.remove('overflow-hidden');
+        document.body.style.overflow = '';
+      }
+    }
+
+    function clearSearchInputUI() {
+      appState.searchQuery = '';
+      const sInput = document.getElementById('search-input');
+      if (sInput) sInput.value = '';
+      const cBtn = document.getElementById('clear-search-btn');
+      if (cBtn) cBtn.classList.add('hidden');
     }
 
     // Attach 3D Tilt Effect to Cards (Desktop Fine Pointer Only — Resets cleanly on Touch Screens)
@@ -9276,15 +9604,13 @@
       const sidebar = document.getElementById('quick-access-sidebar');
       const edgeTab = document.getElementById('sidebar-edge-tab');
       const backdrop = document.getElementById('sidebar-backdrop');
-      const wasOpen = sidebar && sidebar.classList.contains('sidebar-open');
+      const wasOpen = Boolean(sidebar && sidebar.classList.contains('sidebar-open'));
       renderQuickSubjectBar();
       updateLibraryCounters();
       if (sidebar) sidebar.classList.add('sidebar-open');
       if (edgeTab) edgeTab.classList.add('tab-hidden');
       if (backdrop) backdrop.classList.remove('hidden');
-      if (window.innerWidth < 1024) {
-        document.body.classList.add('overflow-hidden');
-      }
+      syncBodyScrollLock();
       if (!wasOpen) {
         pushNavigationHistoryState({ modalOpen: 'sidebar' });
       }
@@ -9294,16 +9620,13 @@
       const sidebar = document.getElementById('quick-access-sidebar');
       const edgeTab = document.getElementById('sidebar-edge-tab');
       const backdrop = document.getElementById('sidebar-backdrop');
+      const wasOpen = Boolean(sidebar && sidebar.classList.contains('sidebar-open'));
       if (sidebar) sidebar.classList.remove('sidebar-open');
       if (edgeTab) edgeTab.classList.remove('tab-hidden');
       if (backdrop) backdrop.classList.add('hidden');
-      const anyModalOpen = ['preview-modal', 'publish-modal', 'admin-login-modal', 'notifications-modal', 'about-modal'].some(id => {
-        const el = document.getElementById(id);
-        return el && !el.classList.contains('hidden');
-      });
-      if (!anyModalOpen) {
-        document.body.classList.remove('overflow-hidden');
-        document.body.style.overflow = '';
+      syncBodyScrollLock();
+      if (wasOpen) {
+        cleanupModalHistoryOnClose('sidebar');
       }
     }
 
@@ -9353,18 +9676,18 @@
       // 3. The 8 Subjects in Exact Order
       const subjectItems = ORDERED_SUBJECTS.map(sub => {
         const isActive = appState.currentSubject === sub.id && !appState.onlySavedFilter && !appState.searchQuery.trim();
-        const subFiles = appState.files.filter(f => f.subject === sub.id);
+        const subFiles = appState.files.filter(f => f && f.subject === sub.id);
         const fileCount = subFiles.length;
         const iconName = sub.icon || 'folder';
         const label = sub.displayName || sub.folderName;
 
         return `
-          <button type="button" data-quick-sub="${sub.id}" class="quick-sub-btn w-full p-2 rounded-2xl border text-xs font-extrabold transition flex items-center justify-between gap-2 group ${isActive ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20' : 'bg-slate-900/85 hover:bg-slate-800 text-slate-200 border-slate-800/80'}">
+          <button type="button" data-quick-sub="${escapeHTML(sub.id)}" class="quick-sub-btn w-full p-2 rounded-2xl border text-xs font-extrabold transition flex items-center justify-between gap-2 group ${isActive ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20' : 'bg-slate-900/85 hover:bg-slate-800 text-slate-200 border-slate-800/80'}">
             <div class="flex items-center gap-2.5 min-w-0">
               <div class="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${isActive ? 'bg-slate-950/20 text-slate-950' : 'bg-amber-500/20 text-amber-400 group-hover:scale-105 transition'}">
-                <i data-lucide="${iconName}" class="w-4 h-4"></i>
+                <i data-lucide="${escapeHTML(iconName)}" class="w-4 h-4"></i>
               </div>
-              <span class="truncate">${label}</span>
+              <span class="truncate">${escapeHTML(label)}</span>
             </div>
             <span class="text-[10px] px-2 py-0.5 rounded-lg font-bold shrink-0 ${isActive ? 'bg-slate-950/20 text-slate-950' : (fileCount > 0 ? 'bg-slate-800 text-amber-300 border border-amber-500/30' : 'bg-slate-800/70 text-slate-400 border border-slate-700/60')}">${fileCount} ملف</span>
           </button>
@@ -9378,11 +9701,7 @@
       if (homeBtn) {
         homeBtn.addEventListener('click', () => {
           appState.onlySavedFilter = false;
-          appState.searchQuery = '';
-          const sInput = document.getElementById('search-input');
-          if (sInput) sInput.value = '';
-          const cBtn = document.getElementById('clear-search-btn');
-          if (cBtn) cBtn.classList.add('hidden');
+          clearSearchInputUI();
           closeQuickSidebar();
           navigateToHierarchy(null, null, null);
           window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -9394,11 +9713,7 @@
         btn.addEventListener('click', () => {
           const target = btn.getAttribute('data-quick-sub');
           appState.onlySavedFilter = false;
-          appState.searchQuery = '';
-          const sInput = document.getElementById('search-input');
-          if (sInput) sInput.value = '';
-          const cBtn = document.getElementById('clear-search-btn');
-          if (cBtn) cBtn.classList.add('hidden');
+          clearSearchInputUI();
 
           closeQuickSidebar();
           if (target === 'root') {
@@ -9449,10 +9764,11 @@
       } catch (e) {}
     }
 
-    function cleanupModalHistoryOnClose() {
+    function cleanupModalHistoryOnClose(expectedModal = null) {
       if (appState.isHandlingPopState) return;
       try {
-        if (window.history && window.history.state && window.history.state.modalOpen && typeof window.history.replaceState === 'function') {
+        const curState = window.history && window.history.state;
+        if (curState && curState.modalOpen && (!expectedModal || curState.modalOpen === expectedModal) && typeof window.history.replaceState === 'function') {
           window.history.replaceState(getCurrentHistoryStateSnapshot(), '', location.pathname + location.search + location.hash);
         }
       } catch (e) {}
@@ -9464,12 +9780,13 @@
       appState.currentView = 'explorer';
       appState.onlySavedFilter = false;
       appState.previousHierarchy = null;
+      clearSearchInputUI();
       appState.currentSubject = subjectId || null;
       appState.currentCategory = categoryName || null;
       appState.currentFolderNum = normalizedFolder;
       document.title = 'Seniors 2027 VET-KSU 33 Old List | مكتبة المحاضرات والسكاشن';
 
-      if (!skipHistory) {
+      if (skipHistory !== true) {
         pushNavigationHistoryState();
       }
 
@@ -9481,6 +9798,7 @@
 
     // Step Back One Level in Folder Hierarchy
     function stepBackHierarchy(fromPopState = false) {
+      const isPopState = fromPopState === true;
       if (appState.currentView === 'saved' || appState.onlySavedFilter || appState.searchQuery.trim() !== '') {
         appState.currentView = 'explorer';
         appState.onlySavedFilter = false;
@@ -9492,13 +9810,9 @@
             : null;
           appState.previousHierarchy = null;
         }
-        appState.searchQuery = '';
-        const sInput = document.getElementById('search-input');
-        if (sInput) sInput.value = '';
-        const cBtn = document.getElementById('clear-search-btn');
-        if (cBtn) cBtn.classList.add('hidden');
+        clearSearchInputUI();
         document.title = 'Seniors 2027 VET-KSU 33 Old List | مكتبة المحاضرات والسكاشن';
-        if (!fromPopState) {
+        if (!isPopState) {
           pushNavigationHistoryState();
         }
         renderQuickSubjectBar();
@@ -9509,11 +9823,11 @@
       }
 
       if (appState.currentFolderNum !== null) {
-        navigateToHierarchy(appState.currentSubject, appState.currentCategory, null, fromPopState);
+        navigateToHierarchy(appState.currentSubject, appState.currentCategory, null, isPopState);
       } else if (appState.currentCategory !== null) {
-        navigateToHierarchy(appState.currentSubject, null, null, fromPopState);
+        navigateToHierarchy(appState.currentSubject, null, null, isPopState);
       } else if (appState.currentSubject !== null) {
-        navigateToHierarchy(null, null, null, fromPopState);
+        navigateToHierarchy(null, null, null, isPopState);
       }
     }
 
@@ -9541,6 +9855,7 @@
       if (appState.currentView === 'saved') {
         appState.currentView = 'explorer';
         appState.onlySavedFilter = false;
+        clearSearchInputUI();
 
         if (appState.previousHierarchy) {
           appState.currentSubject = appState.previousHierarchy.subject;
@@ -9557,12 +9872,7 @@
         };
         appState.currentView = 'saved';
         appState.onlySavedFilter = true;
-
-        appState.searchQuery = '';
-        const searchInput = document.getElementById('search-input');
-        if (searchInput) searchInput.value = '';
-        const clearBtn = document.getElementById('clear-search-btn');
-        if (clearBtn) clearBtn.classList.add('hidden');
+        clearSearchInputUI();
         document.title = 'الملفات المحفوظة | Seniors 2027 VET-KSU 33 Old List';
       }
 
@@ -9614,7 +9924,8 @@
       if (!bar) return;
 
       const isSaved = appState.currentView === 'saved' || appState.onlySavedFilter;
-      const isDeep = appState.currentSubject !== null || isSaved || appState.searchQuery.trim() !== '';
+      const trimmedSearch = appState.searchQuery.trim();
+      const isDeep = appState.currentSubject !== null || isSaved || trimmedSearch !== '';
       if (backBtn) {
         backBtn.classList.toggle('hidden', !isDeep);
         backBtn.classList.toggle('flex', isDeep);
@@ -9630,16 +9941,12 @@
         {
           label: 'الترم الاول',
           icon: 'folder',
-          active: !isSaved && !appState.currentSubject && !appState.searchQuery.trim(),
+          active: !isSaved && !appState.currentSubject && !trimmedSearch,
           onClick: () => {
             appState.currentView = 'explorer';
             appState.onlySavedFilter = false;
             appState.previousHierarchy = null;
-            appState.searchQuery = '';
-            const sInput = document.getElementById('search-input');
-            if (sInput) sInput.value = '';
-            const cBtn = document.getElementById('clear-search-btn');
-            if (cBtn) cBtn.classList.add('hidden');
+            clearSearchInputUI();
             navigateToHierarchy(null, null, null);
           }
         }
@@ -9649,12 +9956,27 @@
         crumbs.push({
           label: 'الملفات المحفوظة',
           icon: 'bookmark',
-          active: true,
-          onClick: () => {}
+          active: !trimmedSearch,
+          onClick: () => {
+            if (trimmedSearch) {
+              clearSearchInputUI();
+              renderBreadcrumbBar();
+              renderQuickSubjectBar();
+              renderExplorerContent();
+            }
+          }
         });
-      } else if (appState.searchQuery.trim() !== '') {
+        if (trimmedSearch) {
+          crumbs.push({
+            label: `بحث: "${trimmedSearch}"`,
+            icon: 'search',
+            active: true,
+            onClick: () => {}
+          });
+        }
+      } else if (trimmedSearch !== '') {
         crumbs.push({
-          label: `بحث: "${appState.searchQuery.trim()}"`,
+          label: `بحث: "${trimmedSearch}"`,
           icon: 'search',
           active: true,
           onClick: () => {}
@@ -9689,8 +10011,8 @@
 
       bar.innerHTML = crumbs.map((c, i) => `
         <button type="button" data-crumb-idx="${i}" class="crumb-btn px-2 py-1 rounded-xl font-extrabold transition flex items-center gap-1 whitespace-nowrap ${c.active ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'text-slate-400 hover:text-white hover:bg-slate-800'}">
-          <i data-lucide="${c.icon}" class="w-3.5 h-3.5 ${c.active ? 'text-emerald-400' : 'text-amber-400'}"></i>
-          <span>${c.label}</span>
+          <i data-lucide="${escapeHTML(c.icon)}" class="w-3.5 h-3.5 ${c.active ? 'text-emerald-400' : 'text-amber-400'}"></i>
+          <span>${escapeHTML(c.label)}</span>
         </button>
         ${i < crumbs.length - 1 ? `<i data-lucide="chevron-left" class="w-3.5 h-3.5 text-slate-600 shrink-0"></i>` : ''}
       `).join('');
@@ -9712,10 +10034,10 @@
 
     // Helper: Build Cyber Subject Card according to the user's design
     function buildSubjectCardHTML(sub, isList = false) {
-      const subFiles = appState.files.filter(f => f.subject === sub.id);
+      const subFiles = appState.files.filter(f => f && f.subject === sub.id);
       const subFilesCount = subFiles.length;
 
-      const subFolders = (Array.isArray(appState.folders) ? appState.folders : []).filter(fl => fl.subject === sub.id);
+      const subFolders = (Array.isArray(appState.folders) ? appState.folders : []).filter(fl => fl && fl.subject === sub.id);
       const subLecturesCount = new Set([
         ...subFiles.filter(f => f.category === 'محاضرات').map(f => String(normalizeFolderNumValue(f.folderNum) ?? '')),
         ...subFolders.filter(fl => fl.category === 'محاضرات').map(fl => String(normalizeFolderNumValue(fl.folderNum) ?? ''))
@@ -9730,22 +10052,27 @@
       const subProgressPct = subFilesCount > 0 ? Math.round((subDoneFiles / subFilesCount) * 100) : 0;
 
       const title = sub.displayName || sub.folderName;
+      const safeSubId = escapeHTML(sub.id);
+      const safeTitle = escapeHTML(title);
+      const safeIcon = escapeHTML(sub.icon || 'folder');
+      const safeShortFullName = escapeHTML(String(sub.fullName || '').split('(')[0].trim());
+      const safeDoctor = escapeHTML(String(sub.doctor || '').replace('قسم ', ''));
 
       if (isList) {
         return `
-          <div data-open-subject="${sub.id}" class="card-3d subject-card-cyber p-3.5 sm:p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 cursor-pointer group">
+          <div data-open-subject="${safeSubId}" class="card-3d subject-card-cyber p-3.5 sm:p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 cursor-pointer group">
             <div class="card-3d-inner flex items-center gap-3 min-w-0 md:w-3/12">
               <div class="w-10 h-10 rounded-xl bg-cyan-950/80 border border-cyan-500/40 flex items-center justify-center text-cyan-300 shrink-0 shadow-inner">
-                <i data-lucide="${sub.icon || 'folder'}" class="w-5 h-5"></i>
+                <i data-lucide="${safeIcon}" class="w-5 h-5"></i>
               </div>
               <div class="min-w-0">
-                <h3 class="subject-cyber-title text-base sm:text-lg font-black truncate">${title}</h3>
-                <p class="text-[11px] text-slate-400 truncate">${sub.fullName.split('(')[0].trim()}</p>
+                <h3 class="subject-cyber-title text-base sm:text-lg font-black truncate">${safeTitle}</h3>
+                <p class="text-[11px] text-slate-400 truncate">${safeShortFullName}</p>
               </div>
             </div>
 
             <div class="card-3d-inner grid grid-cols-3 gap-1.5 sm:gap-2 md:w-5/12">
-              <div data-sub-category="محاضرات" data-sub-id="${sub.id}" class="subject-pill px-1.5 sm:px-2 py-1.5 flex items-center justify-between gap-1 cursor-pointer hover:border-cyan-400 transition" title="تصفح محاضرات ${title}">
+              <div data-sub-category="محاضرات" data-sub-id="${safeSubId}" class="subject-pill px-1.5 sm:px-2 py-1.5 flex items-center justify-between gap-1 cursor-pointer hover:border-cyan-400 transition" title="تصفح محاضرات ${safeTitle}">
                 <div class="flex items-center gap-1 shrink-0">
                   ${SUBJECT_CARD_ICONS.cap}
                   <span class="text-white font-bold text-[11px] sm:text-xs whitespace-nowrap">محاضرات</span>
@@ -9753,7 +10080,7 @@
                 <span class="text-amber-400 font-black text-xs sm:text-sm leading-none shrink-0">${subLecturesCount}</span>
               </div>
 
-              <div data-sub-category="سكاشن" data-sub-id="${sub.id}" class="subject-pill px-1.5 sm:px-2 py-1.5 flex items-center justify-between gap-1 cursor-pointer hover:border-cyan-400 transition" title="تصفح سكاشن ${title}">
+              <div data-sub-category="سكاشن" data-sub-id="${safeSubId}" class="subject-pill px-1.5 sm:px-2 py-1.5 flex items-center justify-between gap-1 cursor-pointer hover:border-cyan-400 transition" title="تصفح سكاشن ${safeTitle}">
                 <div class="flex items-center gap-1 shrink-0">
                   ${SUBJECT_CARD_ICONS.microscope}
                   <span class="text-white font-bold text-[11px] sm:text-xs whitespace-nowrap">سكاشن</span>
@@ -9761,7 +10088,7 @@
                 <span class="text-amber-400 font-black text-xs sm:text-sm leading-none shrink-0">${subSectionsCount}</span>
               </div>
 
-              <div class="subject-pill px-1.5 sm:px-2 py-1.5 flex items-center justify-between gap-1" title="إجمالي ملفات ${title}">
+              <div class="subject-pill px-1.5 sm:px-2 py-1.5 flex items-center justify-between gap-1" title="إجمالي ملفات ${safeTitle}">
                 <div class="flex items-center gap-1 shrink-0">
                   ${SUBJECT_CARD_ICONS.file}
                   <span class="text-white font-bold text-[11px] sm:text-xs whitespace-nowrap">ملفات</span>
@@ -9787,20 +10114,20 @@
       }
 
       return `
-        <div data-open-subject="${sub.id}" class="card-3d subject-card-cyber px-3 sm:px-3.5 py-4 flex flex-col justify-between gap-3 cursor-pointer group">
+        <div data-open-subject="${safeSubId}" class="card-3d subject-card-cyber px-3 sm:px-3.5 py-4 flex flex-col justify-between gap-3 cursor-pointer group">
           <div class="card-3d-inner flex items-center justify-between">
             <h3 class="subject-cyber-title text-xl sm:text-2xl font-black tracking-wide truncate">
-              ${title}
+              ${safeTitle}
             </h3>
             ${sub.doctor ? `
               <span class="text-[10px] font-bold text-cyan-400/80 bg-cyan-950/70 border border-cyan-800/50 px-2 py-0.5 rounded-lg truncate max-w-[130px] hidden sm:inline-block shadow-sm">
-                ${sub.doctor.replace('قسم ', '')}
+                ${safeDoctor}
               </span>
             ` : ''}
           </div>
 
           <div class="card-3d-inner grid grid-cols-3 gap-1 sm:gap-1.5">
-            <div data-sub-category="محاضرات" data-sub-id="${sub.id}" class="subject-pill px-1.5 py-1.5 sm:px-2 flex items-center justify-between gap-1 cursor-pointer hover:border-cyan-400 transition" title="تصفح محاضرات ${title}">
+            <div data-sub-category="محاضرات" data-sub-id="${safeSubId}" class="subject-pill px-1.5 py-1.5 sm:px-2 flex items-center justify-between gap-1 cursor-pointer hover:border-cyan-400 transition" title="تصفح محاضرات ${safeTitle}">
               <div class="flex items-center gap-1 shrink-0">
                 ${SUBJECT_CARD_ICONS.cap}
                 <span class="text-white font-bold text-[10.5px] sm:text-xs whitespace-nowrap">محاضرات</span>
@@ -9808,7 +10135,7 @@
               <span class="text-amber-400 font-black text-xs sm:text-sm leading-none shrink-0">${subLecturesCount}</span>
             </div>
 
-            <div data-sub-category="سكاشن" data-sub-id="${sub.id}" class="subject-pill px-1.5 py-1.5 sm:px-2 flex items-center justify-between gap-1 cursor-pointer hover:border-cyan-400 transition" title="تصفح سكاشن ${title}">
+            <div data-sub-category="سكاشن" data-sub-id="${safeSubId}" class="subject-pill px-1.5 py-1.5 sm:px-2 flex items-center justify-between gap-1 cursor-pointer hover:border-cyan-400 transition" title="تصفح سكاشن ${safeTitle}">
               <div class="flex items-center gap-1 shrink-0">
                 ${SUBJECT_CARD_ICONS.microscope}
                 <span class="text-white font-bold text-[10.5px] sm:text-xs whitespace-nowrap">سكاشن</span>
@@ -9816,7 +10143,7 @@
               <span class="text-amber-400 font-black text-xs sm:text-sm leading-none shrink-0">${subSectionsCount}</span>
             </div>
 
-            <div class="subject-pill px-1.5 py-1.5 sm:px-2 flex items-center justify-between gap-1" title="إجمالي ملفات ${title}">
+            <div class="subject-pill px-1.5 py-1.5 sm:px-2 flex items-center justify-between gap-1" title="إجمالي ملفات ${safeTitle}">
               <div class="flex items-center gap-1 shrink-0">
                 ${SUBJECT_CARD_ICONS.file}
                 <span class="text-white font-bold text-[10.5px] sm:text-xs whitespace-nowrap">ملفات</span>
@@ -9843,7 +10170,7 @@
     // Helper: Build Cyber Category Card ("محاضرات" or "سكاشن")
     function buildCategoryCardHTML({ category, subjectObj, files, isList = false }) {
       const catFolders = (Array.isArray(appState.folders) ? appState.folders : []).filter(
-        fl => fl.subject === (subjectObj && subjectObj.id) && fl.category === category
+        fl => fl && fl.subject === (subjectObj && subjectObj.id) && fl.category === category
       );
       const folderNums = [...new Set([
         ...files.map(f => String(normalizeFolderNumValue(f.folderNum) ?? '')),
@@ -9856,16 +10183,17 @@
       const isLectures = category === 'محاضرات';
       const iconSvg = isLectures ? SUBJECT_CARD_ICONS.cap : SUBJECT_CARD_ICONS.microscope;
       const unitLabel = isLectures ? 'محاضرات' : 'سكاشن';
+      const safeCategory = escapeHTML(category);
 
       if (isList) {
         return `
-          <div data-open-category="${category}" class="card-3d subject-card-cyber p-3.5 sm:p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 cursor-pointer group">
+          <div data-open-category="${safeCategory}" class="card-3d subject-card-cyber p-3.5 sm:p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 cursor-pointer group">
             <div class="card-3d-inner flex items-center gap-3 min-w-0 md:w-3/12">
               <div class="w-10 h-10 rounded-xl bg-cyan-950/80 border border-cyan-500/40 flex items-center justify-center text-cyan-300 shrink-0 shadow-inner">
                 ${iconSvg}
               </div>
               <div class="min-w-0">
-                <h3 class="subject-cyber-title text-base sm:text-lg font-black truncate">${category}</h3>
+                <h3 class="subject-cyber-title text-base sm:text-lg font-black truncate">${safeCategory}</h3>
               </div>
             </div>
 
@@ -9878,7 +10206,7 @@
                 <span class="text-amber-400 font-black text-xs sm:text-sm leading-none shrink-0">${folderCount}</span>
               </div>
 
-              <div class="subject-pill px-2 sm:px-2.5 py-1.5 flex items-center justify-between gap-1" title="إجمالي ملفات ${category}">
+              <div class="subject-pill px-2 sm:px-2.5 py-1.5 flex items-center justify-between gap-1" title="إجمالي ملفات ${safeCategory}">
                 <div class="flex items-center gap-1 shrink-0">
                   ${SUBJECT_CARD_ICONS.file}
                   <span class="text-white font-bold text-[11px] sm:text-xs whitespace-nowrap">ملفات</span>
@@ -9889,7 +10217,7 @@
 
             <div class="card-3d-inner flex items-center gap-3 md:w-4/12">
               <div class="subject-progress-text text-xs sm:text-sm font-black whitespace-nowrap">
-                <span>إنجاز ${category}: </span>
+                <span>إنجاز ${safeCategory}: </span>
                 <span class="font-black text-cyan-300">%${progressPct}</span>
               </div>
               <div class="flex-1 h-2 bg-[#041a2a] border border-cyan-900/80 rounded-full overflow-hidden p-[1px]">
@@ -9904,10 +10232,10 @@
       }
 
       return `
-        <div data-open-category="${category}" class="card-3d subject-card-cyber px-4 sm:px-5 py-4 sm:py-5 flex flex-col justify-between gap-3.5 cursor-pointer group">
+        <div data-open-category="${safeCategory}" class="card-3d subject-card-cyber px-4 sm:px-5 py-4 sm:py-5 flex flex-col justify-between gap-3.5 cursor-pointer group">
           <div class="card-3d-inner flex items-center justify-between">
             <h3 class="subject-cyber-title text-2xl sm:text-[26px] font-black tracking-wide truncate">
-              ${category}
+              ${safeCategory}
             </h3>
           </div>
 
@@ -9920,7 +10248,7 @@
               <span class="text-amber-400 font-black text-xs sm:text-sm leading-none shrink-0">${folderCount}</span>
             </div>
 
-            <div class="subject-pill px-2.5 sm:px-3 py-2 flex items-center justify-between gap-1" title="إجمالي ملفات ${category}">
+            <div class="subject-pill px-2.5 sm:px-3 py-2 flex items-center justify-between gap-1" title="إجمالي ملفات ${safeCategory}">
               <div class="flex items-center gap-1.5 shrink-0">
                 ${SUBJECT_CARD_ICONS.file}
                 <span class="text-white font-bold text-[11px] sm:text-xs whitespace-nowrap">ملفات</span>
@@ -9933,7 +10261,7 @@
 
           <div class="card-3d-inner flex items-center justify-between gap-3">
             <div class="subject-progress-text text-xs sm:text-sm font-black whitespace-nowrap shrink-0">
-              <span>إنجاز ${category}: </span>
+              <span>إنجاز ${safeCategory}: </span>
               <span class="font-black text-cyan-300">%${progressPct}</span>
             </div>
             <div class="flex-1 h-2 bg-[#041a2a] border border-cyan-900/80 rounded-full overflow-hidden p-[1px]">
@@ -9947,6 +10275,7 @@
     // Helper: Build Cyber Numbered Folder Card ("محاضرة 1", "محاضرة 2" or "سكشن 1"...)
     function buildNumberedFolderCardHTML({ num, category, subjectObj, filesInNum, isList = false }) {
       const unitSingular = category === 'محاضرات' ? 'محاضرة' : 'سكشن';
+      const safeNum = escapeHTML(num);
       const iconSvg = category === 'محاضرات' ? SUBJECT_CARD_ICONS.cap : SUBJECT_CARD_ICONS.microscope;
       const totalFiles = filesInNum.length;
       const doneCount = filesInNum.filter(f => appState.completedIds.includes(f.id)).length;
@@ -10034,13 +10363,13 @@
 
       if (isList) {
         return `
-          <div data-open-foldernum="${num}" class="card-3d subject-card-cyber p-3.5 sm:p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 cursor-pointer group">
+          <div data-open-foldernum="${safeNum}" class="card-3d subject-card-cyber p-3.5 sm:p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 cursor-pointer group">
             <div class="card-3d-inner flex items-center gap-3 min-w-0 md:w-3/12">
               <div class="w-10 h-10 rounded-xl bg-cyan-950/80 border border-cyan-500/40 flex items-center justify-center text-cyan-300 shrink-0 shadow-inner">
                 ${iconSvg}
               </div>
               <div class="min-w-0">
-                <h3 class="subject-cyber-title text-base sm:text-lg font-black truncate">${unitSingular} ${num}</h3>
+                <h3 class="subject-cyber-title text-base sm:text-lg font-black truncate">${unitSingular} ${safeNum}</h3>
               </div>
             </div>
 
@@ -10065,10 +10394,10 @@
       }
 
       return `
-        <div data-open-foldernum="${num}" class="card-3d subject-card-cyber px-3 sm:px-3.5 py-4 flex flex-col justify-between gap-3 cursor-pointer group">
+        <div data-open-foldernum="${safeNum}" class="card-3d subject-card-cyber px-3 sm:px-3.5 py-4 flex flex-col justify-between gap-3 cursor-pointer group">
           <div class="card-3d-inner flex items-center justify-between">
             <h3 class="subject-cyber-title text-xl sm:text-2xl font-black tracking-wide truncate">
-              ${unitSingular} ${num}
+              ${unitSingular} ${safeNum}
             </h3>
           </div>
 
@@ -10093,6 +10422,12 @@
 
     // Helper: Build a 3D Folder Card
     function buildFolderCardHTML({ title, subtitle, timestamp, itemCountLabel, badgeText, dataAttrs }) {
+      const safeTitle = escapeHTML(title);
+      const safeSubtitle = escapeHTML(subtitle);
+      const safeTimestamp = escapeHTML(timestamp);
+      const safeCountLabel = escapeHTML(itemCountLabel);
+      const safeBadge = badgeText ? escapeHTML(badgeText) : '';
+
       if (appState.layoutMode === 'list') {
         return `
           <div ${dataAttrs} class="card-3d glass-panel rounded-2xl p-3.5 sm:p-4 border border-slate-800 hover:border-amber-500/50 cursor-pointer flex items-center justify-between gap-3 transition">
@@ -10100,15 +10435,15 @@
               <div class="folder-3d-icon"></div>
               <div class="min-w-0">
                 <div class="flex items-center gap-2">
-                  <h4 class="text-base sm:text-lg font-black text-white truncate">${title}</h4>
-                  ${badgeText ? `<span class="px-2 py-0.5 rounded-full bg-slate-800 text-amber-300 text-[10px] font-bold whitespace-nowrap">${badgeText}</span>` : ''}
+                  <h4 class="text-base sm:text-lg font-black text-white truncate">${safeTitle}</h4>
+                  ${safeBadge ? `<span class="px-2 py-0.5 rounded-full bg-slate-800 text-amber-300 text-[10px] font-bold whitespace-nowrap">${safeBadge}</span>` : ''}
                 </div>
-                <p class="text-xs text-slate-400 truncate mt-0.5">${subtitle}</p>
-                <span class="text-[11px] text-slate-500 font-semibold block mt-0.5" dir="ltr">${timestamp}</span>
+                <p class="text-xs text-slate-400 truncate mt-0.5">${safeSubtitle}</p>
+                <span class="text-[11px] text-slate-500 font-semibold block mt-0.5" dir="ltr">${safeTimestamp}</span>
               </div>
             </div>
             <div class="card-3d-inner flex items-center gap-2.5 shrink-0">
-              <span class="px-2.5 py-1 rounded-xl bg-slate-900 border border-slate-700 text-xs font-extrabold text-slate-200 whitespace-nowrap" dir="ltr">${itemCountLabel}</span>
+              <span class="px-2.5 py-1 rounded-xl bg-slate-900 border border-slate-700 text-xs font-extrabold text-slate-200 whitespace-nowrap" dir="ltr">${safeCountLabel}</span>
               <div class="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
                 <i data-lucide="chevron-left" class="w-4 h-4"></i>
               </div>
@@ -10122,20 +10457,20 @@
           <div class="card-3d-inner flex items-start justify-between gap-3">
             <div class="folder-3d-icon"></div>
             <span class="px-3 py-1 rounded-xl bg-slate-900/95 border border-amber-500/30 text-xs font-extrabold text-amber-300 shadow whitespace-nowrap" dir="ltr">
-              ${itemCountLabel}
+              ${safeCountLabel}
             </span>
           </div>
 
           <div class="card-3d-inner space-y-1.5">
             <div class="flex items-center justify-between gap-2">
-              <h4 class="text-xl sm:text-2xl font-black text-white group-hover:text-amber-300 transition">${title}</h4>
-              ${badgeText ? `<span class="px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold whitespace-nowrap">${badgeText}</span>` : ''}
+              <h4 class="text-xl sm:text-2xl font-black text-white group-hover:text-amber-300 transition">${safeTitle}</h4>
+              ${safeBadge ? `<span class="px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold whitespace-nowrap">${safeBadge}</span>` : ''}
             </div>
-            <p class="text-xs text-slate-300 font-medium line-clamp-1">${subtitle}</p>
+            <p class="text-xs text-slate-300 font-medium line-clamp-1">${safeSubtitle}</p>
           </div>
 
           <div class="card-3d-inner pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400 font-semibold">
-            <span dir="ltr">${timestamp}</span>
+            <span dir="ltr">${safeTimestamp}</span>
             <span class="text-amber-400 font-extrabold flex items-center gap-1 group-hover:-translate-x-1 transition-transform">
               <span>فتح المجلد</span>
               <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
@@ -10157,17 +10492,18 @@
       const sub = getSubjectObj(file.subject);
       const unitName = file.category === 'محاضرات' ? 'المحاضرة' : 'السكشن';
       const autoDesc = `ملف (${file.format}) خاص بـ ${unitName} رقم (${file.folderNum}) في مقرر ${sub.fullName}.`;
-      const autoKp = `${file.format} معتمد لـ ${unitName} رقم (${file.folderNum}) في مقرر ${sub.folderName}`;
-      const autoNote = `راجع ملف (${file.format}) جيداً قبل الامتحان.`;
+      const autoDescRe = /^ملف \((?:المصدر|شرح|تلخيص|خريطه ذهنية|خريطة ذهنية)\) خاص بـ (?:المحاضرة|السكشن) رقم \([^)]+\) في مقرر .+\.$/;
+      const autoKpRe = /^(?:المصدر|شرح|تلخيص|خريطه ذهنية|خريطة ذهنية) معتمد لـ (?:المحاضرة|السكشن) رقم \([^)]+\)(?: في مقرر .+)?$/;
+      const autoNoteRe = /^راجع ملف \((?:المصدر|شرح|تلخيص|خريطه ذهنية|خريطة ذهنية)\) جيداً قبل الامتحان\.$/;
 
       const rawDesc = String(file.description || '').trim();
-      const description = (rawDesc && rawDesc !== autoDesc) ? rawDesc : '';
+      const description = (rawDesc && rawDesc !== autoDesc && !autoDescRe.test(rawDesc)) ? rawDesc : '';
 
       const rawKps = Array.isArray(file.keypoints) ? file.keypoints.map(k => String(k || '').trim()).filter(Boolean) : [];
-      const keypoints = rawKps.filter(k => k !== autoKp);
+      const keypoints = rawKps.filter(k => !autoKpRe.test(k));
 
       const rawNote = String(file.clinicalNote || '').trim();
-      const clinicalNote = (rawNote && rawNote !== autoNote) ? rawNote : '';
+      const clinicalNote = (rawNote && !autoNoteRe.test(rawNote)) ? rawNote : '';
 
       return { description, keypoints, clinicalNote };
     }
@@ -10178,74 +10514,85 @@
       const isSaved = appState.savedIds.includes(file.id);
       const isCompleted = appState.completedIds.includes(file.id);
       const fmt = getFormatVisuals(file.format);
+      const safeId = escapeHTML(file.id);
+      const safeCategory = escapeHTML(file.category || '');
+      const safeFolderNum = escapeHTML(file.folderNum ?? '');
+      const safeSubName = escapeHTML(sub.displayName || sub.folderName);
+      const safeSize = escapeHTML(file.size || '');
+      const safeDownloads = Number(file.downloads) || 0;
+      const safeTitle = escapeHTML(getCleanFileTitle(file));
+      const isVideo = /\b(MP4|WEBM|MKV)\b/i.test(String(file.size || '')) || /\.(mp4|webm|mkv)$/i.test(String(file.originalFileName || ''));
+      const isTg = isTelegramUrl(file.externalUrl || file.fileUrl || '');
 
       if (appState.layoutMode === 'list') {
         return `
-          <article class="card-3d glass-panel rounded-2xl p-3.5 sm:p-4 border ${isCompleted ? 'border-emerald-500/50' : 'border-slate-800'} flex flex-col md:flex-row md:items-center justify-between gap-3" data-file-id="${file.id}">
+          <article class="card-3d glass-panel rounded-2xl p-3.5 sm:p-4 border ${isCompleted ? 'border-emerald-500/50' : 'border-slate-800'} flex flex-col md:flex-row md:items-center justify-between gap-3" data-file-id="${safeId}">
             <div class="card-3d-inner flex items-start sm:items-center gap-3 min-w-0 flex-1">
               <div class="w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${fmt.badgeClass}">
-                <i data-lucide="${fmt.icon}" class="w-5 h-5"></i>
+                <i data-lucide="${escapeHTML(fmt.icon)}" class="w-5 h-5"></i>
               </div>
               <div class="min-w-0 flex-1 space-y-1">
                 <div class="flex flex-wrap items-center gap-1.5">
-                  <span class="px-2 py-0.5 rounded-lg border text-[11px] font-extrabold ${fmt.badgeClass}">${fmt.label}</span>
-                  ${(/\b(MP4|WEBM|MKV)\b/i.test(String(file.size || '')) || /\.(mp4|webm|mkv)$/i.test(String(file.originalFileName || ''))) ? `<span class="px-2 py-0.5 rounded-lg bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[10.5px] font-extrabold">🎬 فيديو</span>` : ''}
-                  ${String(file.externalUrl || file.fileUrl || '').includes('t.me/') ? `<span class="px-2 py-0.5 rounded-lg bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[10.5px] font-extrabold">تيليجرام ↗</span>` : ''}
-                  <span class="px-2 py-0.5 rounded-lg bg-slate-900 text-amber-300 border border-slate-700 text-[10.5px] font-extrabold">${showFullPath ? `${sub.displayName || sub.folderName} • ` : ''}${file.category} > مجلد ${file.folderNum}</span>
-                  <span class="text-[11px] text-cyan-300 font-bold" dir="ltr">${file.size} • <span id="card-dl-${file.id}">${file.downloads}</span> DL</span>
+                  <span class="px-2 py-0.5 rounded-lg border text-[11px] font-extrabold ${fmt.badgeClass}">${escapeHTML(fmt.label)}</span>
+                  ${isVideo ? `<span class="px-2 py-0.5 rounded-lg bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[10.5px] font-extrabold">🎬 فيديو</span>` : ''}
+                  ${isTg ? `<span class="px-2 py-0.5 rounded-lg bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[10.5px] font-extrabold">تيليجرام ↗</span>` : ''}
+                  <span class="px-2 py-0.5 rounded-lg bg-slate-900 text-amber-300 border border-slate-700 text-[10.5px] font-extrabold">${showFullPath ? `${safeSubName} • ` : ''}${safeCategory} > مجلد ${safeFolderNum}</span>
+                  <span class="text-[11px] text-cyan-300 font-bold" dir="ltr">${safeSize} • <span id="card-dl-${safeId}">${safeDownloads}</span> DL</span>
                 </div>
-                <h4 class="text-sm sm:text-base font-black text-white truncate hover:text-amber-300 transition cursor-pointer" data-file-action="preview" data-id="${escapeHTML(file.id)}" data-file-id="${escapeHTML(file.id)}">
-                  ${escapeHTML(getCleanFileTitle(file))}
+                <h4 class="text-sm sm:text-base font-black text-white truncate hover:text-amber-300 transition cursor-pointer" data-file-action="preview" data-id="${safeId}" data-file-id="${safeId}">
+                  ${safeTitle}
                 </h4>
               </div>
             </div>
             <div class="card-3d-inner flex flex-wrap items-center justify-end gap-1.5 shrink-0">
-              <button type="button" data-file-action="toggle-save" data-id="${file.id}" data-file-id="${file.id}" class="p-2 rounded-xl ${isSaved ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40' : 'bg-slate-800/80 text-slate-400 hover:text-amber-300 border border-slate-700'} transition" title="${isSaved ? 'إزالة من المحفوظات' : 'حفظ في مكتبتي'}">
+              <button type="button" data-file-action="toggle-save" data-id="${safeId}" data-file-id="${safeId}" class="p-2 rounded-xl ${isSaved ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40' : 'bg-slate-800/80 text-slate-400 hover:text-amber-300 border border-slate-700'} transition" title="${isSaved ? 'إزالة من المحفوظات' : 'حفظ في مكتبتي'}">
                 <i data-lucide="bookmark" class="w-4 h-4 ${isSaved ? 'fill-current' : ''}"></i>
               </button>
-              <button type="button" data-file-action="toggle-complete" data-id="${file.id}" data-file-id="${file.id}" class="p-2 rounded-xl ${isCompleted ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-slate-800/80 text-slate-400 hover:text-emerald-300 border border-slate-700'} transition" title="${isCompleted ? 'تمت المذاكرة' : 'تحديد كمذاكر'}">
+              <button type="button" data-file-action="toggle-complete" data-id="${safeId}" data-file-id="${safeId}" class="p-2 rounded-xl ${isCompleted ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-slate-800/80 text-slate-400 hover:text-emerald-300 border border-slate-700'} transition" title="${isCompleted ? 'تمت المذاكرة' : 'تحديد كمذاكر'}">
                 <i data-lucide="check-circle-2" class="w-4 h-4"></i>
               </button>
-              <button type="button" data-file-action="preview" data-id="${file.id}" data-file-id="${file.id}" class="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 text-xs font-extrabold flex items-center gap-1.5 transition">
+              <button type="button" data-file-action="preview" data-id="${safeId}" data-file-id="${safeId}" class="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 text-xs font-extrabold flex items-center gap-1.5 transition">
                 <i data-lucide="eye" class="w-4 h-4"></i>
                 <span>معاينة</span>
               </button>
-              <button type="button" data-file-action="download" data-id="${file.id}" data-file-id="${file.id}" class="btn-3d py-2 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-extrabold flex items-center gap-1.5">
+              <button type="button" data-file-action="download" data-id="${safeId}" data-file-id="${safeId}" class="btn-3d py-2 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-extrabold flex items-center gap-1.5">
                 <i data-lucide="download-cloud" class="w-4 h-4"></i>
                 <span>تحميل</span>
               </button>
               ${appState.isAdmin ? `
-                <button type="button" data-file-action="edit" data-id="${file.id}" data-file-id="${file.id}" class="px-2.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/35 text-amber-300 border border-amber-500/40 text-[11px] font-bold">تعديل</button>
-                <button type="button" data-file-action="delete" data-id="${file.id}" data-file-id="${file.id}" class="px-2.5 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/35 text-rose-300 border border-rose-500/40 text-[11px] font-bold">حذف</button>
+                <button type="button" data-file-action="edit" data-id="${safeId}" data-file-id="${safeId}" class="px-2.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/35 text-amber-300 border border-amber-500/40 text-[11px] font-bold">تعديل</button>
+                <button type="button" data-file-action="delete" data-id="${safeId}" data-file-id="${safeId}" class="px-2.5 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/35 text-rose-300 border border-rose-500/40 text-[11px] font-bold">حذف</button>
               ` : ''}
             </div>
           </article>
         `;
       }
 
+      const cleanOpt = getCleanOptionalFields(file);
+
       return `
-        <article class="card-3d glass-panel rounded-3xl p-4 sm:p-5 border ${isCompleted ? 'border-emerald-500/50' : 'border-slate-800'} flex flex-col justify-between gap-4 h-full" data-file-id="${file.id}">
+        <article class="card-3d glass-panel rounded-3xl p-4 sm:p-5 border ${isCompleted ? 'border-emerald-500/50' : 'border-slate-800'} flex flex-col justify-between gap-4 h-full" data-file-id="${safeId}">
           <div class="card-3d-inner space-y-3">
             
             <!-- Top Row: File Format Badge (المصدر / شرح / تلخيص / خريطه ذهنية) & Bookmark / Studied Toggles -->
             <div class="flex items-start justify-between gap-2">
               <div class="flex flex-wrap items-center gap-1.5">
                 <span class="px-2.5 py-1 rounded-xl border text-xs font-extrabold flex items-center gap-1.5 ${fmt.badgeClass}">
-                  <i data-lucide="${fmt.icon}" class="w-3.5 h-3.5"></i>
-                  <span>${fmt.label}</span>
+                  <i data-lucide="${escapeHTML(fmt.icon)}" class="w-3.5 h-3.5"></i>
+                  <span>${escapeHTML(fmt.label)}</span>
                 </span>
-                ${(/\b(MP4|WEBM|MKV)\b/i.test(String(file.size || '')) || /\.(mp4|webm|mkv)$/i.test(String(file.originalFileName || ''))) ? `<span class="px-2 py-1 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[11px] font-extrabold">🎬 فيديو</span>` : ''}
-                ${String(file.externalUrl || file.fileUrl || '').includes('t.me/') ? `<span class="px-2 py-1 rounded-xl bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[11px] font-extrabold">تيليجرام ↗</span>` : ''}
+                ${isVideo ? `<span class="px-2 py-1 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[11px] font-extrabold">🎬 فيديو</span>` : ''}
+                ${isTg ? `<span class="px-2 py-1 rounded-xl bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 text-[11px] font-extrabold">تيليجرام ↗</span>` : ''}
                 <span class="px-2.5 py-1 rounded-xl bg-slate-900 text-amber-300 border border-slate-700 text-[11px] font-extrabold">
-                  ${file.category} > مجلد ${file.folderNum}
+                  ${safeCategory} > مجلد ${safeFolderNum}
                 </span>
               </div>
 
               <div class="flex items-center gap-1 shrink-0">
-                <button type="button" data-file-action="toggle-save" data-id="${file.id}" data-file-id="${file.id}" class="p-2 rounded-xl ${isSaved ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40' : 'bg-slate-800/80 text-slate-400 hover:text-amber-300 border border-slate-700'} transition" title="${isSaved ? 'إزالة من المحفوظات' : 'حفظ في مكتبتي'}">
+                <button type="button" data-file-action="toggle-save" data-id="${safeId}" data-file-id="${safeId}" class="p-2 rounded-xl ${isSaved ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40' : 'bg-slate-800/80 text-slate-400 hover:text-amber-300 border border-slate-700'} transition" title="${isSaved ? 'إزالة من المحفوظات' : 'حفظ في مكتبتي'}">
                   <i data-lucide="bookmark" class="w-4 h-4 ${isSaved ? 'fill-current' : ''}"></i>
                 </button>
-                <button type="button" data-file-action="toggle-complete" data-id="${file.id}" data-file-id="${file.id}" class="p-2 rounded-xl ${isCompleted ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-slate-800/80 text-slate-400 hover:text-emerald-300 border border-slate-700'} transition" title="${isCompleted ? 'تمت المذاكرة' : 'تحديد كمذاكر'}">
+                <button type="button" data-file-action="toggle-complete" data-id="${safeId}" data-file-id="${safeId}" class="p-2 rounded-xl ${isCompleted ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-slate-800/80 text-slate-400 hover:text-emerald-300 border border-slate-700'} transition" title="${isCompleted ? 'تمت المذاكرة' : 'تحديد كمذاكر'}">
                   <i data-lucide="check-circle-2" class="w-4 h-4"></i>
                 </button>
               </div>
@@ -10254,17 +10601,17 @@
             ${showFullPath ? `
               <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900/90 border border-amber-500/25 text-[11px] font-extrabold text-amber-300">
                 <i data-lucide="folder-tree" class="w-3.5 h-3.5"></i>
-                <span>الترم الاول > ${sub.displayName || sub.folderName} > ${file.category} > ${file.folderNum}</span>
+                <span>الترم الاول > ${safeSubName} > ${safeCategory} > ${safeFolderNum}</span>
               </div>
             ` : ''}
 
-            <h4 class="text-sm sm:text-base font-black text-white leading-snug hover:text-amber-300 transition cursor-pointer" data-file-action="preview" data-id="${escapeHTML(file.id)}" data-file-id="${escapeHTML(file.id)}">
-              ${escapeHTML(getCleanFileTitle(file))}
+            <h4 class="text-sm sm:text-base font-black text-white leading-snug hover:text-amber-300 transition cursor-pointer" data-file-action="preview" data-id="${safeId}" data-file-id="${safeId}">
+              ${safeTitle}
             </h4>
 
-            ${getCleanOptionalFields(file).description ? `
+            ${cleanOpt.description ? `
               <p class="text-xs text-slate-300 leading-relaxed line-clamp-2">
-                ${escapeHTML(getCleanOptionalFields(file).description)}
+                ${escapeHTML(cleanOpt.description)}
               </p>
             ` : ''}
           </div>
@@ -10272,15 +10619,15 @@
           <div class="card-3d-inner pt-3 border-t border-slate-800/90 space-y-3">
             <div class="flex items-center justify-between text-[11px] text-slate-400 font-semibold">
               <span class="truncate">${escapeHTML(file.doctor || '')}</span>
-              <span class="shrink-0 font-bold text-cyan-300" dir="ltr">${file.size} • <span id="card-dl-${file.id}">${file.downloads}</span> DL</span>
+              <span class="shrink-0 font-bold text-cyan-300" dir="ltr">${safeSize} • <span id="card-dl-${safeId}">${safeDownloads}</span> DL</span>
             </div>
 
             <div class="grid grid-cols-2 gap-2">
-              <button type="button" data-file-action="preview" data-id="${file.id}" data-file-id="${file.id}" class="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 text-xs font-extrabold flex items-center justify-center gap-1.5 transition">
+              <button type="button" data-file-action="preview" data-id="${safeId}" data-file-id="${safeId}" class="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 text-xs font-extrabold flex items-center justify-center gap-1.5 transition">
                 <i data-lucide="eye" class="w-4 h-4"></i>
                 <span>معاينة</span>
               </button>
-              <button type="button" data-file-action="download" data-id="${file.id}" data-file-id="${file.id}" class="btn-3d py-2 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-extrabold flex items-center justify-center gap-1.5">
+              <button type="button" data-file-action="download" data-id="${safeId}" data-file-id="${safeId}" class="btn-3d py-2 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-extrabold flex items-center justify-center gap-1.5">
                 <i data-lucide="download-cloud" class="w-4 h-4"></i>
                 <span>تحميل</span>
               </button>
@@ -10290,8 +10637,8 @@
               <div class="flex items-center justify-between gap-2 pt-2 border-t border-amber-500/30">
                 <span class="text-[10px] font-bold text-amber-400">تحكم المسؤول:</span>
                 <div class="flex items-center gap-1.5">
-                  <button type="button" data-file-action="edit" data-id="${file.id}" data-file-id="${file.id}" class="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/35 text-amber-300 border border-amber-500/40 text-[11px] font-bold">تعديل</button>
-                  <button type="button" data-file-action="delete" data-id="${file.id}" data-file-id="${file.id}" class="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/35 text-rose-300 border border-rose-500/40 text-[11px] font-bold">حذف</button>
+                  <button type="button" data-file-action="edit" data-id="${safeId}" data-file-id="${safeId}" class="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/35 text-amber-300 border border-amber-500/40 text-[11px] font-bold">تعديل</button>
+                  <button type="button" data-file-action="delete" data-id="${safeId}" data-file-id="${safeId}" class="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/35 text-rose-300 border border-rose-500/40 text-[11px] font-bold">حذف</button>
                 </div>
               </div>
             ` : ''}
@@ -10308,7 +10655,16 @@
       const countBadge = document.getElementById('explorer-count-badge');
       if (!grid) return;
 
-      emptyState.classList.add('hidden');
+      const showEmptyState = (titleText, descText) => {
+        if (!emptyState) return;
+        emptyState.classList.remove('hidden');
+        const emptyTitle = emptyState.querySelector('h4');
+        const emptyDesc = emptyState.querySelector('p');
+        if (emptyTitle) emptyTitle.textContent = titleText;
+        if (emptyDesc) emptyDesc.textContent = descText;
+      };
+
+      if (emptyState) emptyState.classList.add('hidden');
       const isList = appState.layoutMode === 'list';
 
       // CASE A: Global Search Mode or Saved Bookmarks Mode
@@ -10318,6 +10674,7 @@
         if (isSavedMode) loadSavedFilesFromStorage();
         const qTokens = q.split(' ').filter(Boolean);
         const matchedFiles = appState.files.filter(f => {
+          if (!f || !f.id) return false;
           if (isSavedMode && !appState.savedIds.includes(f.id)) return false;
           if (qTokens.length > 0) {
             const sub = getSubjectObj(f.subject);
@@ -10327,14 +10684,16 @@
           return true;
         });
 
-        if (isSavedMode && q) {
-          heading.textContent = `بحث في المحفوظات: "${appState.searchQuery.trim()}"`;
-        } else if (isSavedMode) {
-          heading.textContent = 'الملفات المحفوظة';
-        } else {
-          heading.textContent = `نتائج البحث: "${appState.searchQuery.trim()}"`;
+        if (heading) {
+          if (isSavedMode && q) {
+            heading.textContent = `بحث في المحفوظات: "${appState.searchQuery.trim()}"`;
+          } else if (isSavedMode) {
+            heading.textContent = 'الملفات المحفوظة';
+          } else {
+            heading.textContent = `نتائج البحث: "${appState.searchQuery.trim()}"`;
+          }
         }
-        countBadge.textContent = `${matchedFiles.length} ملف`;
+        if (countBadge) countBadge.textContent = `${matchedFiles.length} ملف`;
 
         grid.className = isList
           ? 'grid grid-cols-1 gap-3.5 perspective-container'
@@ -10342,15 +10701,16 @@
 
         if (matchedFiles.length === 0) {
           grid.innerHTML = '';
-          emptyState.classList.remove('hidden');
-          const emptyTitle = emptyState.querySelector('h4');
-          const emptyDesc = emptyState.querySelector('p');
-          if (isSavedMode) {
-            if (emptyTitle) emptyTitle.textContent = 'لا توجد ملفات محفوظة حالياً';
-            if (emptyDesc) emptyDesc.textContent = 'يمكنك حفظ أي ملف عبر الضغط على أيقونة الإشارة المرجعية (Bookmark) داخل بطاقات الملفات.';
+          if (isSavedMode && !q) {
+            showEmptyState(
+              'لا توجد ملفات محفوظة حالياً',
+              'يمكنك حفظ أي ملف عبر الضغط على أيقونة الإشارة المرجعية (Bookmark) داخل بطاقات الملفات.'
+            );
           } else {
-            if (emptyTitle) emptyTitle.textContent = 'لا توجد ملفات أو مجلدات مطابقة';
-            if (emptyDesc) emptyDesc.textContent = 'يمكنك العودة إلى مقررات الترم الاول لتصفح جميع المقررات الثمانية.';
+            showEmptyState(
+              'لا توجد ملفات أو مجلدات مطابقة',
+              'يمكنك العودة إلى مقررات الترم الاول لتصفح جميع المقررات الثمانية.'
+            );
           }
           return;
         }
@@ -10364,8 +10724,8 @@
 
       // CASE B: LEVEL 1 — Root -> Show the 8 Ordered Subject Cards (Styled to User Specification)
       if (!appState.currentSubject) {
-        heading.textContent = 'مقررات الترم الاول';
-        countBadge.textContent = '8 مقررات دراسية';
+        if (heading) heading.textContent = 'مقررات الترم الاول';
+        if (countBadge) countBadge.textContent = '8 مقررات دراسية';
 
         grid.className = isList
           ? 'grid grid-cols-1 gap-3.5 perspective-container'
@@ -10395,15 +10755,15 @@
       // CASE C: LEVEL 2 — Inside a Subject -> Show `سكاشن` & `محاضرات` (Styled like Subject Cards)
       const currentSubObj = getSubjectObj(appState.currentSubject);
       if (!appState.currentCategory) {
-        heading.textContent = `مجلد مقرر: ${currentSubObj.displayName || currentSubObj.folderName}`;
-        countBadge.textContent = 'قسمان (محاضرات • سكاشن)';
+        if (heading) heading.textContent = `مجلد مقرر: ${currentSubObj.displayName || currentSubObj.folderName}`;
+        if (countBadge) countBadge.textContent = 'قسمان (محاضرات • سكاشن)';
 
         grid.className = isList
           ? 'grid grid-cols-1 gap-3.5 perspective-container'
           : 'grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 max-w-4xl perspective-container';
 
-        const secFiles = appState.files.filter(f => f.subject === currentSubObj.id && f.category === 'سكاشن');
-        const lecFiles = appState.files.filter(f => f.subject === currentSubObj.id && f.category === 'محاضرات');
+        const secFiles = appState.files.filter(f => f && f.subject === currentSubObj.id && f.category === 'سكاشن');
+        const lecFiles = appState.files.filter(f => f && f.subject === currentSubObj.id && f.category === 'محاضرات');
 
         grid.innerHTML = [
           buildCategoryCardHTML({
@@ -10434,14 +10794,13 @@
 
       // CASE D: LEVEL 3 — Inside `سكاشن` or `محاضرات` -> Show Numbered Folders `1`, `2`, `3`... (Styled like Subject Cards)
       if (appState.currentFolderNum === null) {
-        const unitSingular = appState.currentCategory === 'محاضرات' ? 'محاضرة' : 'سكشن';
-        heading.textContent = `${currentSubObj.displayName || currentSubObj.folderName} > ${appState.currentCategory}`;
+        if (heading) heading.textContent = `${currentSubObj.displayName || currentSubObj.folderName} > ${appState.currentCategory}`;
 
         const catFiles = appState.files.filter(
-          f => f.subject === currentSubObj.id && f.category === appState.currentCategory
+          f => f && f.subject === currentSubObj.id && f.category === appState.currentCategory
         );
         const catFolders = (Array.isArray(appState.folders) ? appState.folders : []).filter(
-          fl => fl.subject === currentSubObj.id && fl.category === appState.currentCategory
+          fl => fl && fl.subject === currentSubObj.id && fl.category === appState.currentCategory
         );
         const folderNumbersMap = new Map();
         [...catFiles.map(f => f.folderNum), ...catFolders.map(fl => fl.folderNum)].forEach(rawVal => {
@@ -10454,7 +10813,7 @@
         const folderNumbers = Array.from(folderNumbersMap.values()).sort(compareFolderNums);
 
         const unitPlural = appState.currentCategory === 'محاضرات' ? 'محاضرات' : 'سكاشن';
-        countBadge.textContent = `${folderNumbers.length} ${unitPlural} • ${catFiles.length} ملف`;
+        if (countBadge) countBadge.textContent = `${folderNumbers.length} ${unitPlural} • ${catFiles.length} ملف`;
 
         grid.className = isList
           ? 'grid grid-cols-1 gap-3.5 perspective-container'
@@ -10462,7 +10821,10 @@
 
         if (folderNumbers.length === 0) {
           grid.innerHTML = '';
-          emptyState.classList.remove('hidden');
+          showEmptyState(
+            `لا توجد ${unitPlural} مضافة في هذا القسم حالياً`,
+            'يمكنك الرجوع لاختيار قسم آخر أو العودة إلى مقررات الترم الاول.'
+          );
           return;
         }
 
@@ -10491,14 +10853,14 @@
 
       // CASE E: LEVEL 4 — Inside Numbered Folder -> Show Files
       const folderFiles = appState.files.filter(
-        f => f.subject === currentSubObj.id &&
+        f => f && f.subject === currentSubObj.id &&
              f.category === appState.currentCategory &&
              folderNumEquals(f.folderNum, appState.currentFolderNum)
       );
 
-      heading.textContent = `${currentSubObj.folderName} > ${appState.currentCategory} > مجلد (${appState.currentFolderNum})`;
+      if (heading) heading.textContent = `${currentSubObj.folderName} > ${appState.currentCategory} > مجلد (${appState.currentFolderNum})`;
       const level4Types = [...new Set(folderFiles.map(f => String(f.format || 'المصدر').trim()))].join(' • ');
-      countBadge.textContent = level4Types ? `${folderFiles.length} ملفات (${level4Types})` : `${folderFiles.length} ملفات`;
+      if (countBadge) countBadge.textContent = level4Types ? `${folderFiles.length} ملفات (${level4Types})` : `${folderFiles.length} ملفات`;
 
       grid.className = isList
         ? 'grid grid-cols-1 gap-3.5 perspective-container'
@@ -10506,7 +10868,10 @@
 
       if (folderFiles.length === 0) {
         grid.innerHTML = '';
-        emptyState.classList.remove('hidden');
+        showEmptyState(
+          'لا توجد ملفات داخل هذا المجلد حالياً',
+          'يمكنك الرجوع للمجلد السابق أو العودة إلى مقررات الترم الاول.'
+        );
         return;
       }
 
@@ -10518,15 +10883,17 @@
 
     // Helper: Convert any Google Drive sharing URL or file ID to a direct download / open URL
     // Extract a Google Drive file ID from any common Drive link format:
-    // /file/d/{ID}/view, /file/u/0/d/{ID}, open?id={ID}, uc?id={ID}, drive.usercontent.google.com/download?id={ID}
+    // /file/d/{ID}/view, /file/u/0/d/{ID}, /u/0/file/d/{ID}, open?id={ID}, uc?id={ID}, drive.usercontent.google.com/download?id={ID}
     function extractDriveFileId(url) {
-      if (!url) return '';
+      const safe = sanitizeExternalUrl(url);
+      if (!safe) return '';
       try {
-        const u = new URL(url);
-        if (!/(^|\.)drive\.google\.com$/.test(u.hostname) && !/(^|\.)drive\.usercontent\.google\.com$/.test(u.hostname)) {
+        const u = new URL(safe);
+        const host = u.hostname.toLowerCase();
+        if (!/(^|\.)drive\.google\.com$/.test(host) && !/(^|\.)drive\.usercontent\.google\.com$/.test(host)) {
           return '';
         }
-        const m = u.pathname.match(/\/file\/(?:u\/\d+\/)?d\/([a-zA-Z0-9_-]{10,})/);
+        const m = u.pathname.match(/^(?:\/u\/\d+)?\/file\/(?:u\/\d+\/)?d\/([a-zA-Z0-9_-]{10,})/);
         if (m && m[1]) return m[1];
         const idParam = u.searchParams.get('id');
         if (idParam && /^[a-zA-Z0-9_-]{10,}$/.test(idParam)) return idParam;
@@ -10535,29 +10902,39 @@
     }
 
     function resolveDriveUrl(file) {
+      if (!file) return '';
       const extUrl = String(file.externalUrl || '').trim();
-      if (extUrl && (extUrl.includes('t.me/') || extUrl.includes('telegram.'))) {
-        return extUrl.startsWith('http') ? extUrl : ('https://' + extUrl);
+      if (extUrl && isTelegramUrl(extUrl)) {
+        return sanitizeExternalUrl(extUrl);
+      }
+      if (file.driveFileId) {
+        return 'https://drive.google.com/uc?export=download&id=' + encodeURIComponent(file.driveFileId);
       }
       const rawUrl = String(
         file.downloadUrl || file.fileUrl || file.driveUrl || file.webContentLink || file.url || extUrl || ''
       ).trim();
-      if (file.driveFileId) {
-        return 'https://drive.google.com/uc?export=download&id=' + file.driveFileId;
-      }
       if (!rawUrl) return '';
-      const normalized = rawUrl.startsWith('http') || rawUrl.startsWith('data:') || rawUrl.startsWith('blob:')
-        ? rawUrl
-        : ('https://' + rawUrl);
-      const driveId = extractDriveFileId(normalized);
+      const safeUrl = sanitizeExternalUrl(rawUrl);
+      if (!safeUrl) return '';
+      const driveId = extractDriveFileId(safeUrl);
       if (driveId) {
-        return 'https://drive.google.com/uc?export=download&id=' + driveId;
+        return 'https://drive.google.com/uc?export=download&id=' + encodeURIComponent(driveId);
       }
-      return normalized;
+      return safeUrl;
     }
 
     // Trigger Real Download of a File
     function triggerFileDownload(file) {
+      if (!file) return;
+      const cloudUrl = resolveDriveUrl(file);
+      const hasEmbeddedData = Boolean(file.fileDataUrl || file.fileBase64);
+      const cachedUpload = appState.uploadedFileCache ? appState.uploadedFileCache[file.id] : null;
+
+      if (!cloudUrl && !hasEmbeddedData && !cachedUpload) {
+        showToast('تنبيه: هذا السجل لا يحتوي على رابط ملف مرفوع بعد.', 'warning');
+        return;
+      }
+
       file.downloads = (Number(file.downloads) || 0) + 1;
       file.downloadsCount = file.downloads;
       recordPendingDownloadIncrement(file);
@@ -10572,17 +10949,16 @@
       }
 
       // 1. Priority: Direct Google Drive URL or External Link (Telegram / Drive)
-      const cloudUrl = resolveDriveUrl(file);
       if (cloudUrl) {
         fetch(GAS_WEB_APP_URL, { method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'increment_download', id: file.id }) }).catch(() => {});
-        window.open(cloudUrl, '_blank', 'noopener');
-        const isTelegram = cloudUrl.includes('t.me/') || cloudUrl.includes('telegram.');
+        window.open(cloudUrl, '_blank', 'noopener,noreferrer');
+        const isTelegram = isTelegramUrl(cloudUrl);
         showToast(isTelegram ? 'جاري فتح رابط التيليجرام للملف الأصلي...' : 'جاري فتح وتحميل الملف الأصلي...', 'success');
         return;
       }
 
       // 2. Embedded Base64 file stored inside JSON database
-      if (file.fileDataUrl || file.fileBase64) {
+      if (hasEmbeddedData) {
         const mime = file.fileMimeType || 'application/octet-stream';
         const href = file.fileDataUrl || ('data:' + mime + ';base64,' + file.fileBase64);
         const a = document.createElement('a');
@@ -10596,19 +10972,15 @@
       }
 
       // 3. Local session cache (same device right after upload)
-      if (appState.uploadedFileCache[file.id]) {
-        const cached = appState.uploadedFileCache[file.id];
+      if (cachedUpload) {
         const a = document.createElement('a');
-        a.href = cached.url;
-        a.download = cached.name;
+        a.href = cachedUpload.url;
+        a.download = cachedUpload.name;
         document.body.appendChild(a);
         a.click();
         a.remove();
-        showToast(`تم تحميل الملف الأصلي: ${cached.name}`, 'success');
-        return;
+        showToast(`تم تحميل الملف الأصلي: ${cachedUpload.name}`, 'success');
       }
-
-      showToast('تنبيه: هذا السجل لا يحتوي على رابط ملف مرفوع بعد.', 'warning');
     }
 
     function syncModalCompleteUI(isCompleted) {
@@ -10621,64 +10993,86 @@
     // Open File Preview Modal
     function openPreviewModal(fileId) {
       if (!fileId) return;
-      const file = appState.files.find(f => f.id === fileId);
+      const file = appState.files.find(f => f && f.id === fileId);
       if (!file) return;
+      const modal = document.getElementById('preview-modal');
+      if (!modal) return;
 
       appState.activePreviewId = file.id;
       const sub = getSubjectObj(file.subject);
       const fmt = getFormatVisuals(file.format);
 
-      document.getElementById('preview-badges').innerHTML = `
-        <span class="px-2.5 py-1 rounded-xl border text-xs font-extrabold flex items-center gap-1 ${fmt.badgeClass}">
-          <i data-lucide="${fmt.icon}" class="w-3.5 h-3.5"></i>
-          <span>${fmt.label}</span>
-        </span>
-        <span class="px-2.5 py-1 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-extrabold">${sub.folderName}</span>
-        <span class="px-2.5 py-1 rounded-xl bg-slate-800 text-cyan-300 text-xs font-extrabold">${file.category} > ${file.folderNum}</span>
-      `;
-      document.getElementById('preview-title').textContent = getCleanFileTitle(file);
-      document.getElementById('preview-folder-path').textContent = `الترم الاول > ${sub.displayName || sub.folderName} > ${file.category} > ${file.folderNum}`;
-      document.getElementById('preview-doctor').textContent = file.doctor;
-      document.getElementById('preview-meta').textContent = `${file.format} • ${file.size}`;
-      document.getElementById('preview-downloads').textContent = `${file.downloads} تحميل`;
+      const badgesEl = document.getElementById('preview-badges');
+      if (badgesEl) {
+        badgesEl.innerHTML = `
+          <span class="px-2.5 py-1 rounded-xl border text-xs font-extrabold flex items-center gap-1 ${fmt.badgeClass}">
+            <i data-lucide="${escapeHTML(fmt.icon)}" class="w-3.5 h-3.5"></i>
+            <span>${escapeHTML(fmt.label)}</span>
+          </span>
+          <span class="px-2.5 py-1 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-extrabold">${escapeHTML(sub.folderName)}</span>
+          <span class="px-2.5 py-1 rounded-xl bg-slate-800 text-cyan-300 text-xs font-extrabold">${escapeHTML(file.category || '')} > ${escapeHTML(file.folderNum ?? '')}</span>
+        `;
+      }
+      const titleEl = document.getElementById('preview-title');
+      if (titleEl) titleEl.textContent = getCleanFileTitle(file);
+      const folderPathEl = document.getElementById('preview-folder-path');
+      if (folderPathEl) folderPathEl.textContent = `الترم الاول > ${sub.displayName || sub.folderName} > ${file.category || ''} > ${file.folderNum ?? ''}`;
+      const doctorEl = document.getElementById('preview-doctor');
+      if (doctorEl) doctorEl.textContent = file.doctor || '';
+      const metaEl = document.getElementById('preview-meta');
+      if (metaEl) metaEl.textContent = file.size ? `${file.format || 'المصدر'} • ${file.size}` : (file.format || 'المصدر');
+      const dlEl = document.getElementById('preview-downloads');
+      if (dlEl) dlEl.textContent = `${Number(file.downloads) || 0} تحميل`;
 
       const cleanOpt = getCleanOptionalFields(file);
 
       const descBox = document.getElementById('preview-description-box');
-      if (cleanOpt.description) {
-        descBox.classList.remove('hidden');
-        document.getElementById('preview-description').textContent = cleanOpt.description;
-      } else {
-        descBox.classList.add('hidden');
-        document.getElementById('preview-description').textContent = '';
+      const descText = document.getElementById('preview-description');
+      if (descBox && descText) {
+        if (cleanOpt.description) {
+          descBox.classList.remove('hidden');
+          descText.textContent = cleanOpt.description;
+        } else {
+          descBox.classList.add('hidden');
+          descText.textContent = '';
+        }
       }
 
       const kpBox = document.getElementById('preview-keypoints-box');
       const kpList = document.getElementById('preview-keypoints');
-      if (cleanOpt.keypoints.length > 0) {
-        kpBox.classList.remove('hidden');
-        kpList.innerHTML = cleanOpt.keypoints.map(kp => `<li class="leading-relaxed">${escapeHTML(kp)}</li>`).join('');
-      } else {
-        kpBox.classList.add('hidden');
-        kpList.innerHTML = '';
+      if (kpBox && kpList) {
+        if (cleanOpt.keypoints.length > 0) {
+          kpBox.classList.remove('hidden');
+          kpList.innerHTML = cleanOpt.keypoints.map(kp => `<li class="leading-relaxed">${escapeHTML(kp)}</li>`).join('');
+        } else {
+          kpBox.classList.add('hidden');
+          kpList.innerHTML = '';
+        }
       }
 
       const noteBox = document.getElementById('preview-clinical-note-box');
-      if (cleanOpt.clinicalNote) {
-        noteBox.classList.remove('hidden');
-        document.getElementById('preview-clinical-note').textContent = cleanOpt.clinicalNote;
-      } else {
-        noteBox.classList.add('hidden');
-        document.getElementById('preview-clinical-note').textContent = '';
+      const noteText = document.getElementById('preview-clinical-note');
+      if (noteBox && noteText) {
+        if (cleanOpt.clinicalNote) {
+          noteBox.classList.remove('hidden');
+          noteText.textContent = cleanOpt.clinicalNote;
+        } else {
+          noteBox.classList.add('hidden');
+          noteText.textContent = '';
+        }
       }
 
       const extBtn = document.getElementById('modal-external-link-btn');
-      const cloudViewUrl = file.externalUrl || file.fileUrl || file.driveUrl || file.downloadUrl || '';
-      if (cloudViewUrl) {
-        extBtn.classList.remove('hidden');
-        extBtn.onclick = () => window.open(cloudViewUrl, '_blank', 'noopener');
-      } else {
-        extBtn.classList.add('hidden');
+      const rawCloudViewUrl = file.externalUrl || file.fileUrl || file.driveUrl || file.downloadUrl || '';
+      const cloudViewUrl = sanitizeExternalUrl(rawCloudViewUrl);
+      if (extBtn) {
+        if (cloudViewUrl) {
+          extBtn.classList.remove('hidden');
+          extBtn.onclick = () => window.open(cloudViewUrl, '_blank', 'noopener,noreferrer');
+        } else {
+          extBtn.classList.add('hidden');
+          extBtn.onclick = null;
+        }
       }
 
       // Inject live Google Drive preview iframe inside modal when Drive file is available
@@ -10694,14 +11088,18 @@
         }
         if (driveId) {
           drivePreviewContainer.classList.remove('hidden');
-          const isImageFile =
-            file.format === 'خريطه ذهنية' ||
+          const hasExplicitImageExt =
             /\b(PNG|JPG|JPEG|WEBP|GIF)\b/i.test(String(file.size || '')) ||
             /\.(png|jpe?g|webp|gif)$/i.test(String(file.originalFileName || ''));
+          const hasExplicitNonImageExt =
+            /\b(PDF|DOC|DOCX|PPT|PPTX|MP4|WEBM|MKV|MP3|WAV|ZIP|TXT)\b/i.test(String(file.size || '')) ||
+            /\.(pdf|docx?|pptx?|mp4|webm|mkv|mp3|wav|zip|txt)$/i.test(String(file.originalFileName || ''));
+          const isImageFile = hasExplicitImageExt || (file.format === 'خريطه ذهنية' && !hasExplicitNonImageExt);
 
           if (isImageFile) {
             const safeDriveId = encodeURIComponent(driveId);
             const highResImgUrl = `https://drive.google.com/thumbnail?id=${safeDriveId}&sz=w2400`;
+            const previewTargetFileId = file.id;
             drivePreviewContainer.innerHTML = `
               <div class="px-3.5 py-2 bg-slate-900 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs text-amber-300 font-extrabold">
                 <span>معاينة الخريطة الذهنية / الصورة (اسحب للتمرير أو كَبّر القراءة)</span>
@@ -10709,7 +11107,7 @@
                   <button type="button" id="preview-img-zoom-out" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] font-black" title="تصغير">−</button>
                   <button type="button" id="preview-img-zoom-reset" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 text-[11px] font-black" title="إعادة ضبط الحجم">100%</button>
                   <button type="button" id="preview-img-zoom-in" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] font-black" title="تكبير">+</button>
-                  <a href="https://drive.google.com/file/d/${safeDriveId}/view" target="_blank" rel="noopener" class="px-2 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 hover:underline">نافذة كاملة ↗</a>
+                  <a href="https://drive.google.com/file/d/${safeDriveId}/view" target="_blank" rel="noopener noreferrer" class="px-2 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 hover:underline">نافذة كاملة ↗</a>
                 </div>
               </div>
               <div id="preview-img-scroll-wrap" class="w-full h-[380px] sm:h-[460px] overflow-auto bg-slate-950 flex items-center justify-center p-2">
@@ -10718,9 +11116,15 @@
             `;
             let currentZoom = 1;
             const imgEl = document.getElementById('preview-zoomable-img');
+            const wrapEl = document.getElementById('preview-img-scroll-wrap');
             const resetBtn = document.getElementById('preview-img-zoom-reset');
             const applyZoom = (z) => {
               currentZoom = Math.min(4, Math.max(0.5, Number(z.toFixed(2))));
+              if (wrapEl) {
+                // Prevent flexbox center-overflow clipping when zoomed larger than container
+                wrapEl.style.alignItems = currentZoom > 1 ? 'flex-start' : 'center';
+                wrapEl.style.justifyContent = currentZoom > 1 ? 'flex-start' : 'center';
+              }
               if (imgEl) {
                 if (currentZoom === 1) {
                   imgEl.style.maxWidth = '100%';
@@ -10741,8 +11145,14 @@
             if (resetBtn) resetBtn.onclick = () => applyZoom(1);
             if (imgEl) {
               imgEl.onerror = () => {
+                if (appState.activePreviewId !== previewTargetFileId) return;
+                if (zIn) zIn.classList.add('hidden');
+                if (zOut) zOut.classList.add('hidden');
+                if (resetBtn) resetBtn.classList.add('hidden');
                 const wrap = document.getElementById('preview-img-scroll-wrap');
                 if (wrap) {
+                  wrap.style.alignItems = '';
+                  wrap.style.justifyContent = '';
                   wrap.innerHTML = `<iframe src="https://drive.google.com/file/d/${safeDriveId}/preview" class="w-full h-full border-0" allow="autoplay"></iframe>`;
                 }
               };
@@ -10751,14 +11161,14 @@
             drivePreviewContainer.innerHTML = `
               <div class="px-3.5 py-2 bg-slate-900 border-b border-slate-800 flex items-center justify-between text-xs text-amber-300 font-extrabold">
                 <span>معاينة مباشرة من Google Drive</span>
-                <a href="https://drive.google.com/file/d/${encodeURIComponent(driveId)}/view" target="_blank" rel="noopener" class="text-cyan-400 hover:underline">فتح في نافذة كاملة ↗</a>
+                <a href="https://drive.google.com/file/d/${encodeURIComponent(driveId)}/view" target="_blank" rel="noopener noreferrer" class="text-cyan-400 hover:underline">فتح في نافذة كاملة ↗</a>
               </div>
               <iframe src="https://drive.google.com/file/d/${encodeURIComponent(driveId)}/preview" class="w-full h-[380px] sm:h-[460px] border-0" allow="autoplay"></iframe>
             `;
           }
         } else if (cloudViewUrl) {
           drivePreviewContainer.classList.remove('hidden');
-          const isTg = cloudViewUrl.includes('t.me/') || cloudViewUrl.includes('telegram.');
+          const isTg = isTelegramUrl(cloudViewUrl);
           drivePreviewContainer.innerHTML = `
             <div class="p-5 sm:p-6 bg-slate-900/90 text-center space-y-3">
               <div class="w-12 h-12 rounded-2xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center mx-auto text-cyan-300">
@@ -10767,7 +11177,7 @@
               <p class="text-xs sm:text-sm font-extrabold text-white">${isTg ? 'هذا الملف مستضاف على قناة تيليجرام الخاصة بالدفعة' : 'هذا الملف متاح عبر رابط خارجي مباشر'}</p>
               <p class="text-[11px] text-slate-400">اضغط على الزر بالأسفل لفتح الملف مباشرة في ${isTg ? 'تطبيق تيليجرام' : 'علامة تبويب جديدة'}</p>
               <div>
-                <a href="${escapeHTML(cloudViewUrl)}" target="_blank" rel="noopener" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-600 text-slate-950 font-black text-xs shadow-lg hover:opacity-95 transition">
+                <a href="${escapeHTML(cloudViewUrl)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-600 text-slate-950 font-black text-xs shadow-lg hover:opacity-95 transition">
                   <span>${isTg ? 'فتح الملف في تيليجرام ↗' : 'فتح الرابط الخارجي ↗'}</span>
                 </a>
               </div>
@@ -10782,8 +11192,8 @@
       const isCompleted = appState.completedIds.includes(file.id);
       syncModalCompleteUI(isCompleted);
 
-      document.body.classList.add('overflow-hidden');
-      document.getElementById('preview-modal').classList.remove('hidden');
+      modal.classList.remove('hidden');
+      syncBodyScrollLock();
       pushNavigationHistoryState({ modalOpen: 'preview', previewFileId: file.id });
       if (typeof lucide !== 'undefined') lucide.createIcons();
     }
@@ -10793,16 +11203,20 @@
       const modal = document.getElementById('preview-modal');
       if (!modal) return;
       modal.classList.add('hidden');
-      document.body.classList.remove('overflow-hidden');
-      document.body.style.overflow = '';
       appState.activePreviewId = null;
-      cleanupModalHistoryOnClose();
+      syncBodyScrollLock();
+      cleanupModalHistoryOnClose('preview');
 
       // Clean up any dynamic media/iframes if injected
       const iframes = modal.querySelectorAll('iframe');
       iframes.forEach(iframe => {
         try { iframe.src = 'about:blank'; } catch (e) {}
       });
+      const embedBox = document.getElementById('preview-drive-embed-box');
+      if (embedBox) {
+        embedBox.innerHTML = '';
+        embedBox.classList.add('hidden');
+      }
     }
 
     // =====================================================================
@@ -10862,15 +11276,19 @@
 
     function fillAboutEditForm() {
       const c = appState.aboutContent || DEFAULT_ABOUT_CONTENT;
-      document.getElementById('edit-about-greeting').value = c.greeting || '';
-      document.getElementById('edit-about-verse').value = c.verse || '';
-      document.getElementById('edit-about-model-note').value = c.modelNote || '';
-      document.getElementById('edit-about-source').value = c.sourceDesc || '';
-      document.getElementById('edit-about-explain').value = c.explainDesc || '';
-      document.getElementById('edit-about-summary').value = c.summaryDesc || '';
-      document.getElementById('edit-about-mindmap').value = c.mindmapDesc || '';
-      document.getElementById('edit-about-ai-title').value = c.aiNoteTitle || '';
-      document.getElementById('edit-about-ai-desc').value = c.aiNoteDesc || '';
+      const setVal = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.value = val || '';
+      };
+      setVal('edit-about-greeting', c.greeting);
+      setVal('edit-about-verse', c.verse);
+      setVal('edit-about-model-note', c.modelNote);
+      setVal('edit-about-source', c.sourceDesc);
+      setVal('edit-about-explain', c.explainDesc);
+      setVal('edit-about-summary', c.summaryDesc);
+      setVal('edit-about-mindmap', c.mindmapDesc);
+      setVal('edit-about-ai-title', c.aiNoteTitle);
+      setVal('edit-about-ai-desc', c.aiNoteDesc);
     }
 
     function toggleAboutEditMode(isEditing) {
@@ -10880,12 +11298,12 @@
 
       if (isEditing) {
         fillAboutEditForm();
-        viewEl.classList.add('hidden');
-        formEl.classList.remove('hidden');
+        if (viewEl) viewEl.classList.add('hidden');
+        if (formEl) formEl.classList.remove('hidden');
         if (editBtnText) editBtnText.textContent = 'معاينة العرض';
       } else {
-        viewEl.classList.remove('hidden');
-        formEl.classList.add('hidden');
+        if (viewEl) viewEl.classList.remove('hidden');
+        if (formEl) formEl.classList.add('hidden');
         if (editBtnText) editBtnText.textContent = 'تعديل المحتوى';
       }
     }
@@ -10901,17 +11319,19 @@
         editBtn.classList.toggle('inline-flex', appState.isAdmin);
       }
       modal.classList.remove('hidden');
+      syncBodyScrollLock();
       pushNavigationHistoryState({ modalOpen: 'about' });
     }
 
     function closeAboutModal() {
       const modal = document.getElementById('about-modal');
       if (modal) modal.classList.add('hidden');
-      cleanupModalHistoryOnClose();
+      syncBodyScrollLock();
+      cleanupModalHistoryOnClose('about');
     }
 
     // Sync Admin Mode Controls (Clean Single-Line Mobile Labels)
-    function syncAdminUI() {
+    function syncAdminUI(shouldRender = true) {
       const statusBar = document.getElementById('admin-status-bar');
       const inlineAddBtn = document.getElementById('inline-admin-add-btn');
       const adminBtnText = document.getElementById('admin-btn-text');
@@ -10958,7 +11378,9 @@
       if (typeof lucide !== 'undefined' && lucide.createIcons) {
         lucide.createIcons();
       }
-      renderExplorerContent();
+      if (shouldRender) {
+        renderExplorerContent();
+      }
     }
 
     // Admin Modal & Gate Management (Feature F07 - Hashed Passcode Verification)
@@ -10997,6 +11419,7 @@
       }
 
       modal.classList.remove('hidden');
+      syncBodyScrollLock();
       pushNavigationHistoryState({ modalOpen: 'admin' });
       setTimeout(() => {
         if (passInput) passInput.focus();
@@ -11006,7 +11429,8 @@
     function closeAdminModal() {
       const modal = document.getElementById('admin-login-modal');
       if (modal) modal.classList.add('hidden');
-      cleanupModalHistoryOnClose();
+      syncBodyScrollLock();
+      cleanupModalHistoryOnClose('admin');
 
       const errorMsg = document.getElementById('admin-login-error');
       if (errorMsg) errorMsg.classList.add('hidden');
@@ -11071,6 +11495,8 @@
     }
 
     // Open Admin Publish / Edit Modal (Feature F08)
+    let isPublishingSubmit = false;
+
     function openPublishModal(editFile = null) {
       const form = document.getElementById('publish-form');
       if (form) form.reset();
@@ -11078,23 +11504,24 @@
       const modalTitle = document.getElementById('publish-modal-title');
       const submitLabel = document.getElementById('publish-submit-label');
       const editItemId = document.getElementById('edit-item-id');
+      const subEl = document.getElementById('pub-subject') || document.getElementById('publish-subject-select');
+      const catEl = document.getElementById('pub-category') || document.getElementById('publish-category-select');
+      const folderEl = document.getElementById('pub-folder-num');
+      const fmtEl = document.getElementById('pub-format');
+      [subEl, catEl, folderEl, fmtEl].forEach(el => {
+        if (el && el.dataset) el.dataset.userChanged = '';
+      });
 
       if (editFile) {
         if (modalTitle) modalTitle.textContent = 'تعديل بيانات الملف الدراسي';
         if (submitLabel) submitLabel.textContent = 'حفظ التعديلات';
         if (editItemId) editItemId.value = editFile.id;
 
-        const subEl = document.getElementById('pub-subject') || document.getElementById('publish-subject-select');
         if (subEl && editFile.subject) subEl.value = editFile.subject;
-
-        const catEl = document.getElementById('pub-category') || document.getElementById('publish-category-select');
         if (catEl && editFile.category) catEl.value = editFile.category;
-
-        const folderEl = document.getElementById('pub-folder-num');
         if (folderEl && editFile.folderNum !== undefined) folderEl.value = editFile.folderNum;
 
         const validFormats = ['المصدر', 'شرح', 'تلخيص', 'خريطه ذهنية'];
-        const fmtEl = document.getElementById('pub-format');
         if (fmtEl) {
           fmtEl.value = validFormats.includes(editFile.format) ? editFile.format : 'المصدر';
         }
@@ -11125,17 +11552,14 @@
         if (submitLabel) submitLabel.textContent = 'نشر الملف الآن';
         if (editItemId) editItemId.value = '';
 
-        if (appState.currentSubject) {
-          const subEl = document.getElementById('pub-subject') || document.getElementById('publish-subject-select');
-          if (subEl) subEl.value = appState.currentSubject;
+        if (appState.currentSubject && subEl) {
+          subEl.value = appState.currentSubject;
         }
-        if (appState.currentCategory) {
-          const catEl = document.getElementById('pub-category') || document.getElementById('publish-category-select');
-          if (catEl) catEl.value = appState.currentCategory;
+        if (appState.currentCategory && catEl) {
+          catEl.value = appState.currentCategory;
         }
-        if (appState.currentFolderNum !== null && appState.currentFolderNum !== undefined) {
-          const folderEl = document.getElementById('pub-folder-num');
-          if (folderEl) folderEl.value = appState.currentFolderNum;
+        if (appState.currentFolderNum !== null && appState.currentFolderNum !== undefined && folderEl) {
+          folderEl.value = appState.currentFolderNum;
         }
       }
 
@@ -11153,8 +11577,7 @@
       const modal = document.getElementById('publish-modal');
       if (modal) {
         modal.classList.remove('hidden');
-        document.body.classList.add('overflow-hidden');
-        document.body.style.overflow = 'hidden';
+        syncBodyScrollLock();
         pushNavigationHistoryState({ modalOpen: 'publish' });
       }
       if (typeof lucide !== 'undefined' && lucide.createIcons) {
@@ -11168,9 +11591,8 @@
       if (modal) {
         modal.classList.add('hidden');
       }
-      document.body.classList.remove('overflow-hidden');
-      document.body.style.overflow = '';
-      cleanupModalHistoryOnClose();
+      syncBodyScrollLock();
+      cleanupModalHistoryOnClose('publish');
 
       const form = document.getElementById('publish-form');
       if (form) form.reset();
@@ -11190,6 +11612,7 @@
       if (e && typeof e.preventDefault === 'function') {
         e.preventDefault();
       }
+      if (isPublishingSubmit) return;
 
       const editItemId = document.getElementById('edit-item-id');
       const editId = editItemId ? editItemId.value.trim() : '';
@@ -11214,17 +11637,27 @@
       const rawFolder = folderEl ? folderEl.value.trim() : '';
       const folderNum = normalizeFolderNumValue(rawFolder);
       let format = fmtEl ? fmtEl.value : 'المصدر';
+      const userExplicitlyPickedFormat = Boolean(editId || (fmtEl && fmtEl.dataset && fmtEl.dataset.userChanged === '1'));
       const uploadedCheckObj = (fileInputEl && fileInputEl.files && fileInputEl.files[0]) ? fileInputEl.files[0] : null;
-      const nameToInspect = (uploadedCheckObj ? uploadedCheckObj.name : '') + ' ' + (titleEl ? titleEl.value : '');
-      const normInspect = normalizeArabicSearch(nameToInspect);
-      const inferredFromFile = detectAppFormatFromDriveFile({ name: nameToInspect });
-      if (format === 'المصدر' && inferredFromFile !== 'المصدر' && !normInspect.includes('تفريغ') && !normInspect.includes('مصدر')) {
-        format = inferredFromFile;
-        if (fmtEl) fmtEl.value = format;
+      if (!userExplicitlyPickedFormat) {
+        const nameToInspect = (uploadedCheckObj ? uploadedCheckObj.name : '') + ' ' + (titleEl ? titleEl.value : '');
+        const normInspect = normalizeArabicSearch(nameToInspect);
+        const inferredFromFile = detectAppFormatFromDriveFile({ name: nameToInspect });
+        if (format === 'المصدر' && inferredFromFile !== 'المصدر' && !normInspect.includes('تفريغ') && !normInspect.includes('مصدر')) {
+          format = inferredFromFile;
+          if (fmtEl) fmtEl.value = format;
+        }
       }
 
       if (!subject || !category || !folderNum || !format) {
         showToast('يرجى ملء جميع الحقول الإجبارية (*)', 'warning');
+        return;
+      }
+
+      const rawExternalUrl = urlEl ? urlEl.value.trim() : '';
+      const externalUrl = rawExternalUrl ? sanitizeExternalUrl(rawExternalUrl) : '';
+      if (rawExternalUrl && !externalUrl) {
+        showToast('الرابط الخارجي غير صالح! يرجى إدخال رابط http:// أو https:// صحيح.', 'warning');
         return;
       }
 
@@ -11235,24 +11668,35 @@
       const uploadedCleanName = uploadedFileObj ? uploadedFileObj.name.replace(/\.[^/.]+$/, '').trim() : '';
       const finalTitle = rawTitle || uploadedCleanName || `${unitSingular} ${folderNum} ${subObj.folderName} ${format}`;
       const doctor = docEl ? docEl.value.trim() : '';
-      const externalUrl = urlEl ? urlEl.value.trim() : '';
       const description = descEl ? descEl.value.trim() : '';
       const keypoints = kpEl ? kpEl.value.split('\n').map(s => s.trim()).filter(Boolean) : [];
       const note = noteEl ? noteEl.value.trim() : '';
-      const pages = pagesEl && pagesEl.value ? (parseInt(pagesEl.value, 10) || null) : null;
+      const parsedPages = pagesEl && pagesEl.value ? parseInt(pagesEl.value, 10) : NaN;
+      const pages = Number.isFinite(parsedPages) && parsedPages > 0 ? parsedPages : null;
+
+      if (editId && !appState.files.some(f => f && f.id === editId)) {
+        showToast('تعذر العثور على الملف المطلوب تعديله (ربما تم حذفه مسبقاً).', 'warning');
+        closePublishModal();
+        return;
+      }
+
+      isPublishingSubmit = true;
+      if (submitBtn) submitBtn.disabled = true;
 
       let fileUploadPayload = null;
       if (uploadedFileObj) {
         if (uploadedFileObj.size > MAX_DIRECT_UPLOAD_BYTES) {
+          isPublishingSubmit = false;
+          if (submitBtn) submitBtn.disabled = false;
           const sizeMb = (uploadedFileObj.size / (1024 * 1024)).toFixed(1);
           showToast(`حجم الملف (${sizeMb} MB) يتجاوز الحد الأقصى للرفع المباشر من الموقع (35 MB). يرجى رفعه مباشرة من تطبيق Google Drive في مجلد المادة وسيظهر تلقائياً.`, 'warning');
           return;
         }
         try {
-          if (submitBtn) submitBtn.disabled = true;
           if (submitLabel) submitLabel.textContent = 'جاري تجهيز ورفع الملف إلى Google Drive...';
           fileUploadPayload = await readFileAsBase64(uploadedFileObj);
         } catch (readErr) {
+          isPublishingSubmit = false;
           if (submitBtn) submitBtn.disabled = false;
           if (submitLabel) submitLabel.textContent = editId ? 'حفظ التعديلات' : 'نشر الملف الآن';
           showToast((readErr && readErr.message) ? readErr.message : 'تعذر قراءة الملف المرفوع من الجهاز', 'warning');
@@ -11261,6 +11705,7 @@
       }
 
       let targetFile = null;
+      let prevFileBackup = null;
       let oldDriveFileIdToTrash = '';
 
       const nowStdDate = (() => {
@@ -11269,14 +11714,18 @@
       })();
 
       if (editId) {
-        targetFile = appState.files.find(f => f.id === editId);
+        targetFile = appState.files.find(f => f && f.id === editId);
         if (targetFile) {
-          oldDriveFileIdToTrash = targetFile.driveFileId || extractDriveFileId(targetFile.fileUrl || targetFile.driveUrl || '');
+          prevFileBackup = Object.assign({}, targetFile, {
+            keypoints: Array.isArray(targetFile.keypoints) ? [...targetFile.keypoints] : []
+          });
+          oldDriveFileIdToTrash = targetFile.driveFileId || (String(targetFile.id || '').startsWith('drive_') ? String(targetFile.id).replace(/^drive_/, '') : '');
           targetFile.subject = subject;
           targetFile.category = category;
           targetFile.folderNum = folderNum;
           targetFile.format = format;
           targetFile.adminFormat = format;
+          targetFile.explicitAdminFormat = true;
           targetFile.title = finalTitle;
           // السماح للمسؤول بتعديل أو مسح الحقول الاختيارية (اسم المحاضر، الرابط الخارجي، عدد الصفحات)
           targetFile.doctor = doctor || (subObj?.doctor || 'أعضاء هيئة التدريس');
@@ -11295,11 +11744,22 @@
           targetFile.keypoints = keypoints;
           targetFile.clinicalNote = note;
           targetFile.pages = pages;
+          targetFile.isPendingUpload = true;
+          if (fileUploadPayload) {
+            appState.uploadedFileCache[targetFile.id] = {
+              url: fileUploadPayload.dataUrl,
+              name: uploadedFileObj.name
+            };
+          }
         }
       } else {
         const newId = 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-        const extUpper = uploadedFileObj ? (uploadedFileObj.name.split('.').pop() || 'PDF').toUpperCase() : 'PDF';
-        const sizeKb = uploadedFileObj ? (uploadedFileObj.size >= 1048576 ? (uploadedFileObj.size / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(uploadedFileObj.size / 1024)) + ' KB') : 'جديد';
+        const extUpper = uploadedFileObj
+          ? (uploadedFileObj.name.includes('.') ? (uploadedFileObj.name.split('.').pop() || 'PDF').toUpperCase() : 'FILE')
+          : 'PDF';
+        const sizeKb = uploadedFileObj
+          ? (uploadedFileObj.size >= 1048576 ? (uploadedFileObj.size / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(uploadedFileObj.size / 1024)) + ' KB')
+          : 'جديد';
         targetFile = {
           id: newId,
           title: finalTitle,
@@ -11308,12 +11768,13 @@
           folderNum: folderNum,
           format: format,
           adminFormat: format,
+          explicitAdminFormat: userExplicitlyPickedFormat,
           doctor: doctor || (subObj?.doctor || 'أعضاء هيئة التدريس'),
           externalUrl: externalUrl || '',
           fileUrl: externalUrl || '',
           driveUrl: externalUrl || '',
-          description: description || `ملف (${format}) خاص بـ ${category === 'محاضرات' ? 'المحاضرة' : 'السكشن'} رقم (${folderNum}) في مقرر ${subObj?.fullName || subject}.`,
-          keypoints: keypoints.length > 0 ? keypoints : [`${format} معتمد لـ ${category === 'محاضرات' ? 'المحاضرة' : 'السكشن'} رقم (${folderNum})`],
+          description: description,
+          keypoints: keypoints,
           clinicalNote: note || '',
           pages: pages || null,
           size: `${extUpper} • ${sizeKb}`,
@@ -11338,6 +11799,8 @@
         markFileAsPushNotified(newId);
       }
 
+      appState.syncMutationEpoch = (appState.syncMutationEpoch || 0) + 1;
+      appState.lastMutationTime = Date.now();
       saveAppState();
       updateLibraryCounters();
       renderQuickSubjectBar();
@@ -11345,6 +11808,7 @@
       renderExplorerContent();
       updateNotificationsUI();
 
+      isPublishingSubmit = false;
       if (submitBtn) submitBtn.disabled = false;
       if (submitLabel) submitLabel.textContent = editId ? 'حفظ التعديلات' : 'نشر الملف الآن';
       closePublishModal();
@@ -11357,10 +11821,33 @@
         showToast('تم حفظ ونشر المادة وجاري مزامنة Google Drive...', 'info');
       }
 
+      const handlePublishSyncFailure = (syncRes, fallbackMsg) => {
+        delete targetFile.isPendingUpload;
+        if (syncRes && syncRes.rejectedByServer) {
+          if (editId && prevFileBackup) {
+            Object.assign(targetFile, prevFileBackup);
+            delete targetFile.isPendingUpload;
+          } else if (!editId) {
+            appState.files = appState.files.filter(f => f && f.id !== targetFile.id);
+            if (appState.uploadedFileCache) delete appState.uploadedFileCache[targetFile.id];
+          }
+          appState.lastRenderedSignature = computeDatabaseSignature(appState.files, appState.folders, appState.aboutContent);
+          saveAppState();
+          renderQuickSubjectBar();
+          renderBreadcrumbBar();
+          renderExplorerContent();
+          updateLibraryCounters();
+          updateNotificationsUI();
+        } else {
+          saveAppState();
+        }
+        showToast((syncRes && syncRes.error) ? `تنبيه: ${syncRes.error}` : fallbackMsg, 'warning');
+      };
+
       if (targetFile) {
         try {
           const ext = uploadedFileObj
-            ? (uploadedFileObj.name.split('.').pop() || 'pdf').toLowerCase()
+            ? (uploadedFileObj.name.includes('.') ? (uploadedFileObj.name.split('.').pop() || 'pdf').toLowerCase() : 'pdf')
             : ((targetFile.originalFileName && targetFile.originalFileName.includes('.')) ? targetFile.originalFileName.split('.').pop().toLowerCase() : 'pdf');
 
           let driveFileName = finalTitle.replace(/\.[^/.]+$/, '').trim();
@@ -11398,13 +11885,16 @@
                 migrateTemporaryFileId(targetFile.id, finalSyncedFile.id);
               }
               markFileAsPushNotified(finalSyncedFile.id);
+              saveAppState();
               if (!editId) {
                 sendUserNotificationForFile(finalSyncedFile, true);
+                triggerBackgroundPushForAllSubscribers(finalSyncedFile);
+                showToast('تم رفع الملف إلى المجلد المخصص في Google Drive وإرسال الإشعارات بنجاح ✓', 'success');
+              } else {
+                showToast('تم استبدال وتحديث الملف في Google Drive بنجاح ✓', 'success');
               }
-              triggerBackgroundPushForAllSubscribers(finalSyncedFile);
-              showToast('تم رفع الملف إلى المجلد المخصص في Google Drive وإرسال الإشعارات بنجاح ✓', 'success');
             } else {
-              showToast((syncRes && syncRes.error) ? `تنبيه: ${syncRes.error}` : 'تعذر إكمال الرفع للسحابة، تأكد من تحديث نشر Code.gs', 'warning');
+              handlePublishSyncFailure(syncRes, 'تعذر إكمال الرفع للسحابة، تأكد من تحديث نشر Code.gs');
             }
           } else if (editId && oldDriveFileIdToTrash) {
             const syncRes = await syncActionToDrive({
@@ -11414,8 +11904,12 @@
               newName: driveFileName,
               file: cleanFileRecordForServer
             });
+            delete targetFile.isPendingUpload;
             if (syncRes && syncRes.ok) {
+              saveAppState();
               showToast('تم تحديث اسم وبيانات الملف في Google Drive بنجاح ✓', 'success');
+            } else {
+              handlePublishSyncFailure(syncRes, 'تعذر تحديث الملف في Google Drive حالياً');
             }
           } else {
             const syncRes = await syncActionToDrive({
@@ -11429,17 +11923,22 @@
                 migrateTemporaryFileId(targetFile.id, finalSyncedFile.id);
               }
               markFileAsPushNotified(finalSyncedFile.id);
+              saveAppState();
               if (!editId) {
                 sendUserNotificationForFile(finalSyncedFile, true);
                 triggerBackgroundPushForAllSubscribers(finalSyncedFile);
+                showToast('تم حفظ ونشر الملف في Google Drive وإرسال الإشعارات بنجاح ✓', 'success');
+              } else {
+                showToast('تم تحديث بيانات الملف في Google Drive بنجاح ✓', 'success');
               }
-              showToast('تم حفظ ونشر الملف في Google Drive وإرسال الإشعارات بنجاح ✓', 'success');
             } else {
-              showToast((syncRes && syncRes.error) ? `تنبيه: ${syncRes.error}` : 'تعذر الحفظ في السحابة حالياً', 'warning');
+              handlePublishSyncFailure(syncRes, 'تعذر الحفظ في السحابة حالياً');
             }
           }
         } catch (e) {
           delete targetFile.isPendingUpload;
+          saveAppState();
+          showToast('تعذر إكمال المزامنة مع Google Drive حالياً', 'warning');
         }
       }
     }
@@ -11447,13 +11946,27 @@
     function closeNotificationsModal() {
       const modal = document.getElementById('notifications-modal');
       if (modal) modal.classList.add('hidden');
-      cleanupModalHistoryOnClose();
+      syncBodyScrollLock();
+      cleanupModalHistoryOnClose('notifications');
     }
 
 
     // ==========================================================================
     // FULL-SCREEN INTRO VIDEO CONTROLLER (1031.mp4)
     // ==========================================================================
+    let closeIntroVideoIfOpen = null;
+
+    function isIntroOverlayOpen() {
+      const overlay = document.getElementById('intro-video-overlay');
+      return Boolean(
+        overlay &&
+        overlay.classList.contains('active') &&
+        !overlay.classList.contains('hidden') &&
+        !overlay.classList.contains('intro-hidden') &&
+        overlay.style.display !== 'none'
+      );
+    }
+
     function initIntroVideo() {
       const overlay = document.getElementById('intro-video-overlay');
       const video = document.getElementById('intro-video');
@@ -11465,6 +11978,8 @@
 
       let isClosing = false;
       let isClosed = false;
+      let playSessionId = 0;
+      let playbackStartedAt = 0;
       let startupTimer = null;
       let playbackMaxTimer = null;
       let closeTransitionTimer = null;
@@ -11489,6 +12004,8 @@
         try { sessionStorage.setItem('vet33_intro_seen', '1'); } catch (e) {}
         if (isClosing || isClosed) return;
         isClosing = true;
+        playSessionId++;
+        const closeSessionId = playSessionId;
         if (startupTimer) {
           clearTimeout(startupTimer);
           startupTimer = null;
@@ -11501,8 +12018,7 @@
         // Immediately unblock user interaction with underlying page
         overlay.style.pointerEvents = 'none';
         overlay.classList.remove('active');
-        document.body.style.overflow = '';
-        document.body.classList.remove('overflow-hidden');
+        syncBodyScrollLock();
 
         // Smooth visual exit transition
         overlay.style.transition = 'opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1), transform 0.55s cubic-bezier(0.16, 1, 0.3, 1)';
@@ -11511,6 +12027,7 @@
 
         closeTransitionTimer = setTimeout(() => {
           closeTransitionTimer = null;
+          if (playSessionId !== closeSessionId) return;
           try {
             video.pause();
           } catch (e) {}
@@ -11525,10 +12042,20 @@
 
           isClosing = false;
           isClosed = true;
+          syncBodyScrollLock();
         }, 550);
       }
 
-      function armPlaybackSafetyWindow() {
+      closeIntroVideoIfOpen = () => {
+        if (!isClosed && !isClosing) {
+          closeIntroVideo();
+          return true;
+        }
+        return false;
+      };
+
+      function armPlaybackSafetyWindow(sessionId) {
+        if (sessionId !== playSessionId || isClosed || isClosing) return;
         if (startupTimer) {
           clearTimeout(startupTimer);
           startupTimer = null;
@@ -11536,7 +12063,7 @@
         if (!playbackMaxTimer) {
           // Video is 5.83s; guarantee dismissal after 7.2s even if mobile WebView drops 'ended'
           playbackMaxTimer = setTimeout(() => {
-            if (!isClosed && !isClosing) {
+            if (sessionId === playSessionId && !isClosed && !isClosing) {
               closeIntroVideo();
             }
           }, 7200);
@@ -11545,18 +12072,9 @@
 
       function playIntroVideo(userInitiated) {
         clearAllIntroTimers();
-        isClosing = false;
-        isClosed = false;
-
-        // Reset display state cleanly
-        overlay.style.display = 'flex';
-        overlay.classList.remove('intro-hidden', 'hidden');
-        overlay.classList.add('active');
-        overlay.removeAttribute('aria-hidden');
-        overlay.style.pointerEvents = 'auto';
-        overlay.style.opacity = '1';
-        overlay.style.transform = 'none';
-        overlay.style.transition = 'opacity 0.3s ease-out';
+        playSessionId++;
+        const currentSession = playSessionId;
+        playbackStartedAt = Date.now();
 
         // Ensure mobile browsers (iOS Safari, Android Chrome) always permit playback
         video.defaultMuted = true;
@@ -11573,9 +12091,23 @@
           }
         } catch (e) {}
 
+        isClosing = false;
+        isClosed = false;
+
+        // Reset display state cleanly
+        overlay.style.display = 'flex';
+        overlay.classList.remove('intro-hidden', 'hidden');
+        overlay.classList.add('active');
+        overlay.removeAttribute('aria-hidden');
+        overlay.style.pointerEvents = 'auto';
+        overlay.style.opacity = '1';
+        overlay.style.transform = 'none';
+        overlay.style.transition = 'opacity 0.3s ease-out';
+        syncBodyScrollLock();
+
         // 8-Second Startup Watchdog (only triggers if video never starts loading/playing at all)
         startupTimer = setTimeout(() => {
-          if (!isClosed && !isClosing && (video.paused || video.currentTime < 0.05)) {
+          if (currentSession === playSessionId && !isClosed && !isClosing && (video.paused || video.currentTime < 0.05)) {
             console.warn('Intro video startup fallback triggered; dismissing overlay.');
             closeIntroVideo();
           }
@@ -11585,16 +12117,20 @@
         if (playPromise !== undefined) {
           playPromise
             .then(() => {
-              armPlaybackSafetyWindow();
+              if (currentSession !== playSessionId || isClosed || isClosing) return;
+              armPlaybackSafetyWindow(currentSession);
             })
             .catch(() => {
+              if (currentSession !== playSessionId || isClosed || isClosing) return;
               video.defaultMuted = true;
               video.muted = true;
               video.play()
                 .then(() => {
-                  armPlaybackSafetyWindow();
+                  if (currentSession !== playSessionId || isClosed || isClosing) return;
+                  armPlaybackSafetyWindow(currentSession);
                 })
                 .catch(err => {
+                  if (currentSession !== playSessionId || isClosed || isClosing) return;
                   console.warn('Intro video autoplay prevented:', err);
                   closeIntroVideo();
                 });
@@ -11604,28 +12140,35 @@
 
       // Clear startup watchdog as soon as frames begin rendering and arm max duration timer
       video.addEventListener('playing', () => {
-        armPlaybackSafetyWindow();
+        if (!isClosed && !isClosing) {
+          armPlaybackSafetyWindow(playSessionId);
+        }
       });
 
       video.addEventListener('timeupdate', () => {
+        if (isClosed || isClosing) return;
         if (video.currentTime > 0.05) {
-          armPlaybackSafetyWindow();
+          armPlaybackSafetyWindow(playSessionId);
         }
-        // Smoothly begin fade-out right before the final black frame (5.72s of 5.83s)
-        if (video.duration && video.duration > 1 && video.currentTime >= video.duration - 0.12) {
+        // Smoothly begin fade-out right before the final black frame (ignore first 400ms during replay seek)
+        if ((Date.now() - playbackStartedAt) > 400 && video.duration && video.duration > 1 && video.currentTime >= video.duration - 0.12) {
           closeIntroVideo();
         }
       });
 
       // Normal completion
       video.addEventListener('ended', () => {
-        closeIntroVideo();
+        if (!isClosed && !isClosing) {
+          closeIntroVideo();
+        }
       });
 
       // Media loading or decoding error (missing file or corrupt stream)
       video.addEventListener('error', (e) => {
-        console.warn('Intro video error encountered:', video.error || e);
-        closeIntroVideo();
+        if (!isClosed && !isClosing) {
+          console.warn('Intro video error encountered:', video.error || e);
+          closeIntroVideo();
+        }
       });
 
       // Skip button
@@ -11641,15 +12184,11 @@
       overlay.addEventListener('click', (e) => {
         if (e.target && e.target.closest('#intro-skip-btn')) return;
         if (video.paused && !isClosing && !isClosed) {
+          const tapSession = playSessionId;
           video.muted = true;
-          video.play().catch(() => closeIntroVideo());
-        }
-      });
-
-      // Keyboard Esc / Space / Enter to skip
-      window.addEventListener('keydown', (e) => {
-        if (!isClosed && (e.key === 'Escape' || e.key === 'Esc')) {
-          closeIntroVideo();
+          video.play().catch(() => {
+            if (tapSession === playSessionId && !isClosed && !isClosing) closeIntroVideo();
+          });
         }
       });
 
@@ -11681,9 +12220,8 @@
         overlay.style.opacity = '0';
         overlay.style.pointerEvents = 'none';
         overlay.setAttribute('aria-hidden', 'true');
-        document.body.style.overflow = '';
-        document.body.classList.remove('overflow-hidden');
         isClosed = true;
+        syncBodyScrollLock();
       } else {
         playIntroVideo(false);
       }
@@ -11699,7 +12237,7 @@
           window.history.replaceState(getCurrentHistoryStateSnapshot(), '', location.pathname + location.search + location.hash);
         }
       } catch (e) {}
-      syncAdminUI();
+      syncAdminUI(false);
       renderQuickSubjectBar();
       renderBreadcrumbBar();
       renderExplorerContent();
@@ -11707,10 +12245,17 @@
       updateNotificationsUI();
       fetchDatabaseFromDrive(true, false);
 
+      window.addEventListener('resize', syncBodyScrollLock);
+
       // Issue #1 Fix: Listen to phone/browser Back button (popstate) to close open modals or step back to parent folder
       window.addEventListener('popstate', (e) => {
         appState.isHandlingPopState = true;
         try {
+          // 0. If intro video overlay is active, dismiss it first
+          if (typeof closeIntroVideoIfOpen === 'function' && closeIntroVideoIfOpen()) {
+            return;
+          }
+
           // 1. If any modal or mobile sidebar is open, close it first without leaving the current folder
           const prevModal = document.getElementById('preview-modal');
           if (prevModal && !prevModal.classList.contains('hidden')) {
@@ -11749,7 +12294,7 @@
             if (st.view === 'saved' || st.onlySavedFilter) {
               appState.currentView = 'saved';
               appState.onlySavedFilter = true;
-              appState.searchQuery = '';
+              clearSearchInputUI();
               document.title = 'الملفات المحفوظة | Seniors 2027 VET-KSU 33 Old List';
               renderQuickSubjectBar();
               renderBreadcrumbBar();
@@ -11767,7 +12312,20 @@
         }
       });
 
-      // Validate file size AND auto-detect Subject, Category, FolderNum, and Format from filename when selected
+      // Track manual admin edits on publish form controls so filename auto-detect never overwrites user choices
+      ['pub-format', 'pub-subject', 'pub-category', 'pub-folder-num'].forEach(fieldId => {
+        const el = document.getElementById(fieldId);
+        if (!el) return;
+        const markManual = () => {
+          if (el.dataset) el.dataset.userChanged = '1';
+        };
+        el.addEventListener('change', markManual);
+        if (el.tagName === 'INPUT') {
+          el.addEventListener('input', markManual);
+        }
+      });
+
+      // Validate file size AND auto-detect Subject, Category, FolderNum, and Format from filename when selected (create mode only)
       const pubFileUploadEl = document.getElementById('pub-file-upload');
       if (pubFileUploadEl) {
         pubFileUploadEl.addEventListener('change', (e) => {
@@ -11779,26 +12337,33 @@
             e.target.value = '';
             return;
           }
+
+          // Never overwrite existing metadata when admin is editing a record and choosing a replacement file
+          const editIdEl = document.getElementById('edit-item-id');
+          if (editIdEl && editIdEl.value.trim()) {
+            return;
+          }
+
           const fName = fObj.name || '';
           const normName = normalizeArabicSearch(fName);
 
-          // 1. Auto-detect Format (المصدر / شرح / تلخيص / خريطه ذهنية)
+          // 1. Auto-detect Format (only override if explicitly detected and not manually changed by admin)
           const detectedFmt = detectAppFormatFromDriveFile({ name: fName });
           const fmtEl = document.getElementById('pub-format');
-          if (fmtEl && detectedFmt) {
+          if (fmtEl && detectedFmt && detectedFmt !== 'المصدر' && (!fmtEl.dataset || fmtEl.dataset.userChanged !== '1')) {
             fmtEl.value = detectedFmt;
           }
 
-          // 2. Auto-detect Folder Number (supports single numbers like 7 or combined like 8-10)
-          const detectedNum = extractNumFromAnyString(fName);
+          // 2. Auto-detect Folder Number (ignores dates, 4-digit years like 2026, and phone timestamps)
+          const detectedNum = extractLectureNumFromFileName(fName);
           const folderEl = document.getElementById('pub-folder-num');
-          if (folderEl && detectedNum !== null && detectedNum !== undefined) {
+          if (folderEl && detectedNum !== null && detectedNum !== undefined && (!folderEl.dataset || folderEl.dataset.userChanged !== '1')) {
             folderEl.value = detectedNum;
           }
 
           // 3. Auto-detect Category (محاضرات / سكاشن)
           const catEl = document.getElementById('pub-category');
-          if (catEl) {
+          if (catEl && (!catEl.dataset || catEl.dataset.userChanged !== '1')) {
             if (normName.includes('سكشن') || normName.includes('سكاشن') || normName.includes('عملي')) {
               catEl.value = 'سكاشن';
             } else if (normName.includes('محاضره') || normName.includes('محاضرات')) {
@@ -11809,7 +12374,7 @@
           // 4. Auto-detect Subject if filename contains subject name
           const detectedSub = detectSubjectFromFileName(fName);
           const subEl = document.getElementById('pub-subject');
-          if (subEl && detectedSub) {
+          if (subEl && detectedSub && (!subEl.dataset || subEl.dataset.userChanged !== '1')) {
             subEl.value = detectedSub;
           }
         });
@@ -11824,15 +12389,12 @@
         appState.currentView = 'explorer';
         appState.onlySavedFilter = false;
         appState.previousHierarchy = null;
-        appState.searchQuery = '';
-        const sInput = document.getElementById('search-input');
-        if (sInput) sInput.value = '';
-        const cBtn = document.getElementById('clear-search-btn');
-        if (cBtn) cBtn.classList.add('hidden');
+        clearSearchInputUI();
         navigateToHierarchy(null, null, null);
       };
 
-      document.getElementById('brand-logo-btn').addEventListener('click', goRoot);
+      const brandLogoBtn = document.getElementById('brand-logo-btn');
+      if (brandLogoBtn) brandLogoBtn.addEventListener('click', goRoot);
       const fRoot = document.getElementById('footer-root-link');
       if (fRoot) fRoot.addEventListener('click', goRoot);
       const emptyReset = document.getElementById('empty-reset-btn');
@@ -11953,7 +12515,9 @@
       const aboutModal = document.getElementById('about-modal');
       if (aboutModal) {
         aboutModal.addEventListener('click', (e) => {
-          if (e.target === aboutModal) closeAboutModal();
+          if (e.target === aboutModal || !e.target.closest('.modal-card-scroll, .glass-panel')) {
+            closeAboutModal();
+          }
         });
       }
 
@@ -11961,7 +12525,8 @@
       if (adminEditAboutBtn) {
         adminEditAboutBtn.addEventListener('click', () => {
           if (!appState.isAdmin) return;
-          const isCurrentlyEditing = !document.getElementById('about-edit-form').classList.contains('hidden');
+          const editFormEl = document.getElementById('about-edit-form');
+          const isCurrentlyEditing = Boolean(editFormEl && !editFormEl.classList.contains('hidden'));
           toggleAboutEditMode(!isCurrentlyEditing);
         });
       }
@@ -11973,14 +12538,20 @@
 
       const resetAboutDefaultsBtn = document.getElementById('reset-about-defaults-btn');
       if (resetAboutDefaultsBtn) {
-        resetAboutDefaultsBtn.addEventListener('click', () => {
+        resetAboutDefaultsBtn.addEventListener('click', async () => {
+          if (!appState.isAdmin) {
+            showToast('التعديل متاح فقط لمسؤولي الدفعة!', 'warning');
+            return;
+          }
           if (!confirm('هل تريد استعادة النصوص الأصلية لقسم About؟')) return;
+          const prevAbout = appState.aboutContent ? { ...appState.aboutContent } : { ...DEFAULT_ABOUT_CONTENT };
           appState.aboutContent = { ...DEFAULT_ABOUT_CONTENT };
+          appState.lastRenderedSignature = computeDatabaseSignature(appState.files, appState.folders, appState.aboutContent);
           saveAppState();
           fillAboutEditForm();
           toggleAboutEditMode(false);
           renderAboutView();
-          syncActionToDrive({
+          const res = await syncActionToDrive({
             action: 'save_about',
             item: {
               id: SYS_ABOUT_CONTENT_ID,
@@ -11988,35 +12559,51 @@
               title: 'System About Content',
               aboutContent: appState.aboutContent
             }
-          }).catch(() => {});
-          showToast('تمت استعادة النصوص الأصلية ومزامنتها بنجاح!', 'info');
+          });
+          if (res && res.ok) {
+            showToast('تمت استعادة النصوص الأصلية ومزامنتها بنجاح!', 'info');
+          } else if (res && res.rejectedByServer) {
+            appState.aboutContent = prevAbout;
+            saveAppState();
+            renderAboutView();
+            showToast((res && res.error) ? `تنبيه: ${res.error}` : 'تعذر مزامنة استعادة قسم About مع السحابة', 'warning');
+          } else {
+            showToast('تمت الاستعادة محلياً وتعذر المزامنة مع السحابة حالياً', 'warning');
+          }
         });
       }
 
       const aboutEditForm = document.getElementById('about-edit-form');
       if (aboutEditForm) {
-        aboutEditForm.addEventListener('submit', (e) => {
+        aboutEditForm.addEventListener('submit', async (e) => {
           e.preventDefault();
           if (!appState.isAdmin) {
             showToast('التعديل متاح فقط لمسؤولي الدفعة!', 'warning');
             return;
           }
-          appState.aboutContent = {
-            greeting: document.getElementById('edit-about-greeting').value.trim() || DEFAULT_ABOUT_CONTENT.greeting,
-            verse: document.getElementById('edit-about-verse').value.trim() || DEFAULT_ABOUT_CONTENT.verse,
-            modelNote: document.getElementById('edit-about-model-note').value.trim() || DEFAULT_ABOUT_CONTENT.modelNote,
-            typesHeading: DEFAULT_ABOUT_CONTENT.typesHeading,
-            sourceDesc: document.getElementById('edit-about-source').value.trim() || DEFAULT_ABOUT_CONTENT.sourceDesc,
-            explainDesc: document.getElementById('edit-about-explain').value.trim() || DEFAULT_ABOUT_CONTENT.explainDesc,
-            summaryDesc: document.getElementById('edit-about-summary').value.trim() || DEFAULT_ABOUT_CONTENT.summaryDesc,
-            mindmapDesc: document.getElementById('edit-about-mindmap').value.trim() || DEFAULT_ABOUT_CONTENT.mindmapDesc,
-            aiNoteTitle: document.getElementById('edit-about-ai-title').value.trim() || DEFAULT_ABOUT_CONTENT.aiNoteTitle,
-            aiNoteDesc: document.getElementById('edit-about-ai-desc').value.trim() || DEFAULT_ABOUT_CONTENT.aiNoteDesc
+          const readTrim = (id, fallback) => {
+            const el = document.getElementById(id);
+            const v = el ? el.value.trim() : '';
+            return v || fallback;
           };
+          const prevAbout = appState.aboutContent ? { ...appState.aboutContent } : { ...DEFAULT_ABOUT_CONTENT };
+          appState.aboutContent = {
+            greeting: readTrim('edit-about-greeting', DEFAULT_ABOUT_CONTENT.greeting),
+            verse: readTrim('edit-about-verse', DEFAULT_ABOUT_CONTENT.verse),
+            modelNote: readTrim('edit-about-model-note', DEFAULT_ABOUT_CONTENT.modelNote),
+            typesHeading: DEFAULT_ABOUT_CONTENT.typesHeading,
+            sourceDesc: readTrim('edit-about-source', DEFAULT_ABOUT_CONTENT.sourceDesc),
+            explainDesc: readTrim('edit-about-explain', DEFAULT_ABOUT_CONTENT.explainDesc),
+            summaryDesc: readTrim('edit-about-summary', DEFAULT_ABOUT_CONTENT.summaryDesc),
+            mindmapDesc: readTrim('edit-about-mindmap', DEFAULT_ABOUT_CONTENT.mindmapDesc),
+            aiNoteTitle: readTrim('edit-about-ai-title', DEFAULT_ABOUT_CONTENT.aiNoteTitle),
+            aiNoteDesc: readTrim('edit-about-ai-desc', DEFAULT_ABOUT_CONTENT.aiNoteDesc)
+          };
+          appState.lastRenderedSignature = computeDatabaseSignature(appState.files, appState.folders, appState.aboutContent);
           saveAppState();
           toggleAboutEditMode(false);
           renderAboutView();
-          syncActionToDrive({
+          const res = await syncActionToDrive({
             action: 'save_about',
             item: {
               id: SYS_ABOUT_CONTENT_ID,
@@ -12024,12 +12611,22 @@
               title: 'System About Content',
               aboutContent: appState.aboutContent
             }
-          }).catch(() => {});
-          showToast('تم حفظ ومزامنة محتوى قسم About لجميع الطلاب بنجاح!', 'success');
+          });
+          if (res && res.ok) {
+            showToast('تم حفظ ومزامنة محتوى قسم About لجميع الطلاب بنجاح!', 'success');
+          } else if (res && res.rejectedByServer) {
+            appState.aboutContent = prevAbout;
+            saveAppState();
+            renderAboutView();
+            showToast((res && res.error) ? `تنبيه: ${res.error}` : 'تعذر حفظ تعديلات قسم About في السحابة', 'warning');
+          } else {
+            showToast('تم الحفظ محلياً وتعذر المزامنة مع السحابة حالياً', 'warning');
+          }
         });
       }
 
-      document.getElementById('step-back-btn').addEventListener('click', stepBackHierarchy);
+      const stepBackBtn = document.getElementById('step-back-btn');
+      if (stepBackBtn) stepBackBtn.addEventListener('click', () => stepBackHierarchy(false));
 
       // Notifications Center Modal Listeners
       const notifModal = document.getElementById('notifications-modal');
@@ -12039,12 +12636,16 @@
           updateNotificationsUI();
           syncBrowserNotifButton();
           notifModal.classList.remove('hidden');
+          syncBodyScrollLock();
           pushNavigationHistoryState({ modalOpen: 'notifications' });
         });
       }
-      document.getElementById('close-notifications-modal-btn').addEventListener('click', () => {
-        closeNotificationsModal();
-      });
+      const closeNotifBtn = document.getElementById('close-notifications-modal-btn');
+      if (closeNotifBtn) {
+        closeNotifBtn.addEventListener('click', () => {
+          closeNotificationsModal();
+        });
+      }
       if (notifModal) {
         notifModal.addEventListener('click', (e) => {
           if (e.target === notifModal || !e.target.closest('.modal-card-scroll, .glass-panel')) {
@@ -12052,9 +12653,12 @@
           }
         });
       }
-      document.getElementById('enable-browser-notif-btn').addEventListener('click', () => {
-        requestBrowserNotificationPermission();
-      });
+      const enableBrowserNotifBtn = document.getElementById('enable-browser-notif-btn');
+      if (enableBrowserNotifBtn) {
+        enableBrowserNotifBtn.addEventListener('click', () => {
+          requestBrowserNotificationPermission();
+        });
+      }
       const testPhoneNotifBtn = document.getElementById('test-phone-notif-btn');
       if (testPhoneNotifBtn) {
         testPhoneNotifBtn.addEventListener('click', async () => {
@@ -12076,12 +12680,15 @@
           }
         });
       }
-      document.getElementById('mark-all-read-btn').addEventListener('click', () => {
-        appState.seenNotificationIds = appState.files.map(f => f.id);
-        saveAppState();
-        updateNotificationsUI();
-        showToast('تم تحديد جميع الإشعارات كمقروءة ✓', 'info');
-      });
+      const markAllReadBtn = document.getElementById('mark-all-read-btn');
+      if (markAllReadBtn) {
+        markAllReadBtn.addEventListener('click', () => {
+          appState.seenNotificationIds = (appState.files || []).filter(f => f && f.id).map(f => f.id);
+          saveAppState();
+          updateNotificationsUI();
+          showToast('تم تحديد جميع الإشعارات كمقروءة ✓', 'info');
+        });
+      }
 
       syncBrowserNotifButton();
       registerBackgroundServiceWorker();
@@ -12101,7 +12708,10 @@
       const dismissBannerBtn = document.getElementById('dismiss-phone-notif-banner-btn');
       if (dismissBannerBtn) {
         dismissBannerBtn.addEventListener('click', () => {
-          document.getElementById('phone-notif-banner').classList.add('hidden');
+          appState.isPhoneNotifBannerDismissed = true;
+          try { sessionStorage.setItem('vet33_notif_banner_dismissed', '1'); } catch (e) {}
+          const bannerEl = document.getElementById('phone-notif-banner');
+          if (bannerEl) bannerEl.classList.add('hidden');
         });
       }
 
@@ -12138,7 +12748,14 @@
               openPreviewModal(d.fileId);
             }
           } else if (msg.type === 'SW_DRIVE_DATA' && Array.isArray(msg.files) && msg.files.length > 0) {
-            applyNormalizedRemoteDatabase({ files: msg.files, folders: msg.folders || [] }, true);
+            if (appState.isSavingAction || (Date.now() - (appState.lastMutationTime || 0) < 5000)) {
+              return;
+            }
+            applyNormalizedRemoteDatabase({
+              files: msg.files,
+              folders: Array.isArray(msg.folders) ? msg.folders : [],
+              hasFoldersField: Array.isArray(msg.folders)
+            }, true);
           } else if (msg.type === 'SW_DETECTED_NEW_FILES' && Array.isArray(msg.notifiedIds)) {
             appState.notifiedPushFileIds = Array.from(new Set([...appState.notifiedPushFileIds, ...msg.notifiedIds]));
             saveAppState();
@@ -12147,24 +12764,19 @@
         });
       }
 
-      // Check URL hash if opened from a background notification click (#file=...)
+      // Check URL hash if opened from a background notification click (#file=...) — safely clears hash once opened
       setTimeout(() => {
-        if (location.hash && location.hash.startsWith('#file=')) {
-          const fId = decodeURIComponent(location.hash.replace('#file=', ''));
-          const target = appState.files.find(f => f.id === fId);
-          if (target) {
-            navigateToHierarchy(target.subject, target.category, normalizeFolderNumValue(target.folderNum));
-            openPreviewModal(target.id);
-          }
-        }
-      }, 1200);
+        checkPendingNotificationHash();
+      }, 600);
 
       // Use a Web Worker timer (30s matching server throttle) when tab is visible to protect GAS daily quotas
       try {
         const workerBlob = new Blob([
           "setInterval(() => postMessage('tick'), 30000);"
         ], { type: "application/javascript" });
-        const bgWorker = new Worker(URL.createObjectURL(workerBlob));
+        const workerUrl = URL.createObjectURL(workerBlob);
+        const bgWorker = new Worker(workerUrl);
+        try { URL.revokeObjectURL(workerUrl); } catch (e) {}
         bgWorker.onmessage = () => {
           if (document.visibilityState === 'visible') {
             fetchDatabaseFromDrive(true);
@@ -12277,7 +12889,7 @@
       if (modalDownloadBtn) {
         modalDownloadBtn.addEventListener('click', () => {
           if (appState.activePreviewId) {
-            const file = appState.files.find(f => f.id === appState.activePreviewId);
+            const file = appState.files.find(f => f && f.id === appState.activePreviewId);
             if (file) triggerFileDownload(file);
           }
         });
@@ -12296,14 +12908,15 @@
       if (modalShareBtn) {
         modalShareBtn.addEventListener('click', async () => {
           if (!appState.activePreviewId) return;
-          const file = appState.files.find(f => f.id === appState.activePreviewId);
+          const file = appState.files.find(f => f && f.id === appState.activePreviewId);
           if (!file) return;
 
           const shareTitle = getCleanFileTitle(file);
           const basePlatformUrl = (window.location.protocol.startsWith('http'))
             ? (window.location.origin + window.location.pathname + '#file=' + encodeURIComponent(file.id))
             : '';
-          const shareUrl = basePlatformUrl || file.externalUrl || file.fileUrl || file.driveUrl || window.location.href;
+          const safeExtShare = sanitizeExternalUrl(file.externalUrl || file.fileUrl || file.driveUrl || '');
+          const shareUrl = basePlatformUrl || safeExtShare || window.location.href;
 
           try {
             if (navigator.share && typeof navigator.share === 'function') {
@@ -12397,13 +13010,16 @@
           btn.addEventListener('click', (e) => {
             e.preventDefault();
             if (!appState.isAdmin) {
+              if (closeSidebar && typeof closeQuickSidebar === 'function') {
+                closeQuickSidebar();
+              }
               openAdminModal();
               return;
             }
-            openPublishModal();
             if (closeSidebar && typeof closeQuickSidebar === 'function') {
               closeQuickSidebar();
             }
+            openPublishModal();
           });
         }
       };
@@ -12445,9 +13061,13 @@
         publishForm.addEventListener('submit', handlePublishSubmit);
       }
 
-      // Unified Escape Key Listener across modals and sidebar
+      // Unified Escape Key Listener across intro video, modals, and sidebar
       window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' || e.key === 'Esc') {
+          if (typeof closeIntroVideoIfOpen === 'function' && closeIntroVideoIfOpen()) {
+            return;
+          }
+
           const prevModal = document.getElementById('preview-modal');
           if (prevModal && !prevModal.classList.contains('hidden')) {
             closePreviewModal();
@@ -12482,9 +13102,6 @@
           if (qSidebar && qSidebar.classList.contains('sidebar-open')) {
             closeQuickSidebar();
             return;
-          } else {
-            closeQuickSidebar();
-            return;
           }
         }
       });
@@ -12515,7 +13132,7 @@
             break;
 
           case 'download': {
-            const file = appState.files.find(f => f.id === fileId);
+            const file = appState.files.find(f => f && f.id === fileId);
             if (file) {
               triggerFileDownload(file);
             } else {
@@ -12537,7 +13154,7 @@
               showToast('التعديل متاح فقط للمسؤولين', 'warning');
               return;
             }
-            const file = appState.files.find(f => f.id === fileId);
+            const file = appState.files.find(f => f && f.id === fileId);
             if (file) {
               openPublishModal(file);
             }
@@ -12549,19 +13166,35 @@
               showToast('الحذف متاح فقط للمسؤولين', 'warning');
               return;
             }
-            const file = appState.files.find(f => f.id === fileId);
+            const file = appState.files.find(f => f && f.id === fileId);
             if (!file) return;
 
             const confirmed = window.confirm(`هل أنت متأكد من حذف الملف "${getCleanFileTitle(file)}" نهائياً؟`);
             if (!confirmed) return;
 
-            // Track deleted ID so background pollings never bring it back
-            if (!appState.deletedFileIds) appState.deletedFileIds = new Set();
-            appState.deletedFileIds.add(fileId);
-            if (file.driveFileId) appState.deletedFileIds.add(file.driveFileId);
+            // Backup for rollback if server explicitly rejects (e.g. unauthorized)
+            const backupFiles = [...appState.files];
+            const backupFolders = Array.isArray(appState.folders) ? [...appState.folders] : [];
+            const backupSavedIds = [...appState.savedIds];
+            const backupCompletedIds = [...appState.completedIds];
+
+            const cleanDriveId = file.driveFileId || (String(fileId).startsWith('drive_') ? String(fileId).replace(/^drive_/, '') : '');
+            const tombIds = [fileId];
+            if (cleanDriveId) {
+              tombIds.push(cleanDriveId, 'drive_' + cleanDriveId);
+            }
+
+            // Track deleted IDs (in-memory + short-TTL localStorage tombstones) so background polls or quick reloads never resurrect it
+            recordDeletedFileIds(tombIds);
+            appState.syncMutationEpoch = (appState.syncMutationEpoch || 0) + 1;
+            appState.lastMutationTime = Date.now();
+
+            if (appState.activePreviewId === fileId) {
+              closePreviewModal();
+            }
 
             // Immediate optimistic UI removal + clean up empty folder card
-            appState.files = appState.files.filter(f => f.id !== fileId);
+            appState.files = appState.files.filter(f => f && f.id !== fileId);
             appState.savedIds = appState.savedIds.filter(id => id !== fileId);
             appState.completedIds = appState.completedIds.filter(id => id !== fileId);
             if (Array.isArray(appState.folders)) {
@@ -12574,8 +13207,12 @@
                 )
               );
             }
+            appState.lastRenderedSignature = computeDatabaseSignature(appState.files, appState.folders, appState.aboutContent);
             saveAppState();
+
+            const isExplorerView = appState.currentView === 'explorer' && !appState.onlySavedFilter && appState.searchQuery.trim() === '';
             if (
+              isExplorerView &&
               appState.currentFolderNum !== null &&
               !appState.files.some(rf =>
                 rf &&
@@ -12586,13 +13223,15 @@
             ) {
               navigateToHierarchy(appState.currentSubject, appState.currentCategory, null);
             } else {
+              renderQuickSubjectBar();
+              renderBreadcrumbBar();
               renderExplorerContent();
             }
             updateLibraryCounters();
+            updateNotificationsUI();
             showToast('جاري حذف الملف نهائياً من Google Drive...', 'info');
 
             // Send persistent deletion command to Google Drive cloud backend (including clean driveFileId)
-            const cleanDriveId = file.driveFileId || (String(fileId).startsWith('drive_') ? String(fileId).replace(/^drive_/, '') : extractDriveFileId(file.fileUrl || file.driveUrl || file.externalUrl || ''));
             syncActionToDrive({
               action: 'deleteFile',
               id: fileId,
@@ -12600,12 +13239,26 @@
             }).then(res => {
               if (res && res.ok) {
                 showToast('تم حذف الملف نهائياً من Google Drive ✓', 'success');
+              } else if (res && res.rejectedByServer) {
+                unmarkDeletedFileIds(tombIds);
+                appState.files = backupFiles;
+                appState.folders = backupFolders;
+                appState.savedIds = backupSavedIds;
+                appState.completedIds = backupCompletedIds;
+                appState.lastRenderedSignature = computeDatabaseSignature(appState.files, appState.folders, appState.aboutContent);
+                saveAppState();
+                renderQuickSubjectBar();
+                renderBreadcrumbBar();
+                renderExplorerContent();
+                updateLibraryCounters();
+                updateNotificationsUI();
+                showToast((res && res.error) ? `تعذر الحذف: ${res.error}` : 'رفض الخادم عملية الحذف', 'warning');
               } else {
-                showToast('تم الحذف محلياً وسيتم المزامنة لاحقاً', 'warning');
+                showToast('تعذر الاتصال بالسحابة حالياً لإتمام الحذف، يرجى المحاولة مجدداً.', 'warning');
               }
             }).catch(syncErr => {
               console.error('Delete sync error:', syncErr);
-              showToast('تم الحذف محلياً (تعذر الاتصال بالسحابة)', 'warning');
+              showToast('تعذر الاتصال بالسحابة حالياً لإتمام الحذف', 'warning');
             });
             break;
           }
